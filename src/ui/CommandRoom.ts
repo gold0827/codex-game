@@ -64,17 +64,22 @@ function renderOfficerStatus(tone: OfficerTone, status: string): HTMLElement {
   return statusNode;
 }
 
-function renderOfficers(scenario: CommandRoomScenario): HTMLElement {
+function renderOfficers(
+  scenario: CommandRoomScenario,
+  currentPhaseIndex: number,
+): HTMLElement {
   const { officers } = scenario;
+  const phase = scenario.timeline.phases[currentPhaseIndex];
   const section = labelledSection(
     "officers",
     "panel officers",
     officers.regionLabel,
   );
-  section.append(element("p", "section-summary", officers.summary));
+  section.append(element("p", "section-summary", phase.officerSummary));
 
   const list = element("div", "officer-list");
   officers.entries.forEach((officer, index) => {
+    const update = phase.officerUpdates[index];
     const card = element("article", "officer-card");
     card.dataset.officer = officer.callSign;
 
@@ -86,7 +91,7 @@ function renderOfficers(scenario: CommandRoomScenario): HTMLElement {
       element("p", "officer-assignment", `${officer.assignment} · ${officer.callSign}`),
     );
     const header = element("header", "officer-header");
-    header.append(indexNode, identity, renderOfficerStatus(officer.tone, officer.status));
+    header.append(indexNode, identity, renderOfficerStatus(update.tone, update.status));
 
     const readiness = element("div", "readiness");
     readiness.append(
@@ -103,7 +108,7 @@ function renderOfficers(scenario: CommandRoomScenario): HTMLElement {
     const report = element("blockquote", "officer-report");
     report.append(
       element("span", "field-label", officer.reportLabel),
-      element("p", undefined, officer.report),
+      element("p", undefined, update.report),
     );
     card.append(header, readiness, report);
     list.append(card);
@@ -118,23 +123,66 @@ function renderTimelineStatus(tone: TimelineTone, status: string): HTMLElement {
   return node;
 }
 
-function renderTimeline(scenario: CommandRoomScenario): HTMLElement {
+function renderTimeline(
+  scenario: CommandRoomScenario,
+  currentPhaseIndex: number,
+  onPrimaryAction: () => void,
+): HTMLElement {
   const { timeline } = scenario;
+  const currentPhase = timeline.phases[currentPhaseIndex];
+  const phaseCount = timeline.phases.length;
   const section = labelledSection(
     "timeline",
     "panel timeline",
     timeline.regionLabel,
   );
-  const progress = element("p", "section-summary");
-  progress.append(
-    document.createTextNode(`${timeline.progressLabel} `),
-    element("strong", undefined, timeline.progress),
+  const progressText = `${timeline.progressLabel} ${currentPhaseIndex + 1} / ${phaseCount}`;
+  const progress = element("p", "section-summary", progressText);
+  progress.id = "round-progress";
+
+  const progressMeter = element("progress", "round-progress-meter");
+  progressMeter.max = phaseCount;
+  progressMeter.value = currentPhaseIndex + 1;
+  progressMeter.setAttribute(
+    "aria-label",
+    `${phaseCount}단계 중 ${currentPhaseIndex + 1}단계`,
   );
-  section.append(progress);
+
+  const current = element("div", "current-phase");
+  current.setAttribute("role", "status");
+  current.setAttribute("aria-live", "polite");
+  current.setAttribute("aria-atomic", "true");
+  current.append(
+    element("span", "field-label", "현재 단계"),
+    element("h3", "current-phase-title", currentPhase.title),
+  );
+  const currentDetail = element("p", "current-phase-detail", currentPhase.detail);
+  currentDetail.id = "current-phase-detail";
+  current.append(currentDetail);
+  section.append(progress, progressMeter, current);
 
   const list = element("ol", "timeline-list");
-  timeline.entries.forEach((entry) => {
-    const item = element("li", `timeline-item timeline-item-${entry.tone}`);
+  timeline.phases.forEach((entry, index) => {
+    const isCurrent = index === currentPhaseIndex;
+    const isFinalPhase = index === phaseCount - 1;
+    const tone: TimelineTone =
+      index < currentPhaseIndex
+        ? "complete"
+        : isCurrent && isFinalPhase
+          ? "failed"
+          : isCurrent
+            ? "active"
+            : "pending";
+    const status =
+      index < currentPhaseIndex
+        ? "완료"
+        : isCurrent && isFinalPhase
+          ? "결과"
+          : isCurrent
+            ? "현재"
+            : "대기";
+    const item = element("li", `timeline-item timeline-item-${tone}`);
+    if (isCurrent) item.setAttribute("aria-current", "step");
     item.append(
       element("time", "timeline-time", entry.time),
       element("span", "timeline-marker"),
@@ -143,13 +191,23 @@ function renderTimeline(scenario: CommandRoomScenario): HTMLElement {
     const heading = element("div", "timeline-heading");
     heading.append(
       element("h3", "timeline-title", entry.title),
-      renderTimelineStatus(entry.tone, entry.status),
+      renderTimelineStatus(tone, status),
     );
     copy.append(heading, element("p", "timeline-detail", entry.detail));
     item.append(copy);
     list.append(item);
   });
-  section.append(list);
+  const action = element("button", "primary-action", currentPhase.actionLabel);
+  action.type = "button";
+  action.setAttribute("aria-describedby", "round-progress current-phase-detail");
+  action.addEventListener("click", onPrimaryAction);
+  action.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onPrimaryAction();
+    }
+  });
+  section.append(list, action);
   return section;
 }
 
@@ -186,22 +244,47 @@ function renderHarness(scenario: CommandRoomScenario): HTMLElement {
   return section;
 }
 
-function renderOutcome(scenario: CommandRoomScenario): HTMLElement {
+function renderOutcome(
+  scenario: CommandRoomScenario,
+  showOutcome: boolean,
+): HTMLElement {
   const { outcome } = scenario;
-  const section = labelledSection("outcome", "panel outcome", outcome.regionLabel);
-  const verdict = element("span", "outcome-verdict", outcome.verdict);
+  const stateClass = showOutcome ? "outcome-final" : "outcome-pending";
+  const section = labelledSection(
+    "outcome",
+    `panel outcome ${stateClass}`,
+    outcome.regionLabel,
+  );
+  section.dataset.outcomeState = showOutcome ? "final" : "pending";
+  section.setAttribute("aria-live", "polite");
+  const verdict = element(
+    "span",
+    "outcome-verdict",
+    showOutcome ? outcome.verdict : outcome.pendingVerdict,
+  );
   const copy = element("div", "outcome-copy");
   copy.append(
     verdict,
-    element("h3", "outcome-title", outcome.title),
-    element("p", "outcome-description", outcome.description),
+    element(
+      "h3",
+      "outcome-title",
+      showOutcome ? outcome.title : outcome.pendingTitle,
+    ),
+    element(
+      "p",
+      "outcome-description",
+      showOutcome ? outcome.description : outcome.pendingDescription,
+    ),
   );
-  const metric = element("div", "outcome-metric");
-  metric.append(
-    element("span", "field-label", outcome.metricLabel),
-    element("strong", "metric-value", outcome.metric),
-  );
-  section.append(copy, metric);
+  section.append(copy);
+  if (showOutcome) {
+    const metric = element("div", "outcome-metric");
+    metric.append(
+      element("span", "field-label", outcome.metricLabel),
+      element("strong", "metric-value", outcome.metric),
+    );
+    section.append(metric);
+  }
   return section;
 }
 
@@ -209,33 +292,48 @@ export function renderCommandRoom(
   root: HTMLElement,
   scenario: CommandRoomScenario,
 ): void {
-  root.replaceChildren();
+  let currentPhaseIndex = 0;
 
-  const shell = element("div", "command-room");
-  const header = element("header", "topbar");
-  const brand = element("div", "brand");
-  brand.append(
-    element("p", "eyebrow", scenario.identity.eyebrow),
-    element("h1", "screen-title", scenario.identity.title),
-  );
-  const round = element("div", "round-identity");
-  round.append(
-    element("strong", "round-label", scenario.identity.round),
-    element("span", "operation-clock", scenario.identity.clock),
-  );
-  const signal = element("span", "signal-warning", scenario.identity.signal);
-  header.append(brand, round, signal);
+  const render = (restoreActionFocus = false): void => {
+    root.replaceChildren();
+    const currentPhase = scenario.timeline.phases[currentPhaseIndex];
+    const isFinalPhase = currentPhaseIndex === scenario.timeline.phases.length - 1;
 
-  const grid = element("main", "command-grid");
-  grid.append(
-    renderMission(scenario),
-    renderOfficers(scenario),
-    renderTimeline(scenario),
-    renderHarness(scenario),
-    renderOutcome(scenario),
-  );
+    const shell = element("div", "command-room");
+    const header = element("header", "topbar");
+    const brand = element("div", "brand");
+    brand.append(
+      element("p", "eyebrow", scenario.identity.eyebrow),
+      element("h1", "screen-title", scenario.identity.title),
+    );
+    const round = element("div", "round-identity");
+    round.append(
+      element("strong", "round-label", scenario.identity.round),
+      element("span", "operation-clock", `작전 시각 ${currentPhase.time}`),
+    );
+    const signal = element("span", "signal-warning", scenario.identity.signal);
+    header.append(brand, round, signal);
 
-  const footer = element("footer", "screen-footer", scenario.footer);
-  shell.append(header, grid, footer);
-  root.append(shell);
+    const advance = (): void => {
+      currentPhaseIndex = isFinalPhase ? 0 : currentPhaseIndex + 1;
+      render(true);
+    };
+    const grid = element("main", "command-grid");
+    grid.append(
+      renderMission(scenario),
+      renderOfficers(scenario, currentPhaseIndex),
+      renderTimeline(scenario, currentPhaseIndex, advance),
+      renderHarness(scenario),
+      renderOutcome(scenario, isFinalPhase),
+    );
+
+    const footer = element("footer", "screen-footer", scenario.footer);
+    shell.append(header, grid, footer);
+    root.append(shell);
+    if (restoreActionFocus) {
+      root.querySelector<HTMLButtonElement>(".primary-action")?.focus();
+    }
+  };
+
+  render();
 }
