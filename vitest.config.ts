@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["tests/ui/**/*.test.ts"],
+    exclude: ["tests/ui/.artifacts/**"],
   },
 });

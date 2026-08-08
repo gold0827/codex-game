@@ -172,7 +172,7 @@ export const commandRoomScenario: CommandRoomScenario = {
     ],
   },
   harness: {
-    regionLabel: "하네스 제어",
+    regionLabel: "지휘 체계 조정",
     unavailableLabel: "이번 라운드에서는 조정 불가",
     explanation:
       "현재 설정을 관찰하십시오. 다음 라운드부터 정보 공유와 승인 조건을 조정할 수 있습니다.",

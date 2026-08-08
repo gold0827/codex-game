@@ -25,6 +25,8 @@ describe("command-room round screen", () => {
   it("renders representative content from the single scripted scenario", () => {
     const displayedText = root.textContent;
 
+    expect(displayedText).toContain("지휘 체계 조정");
+    expect(displayedText).not.toContain("하네스 제어");
     expect(displayedText).toContain(commandRoomScenario.identity.round);
     expect(displayedText).toContain(commandRoomScenario.mission.title);
     expect(displayedText).toContain(commandRoomScenario.mission.command);
