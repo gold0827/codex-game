@@ -4,6 +4,22 @@ import { commandRoomScenario } from "../../src/scenarios/commandRoomScenario";
 import { renderCommandRoom } from "../../src/ui/CommandRoom";
 import { renderTacticalMap } from "../../src/ui/TacticalMap";
 
+const successBoardFixtures = {
+  rerouted: {
+    state: "rerouted",
+    description:
+      "경로 재선정. 침수 위험 경고를 피해 온전한 수송 차량 세 대가 남쪽 임시 도로의 안전 경로로 이동한다.",
+  },
+  secured: {
+    state: "secured",
+    description:
+      "목표 확보. 온전한 수송 차량 세 대가 침수 구역을 우회해 전방 초소 목표에 도착했다.",
+  },
+} satisfies Record<
+  "rerouted" | "secured",
+  (typeof commandRoomScenario.tacticalMap.phases)[number]
+>;
+
 describe("command-room round screen", () => {
   let root: HTMLElement;
 
@@ -289,6 +305,73 @@ describe("command-room round screen", () => {
     expect(graphic.querySelector('[data-cue="hatched-zone"]')).not.toBeNull();
     expect(graphic.querySelector('[data-cue="stranded-cross"]')).not.toBeNull();
     expect(graphic.querySelector('[data-cue="failure-stamp"]')).not.toBeNull();
+  });
+
+  it("renders the rerouted scenario fixture with an intact convoy on a distinct safe route", () => {
+    const scenario = structuredClone(commandRoomScenario);
+    scenario.tacticalMap.phases[0] = successBoardFixtures.rerouted;
+    root.replaceChildren(renderTacticalMap(scenario, 0));
+
+    const map = tacticalMap();
+    const graphic = mapGraphic();
+    const safeRoute = graphic.querySelector('[data-cue="solid-safe-route"]');
+    const warning = graphic.querySelector('[data-cue="triangle-warning"]');
+    const flood = graphic.querySelector('[data-cue="hatched-zone"]');
+    const vehicles = [...graphic.querySelectorAll<SVGGElement>(".convoy-moving")];
+
+    expect(map.dataset.mapState).toBe("rerouted");
+    expect(graphic.querySelector("desc")?.textContent).toBe(
+      successBoardFixtures.rerouted.description,
+    );
+    expect(safeRoute?.textContent).toContain("안전 경로 · 남쪽 임시 도로");
+    expect(safeRoute?.getAttribute("aria-label")).toContain("실선");
+    expect(safeRoute?.getAttribute("aria-label")).toContain("마름모 경유점");
+    expect(safeRoute?.querySelectorAll('[data-cue="diamond-waypoints"] rect')).toHaveLength(
+      3,
+    );
+    expect(graphic.querySelector('[data-cue="dashed-route"]')).toBeNull();
+    expect(warning?.getAttribute("aria-label")).toContain("삼각형 느낌표");
+    expect(flood?.getAttribute("aria-label")).toContain("빗금과 경계선");
+    expect(vehicles).toHaveLength(3);
+    expect(
+      vehicles.every((vehicle) => vehicle.getAttribute("aria-label")?.includes("이동 중")),
+    ).toBe(true);
+    expect(graphic.textContent).toContain("수송대 · 이동 중");
+    expect(graphic.querySelector('[data-cue="stranded-cross"]')).toBeNull();
+    expect(graphic.querySelector('[data-cue="failure-stamp"]')).toBeNull();
+    expect(graphic.querySelector('[data-cue="success-badge"]')).toBeNull();
+    expect(map.textContent).toContain("실선과 마름모: 안전 경로");
+  });
+
+  it("renders the secured scenario fixture with the intact convoy and Korean success cue", () => {
+    const scenario = structuredClone(commandRoomScenario);
+    scenario.tacticalMap.phases[0] = successBoardFixtures.secured;
+    root.replaceChildren(renderTacticalMap(scenario, 0));
+
+    const map = tacticalMap();
+    const graphic = mapGraphic();
+    const success = graphic.querySelector('[data-cue="success-badge"]');
+    const vehicles = [...graphic.querySelectorAll<SVGGElement>(".convoy-secured")];
+
+    expect(map.dataset.mapState).toBe("secured");
+    expect(graphic.querySelector("desc")?.textContent).toBe(
+      successBoardFixtures.secured.description,
+    );
+    expect(graphic.querySelector('[data-cue="solid-safe-route"]')).not.toBeNull();
+    expect(graphic.querySelector('[data-cue="triangle-warning"]')).not.toBeNull();
+    expect(graphic.querySelector('[data-cue="hatched-zone"]')).not.toBeNull();
+    expect(vehicles).toHaveLength(3);
+    expect(
+      vehicles.every((vehicle) => vehicle.getAttribute("aria-label")?.includes("목표 도착")),
+    ).toBe(true);
+    expect(graphic.textContent).toContain("수송대 · 목표 도착");
+    expect(success?.textContent).toContain("목표 확보");
+    expect(success?.getAttribute("aria-label")).toContain("원형 방패");
+    expect(success?.getAttribute("aria-label")).toContain("확인 표식");
+    expect(graphic.querySelector('[data-cue="stranded-cross"]')).toBeNull();
+    expect(graphic.querySelector('[data-cue="failure-stamp"]')).toBeNull();
+    expect(graphic.querySelector(".convoy-label-critical")).toBeNull();
+    expect(map.textContent).toContain("원형 확인 표식: 목표 확보");
   });
 
   it("identifies the first phase and its scripted information on initial render", () => {

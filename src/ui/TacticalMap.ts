@@ -4,6 +4,7 @@ import type {
 } from "../scenarios/commandRoomScenario";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+type ConvoyVehicleState = "moving" | "waiting" | "stranded" | "secured";
 
 function svgElement<K extends keyof SVGElementTagNameMap>(
   tag: K,
@@ -36,7 +37,7 @@ function appendVehicle(
   x: number,
   y: number,
   label: string,
-  state: "moving" | "waiting" | "stranded",
+  state: ConvoyVehicleState,
   rotation = 0,
 ): void {
   const vehicle = svgElement("g", {
@@ -45,7 +46,13 @@ function appendVehicle(
     "data-vehicle": label,
     role: "img",
     "aria-label": `${label} ${
-      state === "stranded" ? "고립" : state === "moving" ? "이동 중" : "대기"
+      state === "stranded"
+        ? "고립"
+        : state === "moving"
+          ? "이동 중"
+          : state === "secured"
+            ? "목표 도착"
+            : "대기"
     }`,
   });
   const title = svgElement("title");
@@ -137,7 +144,20 @@ function appendMapDefinitions(svg: SVGSVGElement): void {
   });
   routeArrow.append(svgElement("path", { d: "M0 0 L10 5 L0 10 Z", class: "route-arrow" }));
 
-  definitions.append(minorGrid, majorGrid, hatch, routeArrow);
+  const safeRouteArrow = svgElement("marker", {
+    id: "safe-route-arrow",
+    viewBox: "0 0 10 10",
+    refX: "8",
+    refY: "5",
+    markerWidth: "8",
+    markerHeight: "8",
+    orient: "auto-start-reverse",
+  });
+  safeRouteArrow.append(
+    svgElement("path", { d: "M0 0 L10 5 L0 10 Z", class: "safe-route-arrow" }),
+  );
+
+  definitions.append(minorGrid, majorGrid, hatch, routeArrow, safeRouteArrow);
   svg.append(definitions);
 }
 
@@ -223,6 +243,52 @@ function appendRoute(svg: SVGSVGElement): void {
   svg.append(route);
 }
 
+function appendSafeRoute(svg: SVGSVGElement): void {
+  const path =
+    "M112 410 C184 366 250 338 302 314 C430 366 590 430 828 448 C898 410 916 302 850 210";
+  const route = svgElement("g", {
+    class: "safe-route-layer",
+    "data-cue": "solid-safe-route",
+    role: "img",
+    "aria-label": "화살표와 실선, 마름모 경유점으로 표시한 안전 경로",
+  });
+  route.append(
+    svgElement("path", {
+      d: path,
+      class: "safe-convoy-route safe-route-outline",
+    }),
+    svgElement("path", {
+      d: path,
+      class: "safe-convoy-route",
+      "marker-end": "url(#safe-route-arrow)",
+    }),
+  );
+
+  const waypoints = svgElement("g", {
+    class: "safe-route-waypoints",
+    "data-cue": "diamond-waypoints",
+    "aria-hidden": "true",
+  });
+  [
+    [302, 314],
+    [590, 430],
+    [828, 448],
+  ].forEach(([x, y]) => {
+    waypoints.append(
+      svgElement("rect", {
+        x: String(x - 7),
+        y: String(y - 7),
+        width: "14",
+        height: "14",
+        transform: `rotate(45 ${x} ${y})`,
+      }),
+    );
+  });
+  route.append(waypoints);
+  appendText(route, "안전 경로 · 남쪽 임시 도로", 532, 472, "map-label safe-route-label");
+  svg.append(route);
+}
+
 function appendFloodWarning(svg: SVGSVGElement): void {
   const zone = svgElement("g", {
     class: "flood-zone",
@@ -275,15 +341,39 @@ function appendConvoy(svg: SVGSVGElement, mapState: TacticalMapState): void {
     warning: { x: 412, y: 258, rotation: -34 },
     stranded: { x: 505, y: 254, rotation: -38 },
     failed: { x: 505, y: 254, rotation: -38 },
+    rerouted: { x: 554, y: 407, rotation: 13 },
+    secured: { x: 837, y: 247, rotation: -58 },
   };
   const position = positions[mapState];
   const isStranded = mapState === "stranded" || mapState === "failed";
-  const vehicleState = mapState === "command" ? "waiting" : "moving";
+  const vehicleState: ConvoyVehicleState =
+    mapState === "command" ? "waiting" : mapState === "secured" ? "secured" : "moving";
 
   if (!isStranded) {
-    appendVehicle(convoy, position.x - 50, position.y + 26, "수송 3호차", vehicleState, position.rotation);
-    appendVehicle(convoy, position.x - 25, position.y + 13, "수송 2호차", vehicleState, position.rotation);
-    appendVehicle(convoy, position.x, position.y, "수송 1호차", vehicleState, position.rotation);
+    appendVehicle(
+      convoy,
+      position.x - 50,
+      position.y + 26,
+      "수송 3호차",
+      vehicleState,
+      position.rotation,
+    );
+    appendVehicle(
+      convoy,
+      position.x - 25,
+      position.y + 13,
+      "수송 2호차",
+      vehicleState,
+      position.rotation,
+    );
+    appendVehicle(
+      convoy,
+      position.x,
+      position.y,
+      "수송 1호차",
+      vehicleState,
+      position.rotation,
+    );
   } else {
     appendVehicle(convoy, 424, 284, "수송 3호차", "waiting", -35);
     appendVehicle(convoy, 458, 266, "수송 1호차", "waiting", -35);
@@ -295,12 +385,36 @@ function appendConvoy(svg: SVGSVGElement, mapState: TacticalMapState): void {
       ? "수송 2호차 · 고립"
       : mapState === "command"
         ? "수송대 · 출발 대기"
-        : "수송대 · 이동 중",
+        : mapState === "secured"
+          ? "수송대 · 목표 도착"
+          : "수송대 · 이동 중",
     isStranded ? 520 : Math.max(115, position.x - 20),
     isStranded ? 300 : position.y + 52,
     `map-label convoy-label${isStranded ? " convoy-label-critical" : ""}`,
   );
   svg.append(convoy);
+}
+
+function appendSuccessCue(svg: SVGSVGElement): void {
+  const cue = svgElement("g", {
+    class: "success-badge",
+    "data-cue": "success-badge",
+    role: "img",
+    "aria-label": "원형 방패와 확인 표식으로 표시한 목표 확보",
+    transform: "translate(694 352)",
+  });
+  cue.append(
+    svgElement("circle", { cx: "0", cy: "0", r: "42" }),
+    svgElement("path", {
+      d: "M-20 0 L-6 15 L22 -18",
+      class: "success-check",
+    }),
+  );
+  appendText(cue, "목표 확보", 0, 75, "map-label success-label").setAttribute(
+    "text-anchor",
+    "middle",
+  );
+  svg.append(cue);
 }
 
 function appendFailureStamp(svg: SVGSVGElement): void {
@@ -369,22 +483,44 @@ export function renderTacticalMap(
   appendFriendlyMarker(svg, 116, 454, "HQ", "수송대 출발 지점", "◆");
   appendFriendlyMarker(svg, 714, 146, "INT", "정보 장교 정찰 지점", "△");
   appendFriendlyMarker(svg, 850, 210, "OBJ", "전방 초소 목표", "★");
-  if (mapState !== "command") appendRoute(svg);
-  if (mapState === "warning" || mapState === "stranded" || mapState === "failed") {
+  if (
+    mapState === "route" ||
+    mapState === "warning" ||
+    mapState === "stranded" ||
+    mapState === "failed"
+  ) {
+    appendRoute(svg);
+  }
+  if (mapState === "rerouted" || mapState === "secured") appendSafeRoute(svg);
+  if (
+    mapState === "warning" ||
+    mapState === "stranded" ||
+    mapState === "failed" ||
+    mapState === "rerouted" ||
+    mapState === "secured"
+  ) {
     appendFloodWarning(svg);
   }
   appendConvoy(svg, mapState);
   if (mapState === "failed") appendFailureStamp(svg);
+  if (mapState === "secured") appendSuccessCue(svg);
   frame.append(svg);
 
   const legend = document.createElement("ul");
   legend.className = "tactical-legend";
   legend.setAttribute("aria-label", "전술 기호 설명");
-  [
+  const legendEntries = [
     ["legend-route", "점선 화살표: 선정 경로"],
     ["legend-warning", "삼각형 느낌표: 정찰 경고"],
     ["legend-failure", "빗금 구역: 침수 위험"],
-  ].forEach(([className, text]) => {
+  ];
+  if (mapState === "rerouted" || mapState === "secured") {
+    legendEntries.push(["legend-safe-route", "실선과 마름모: 안전 경로"]);
+  }
+  if (mapState === "secured") {
+    legendEntries.push(["legend-success", "원형 확인 표식: 목표 확보"]);
+  }
+  legendEntries.forEach(([className, text]) => {
     const item = document.createElement("li");
     const cue = document.createElement("span");
     cue.className = className;

@@ -330,6 +330,29 @@ select {
   fill: #f3c66b;
 }
 
+.safe-convoy-route {
+  fill: none;
+  stroke: #9ce6b7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 6;
+}
+
+.safe-route-outline {
+  stroke: #11150e;
+  stroke-width: 12;
+}
+
+.safe-route-arrow {
+  fill: #9ce6b7;
+}
+
+.safe-route-waypoints rect {
+  fill: #15231d;
+  stroke: #c8f4d6;
+  stroke-width: 4;
+}
+
 .map-label {
   fill: #fff3d3;
   paint-order: stroke;
@@ -349,6 +372,10 @@ select {
 
 .route-label {
   fill: #ffd77d;
+}
+
+.safe-route-label {
+  fill: #c8f4d6;
 }
 
 .hatch-base {
@@ -429,6 +456,11 @@ select {
   fill: #e9c0a8;
 }
 
+.convoy-secured {
+  fill: #c8f4d6;
+  stroke-width: 3;
+}
+
 .vehicle-window {
   fill: #263c3c;
 }
@@ -457,6 +489,25 @@ select {
   fill: none;
   stroke: #ff6d57;
   stroke-width: 9;
+}
+
+.success-badge circle {
+  fill: rgba(15, 50, 31, 0.88);
+  stroke: #9ce6b7;
+  stroke-width: 7;
+}
+
+.success-check {
+  fill: none;
+  stroke: #d7ffe1;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 9;
+}
+
+.success-label {
+  fill: #d7ffe1;
+  font-size: 24px;
 }
 
 .tactical-legend {
@@ -495,6 +546,39 @@ select {
 .legend-failure {
   border: 1px solid var(--red);
   background: repeating-linear-gradient(135deg, transparent 0 4px, var(--red) 4px 6px);
+}
+
+.legend-safe-route {
+  position: relative;
+  border-top: 3px solid #9ce6b7;
+}
+
+.legend-safe-route::after {
+  position: absolute;
+  top: -6px;
+  left: 8px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid #c8f4d6;
+  background: #15231d;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.legend-success {
+  position: relative;
+  border: 2px solid #9ce6b7;
+  border-radius: 50%;
+}
+
+.legend-success::after {
+  position: absolute;
+  top: -3px;
+  left: 7px;
+  color: #d7ffe1;
+  content: "✓";
+  font-size: 0.85rem;
+  font-weight: 900;
 }
 
 .mission {
