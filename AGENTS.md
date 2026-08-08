@@ -30,6 +30,14 @@ documentation use Codex only. Four distinct Codex sessions own these roles:
 - **Fresh Codex auditor.** Has no implementation or liaison role and audits the
   issue and PR artifacts before merge.
 
+## Cycle continuity
+
+Bootstrap rule — expires after 3 cycles under `catalog.md` § How a rule enters.
+
+- Pin the Codex model and reasoning effort for every role launch.
+- An unavailable Orca runtime stops cycle mutation. Resume after tracked
+  transport is restored; do not substitute local files or direct prompts.
+
 ## Work-item intake
 
 Bootstrap rule — expires after 3 cycles under `catalog.md` § How a rule enters.
