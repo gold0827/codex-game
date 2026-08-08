@@ -4,32 +4,8 @@ import { commandRoomScenario } from "../../src/scenarios/commandRoomScenario";
 import { renderCommandRoom } from "../../src/ui/CommandRoom";
 import { renderTacticalMap } from "../../src/ui/TacticalMap";
 
-const successBoardFixtures = {
-  rerouted: {
-    state: "rerouted",
-    description:
-      "경로 재선정. 침수 위험 경고를 피해 온전한 수송 차량 세 대가 남쪽 임시 도로의 안전 경로로 이동한다.",
-  },
-  secured: {
-    state: "secured",
-    description:
-      "목표 확보. 온전한 수송 차량 세 대가 침수 구역을 우회해 전방 초소 목표에 도착했다.",
-  },
-} satisfies Record<
-  "rerouted" | "secured",
-  (typeof commandRoomScenario.tacticalMap.phases)[number]
->;
-
-const successOutcomeFixture = {
-  ...commandRoomScenario.outcome,
-  tone: "success",
-  verdict: "작전 성공",
-  title: "수송대가 모두 도착했습니다",
-  description:
-    "최신 정찰 정보를 함께 확인해 수송대가 침수 구역을 우회하고 전방 초소에 도착했습니다.",
-  metricLabel: "조직 신뢰도",
-  metric: "91 / 100",
-} satisfies (typeof commandRoomScenario)["outcome"];
+const crossCheckSimulation =
+  commandRoomScenario.protocolSimulations["cross-check"];
 
 describe("command-room round screen", () => {
   let root: HTMLElement;
@@ -82,11 +58,14 @@ describe("command-room round screen", () => {
     return root.querySelector<HTMLElement>('[data-region="outcome"]')!;
   }
 
-  function advanceToFinalOutcome(): void {
-    selectProtocol("independent");
+  function advanceToFinalOutcome(
+    protocol: "independent" | "cross-check" = "independent",
+  ): void {
+    const simulation = commandRoomScenario.protocolSimulations[protocol];
+    selectProtocol(protocol);
     for (
       let index = 1;
-      index < commandRoomScenario.timeline.phases.length;
+      index < simulation.timeline.phases.length;
       index += 1
     ) {
       primaryAction().click();
@@ -158,30 +137,27 @@ describe("command-room round screen", () => {
     );
   });
 
-  it("renders a Korean, semantic success outcome with success treatment hooks", () => {
-    const scenario = structuredClone(commandRoomScenario);
-    scenario.outcome = successOutcomeFixture;
-    renderCommandRoom(root, scenario);
-
-    advanceToFinalOutcome();
+  it("renders the cross-check branch's Korean success outcome and success tone", () => {
+    advanceToFinalOutcome("cross-check");
     const outcome = outcomePanel();
 
+    expect(crossCheckSimulation.outcome.tone).toBe("success");
     expect(outcome.dataset.outcomeState).toBe("final");
     expect(outcome.dataset.outcomeTone).toBe("success");
     expect(outcome.classList.contains("outcome-success")).toBe(true);
     expect(outcome.getAttribute("aria-live")).toBe("polite");
     expect(outcome.querySelector(".outcome-verdict")?.textContent).toBe("작전 성공");
     expect(outcome.querySelector(".outcome-title")?.textContent).toBe(
-      successOutcomeFixture.title,
+      crossCheckSimulation.outcome.title,
     );
     expect(outcome.querySelector(".outcome-description")?.textContent).toBe(
-      successOutcomeFixture.description,
+      crossCheckSimulation.outcome.description,
     );
     expect(outcome.querySelector(".outcome-metric .field-label")?.textContent).toBe(
-      successOutcomeFixture.metricLabel,
+      crossCheckSimulation.outcome.metricLabel,
     );
     expect(outcome.querySelector(".metric-value")?.textContent).toBe(
-      successOutcomeFixture.metric,
+      crossCheckSimulation.outcome.metric,
     );
   });
 
@@ -261,7 +237,7 @@ describe("command-room round screen", () => {
       "고정됨: 교차 확인",
     );
     expect(root.querySelector(".current-phase-title")?.textContent).toBe(
-      commandRoomScenario.timeline.phases[1].title,
+      crossCheckSimulation.timeline.phases[1].title,
     );
 
     protocolInput("independent").click();
@@ -297,6 +273,113 @@ describe("command-room round screen", () => {
         primaryAction().click();
       }
     }
+  });
+
+  it("keeps the independent simulation identical to the existing failure scenario", () => {
+    const independent = commandRoomScenario.protocolSimulations.independent;
+
+    expect(independent.timeline).toBe(commandRoomScenario.timeline);
+    expect(independent.tacticalMap).toBe(commandRoomScenario.tacticalMap);
+    expect(independent.outcome).toBe(commandRoomScenario.outcome);
+    expect(independent.tacticalMap.phases.map(({ state }) => state)).toEqual([
+      "command",
+      "route",
+      "warning",
+      "stranded",
+      "failed",
+    ]);
+    expect(independent.outcome.tone).toBe("failure");
+    expect(independent.outcome.metric).toBe("38 / 100");
+  });
+
+  it("runs the five ordered cross-check phases with the selected protocol locked", () => {
+    expect(crossCheckSimulation.timeline.phases).toHaveLength(5);
+    expect(crossCheckSimulation.tacticalMap.phases.map(({ state }) => state)).toEqual([
+      "command",
+      "command",
+      "command",
+      "rerouted",
+      "secured",
+    ]);
+    expect(crossCheckSimulation.timeline.phases[0]).toBe(
+      commandRoomScenario.timeline.phases[0],
+    );
+    expect(crossCheckSimulation.tacticalMap.phases[0]).toBe(
+      commandRoomScenario.tacticalMap.phases[0],
+    );
+    expect(crossCheckSimulation.timeline.phases[1].detail).toContain("출발 전");
+    expect(crossCheckSimulation.timeline.phases[1].detail).toContain("충돌");
+    expect(crossCheckSimulation.timeline.phases[2].detail).toContain("경고");
+    expect(crossCheckSimulation.timeline.phases[2].detail).toContain("출발이 보류");
+    expect(crossCheckSimulation.timeline.phases[3].title).toContain(
+      "남쪽 임시 도로",
+    );
+    expect(crossCheckSimulation.timeline.phases[4].detail).toContain(
+      "수송 차량 세 대",
+    );
+
+    selectProtocol("cross-check");
+    crossCheckSimulation.timeline.phases.forEach((phase, index) => {
+      expect(root.querySelector(".current-phase-title")?.textContent).toBe(phase.title);
+      expect(root.querySelector(".current-phase-detail")?.textContent).toBe(
+        phase.detail,
+      );
+      expect(tacticalMap().dataset.mapState).toBe(
+        crossCheckSimulation.tacticalMap.phases[index].state,
+      );
+      expect(mapGraphic().querySelector("desc")?.textContent).toBe(
+        crossCheckSimulation.tacticalMap.phases[index].description,
+      );
+      phase.officerUpdates.forEach(({ report }) => {
+        expect(root.querySelector('[data-region="officers"]')?.textContent).toContain(
+          report,
+        );
+      });
+
+      if (index > 0) {
+        expect(
+          root.querySelector<HTMLFieldSetElement>(".protocol-selector")?.disabled,
+        ).toBe(true);
+        expect(protocolInput("cross-check").checked).toBe(true);
+        expect(root.querySelector("#command-protocol-status")?.textContent).toBe(
+          "고정됨: 교차 확인",
+        );
+      }
+
+      if (index < crossCheckSimulation.timeline.phases.length - 1) {
+        primaryAction().click();
+      }
+    });
+
+    expect(outcomePanel().dataset.outcomeTone).toBe("success");
+    expect(outcomePanel().textContent).toContain(crossCheckSimulation.outcome.metric);
+    expect(Number.parseInt(crossCheckSimulation.outcome.metric, 10)).toBeGreaterThan(
+      Number.parseInt(commandRoomScenario.outcome.metric, 10),
+    );
+  });
+
+  it("supports independent failure, exact reset, then cross-check success in one session", () => {
+    const initialMarkup = root.innerHTML;
+
+    advanceToFinalOutcome("independent");
+    expect(tacticalMap().dataset.mapState).toBe("failed");
+    expect(outcomePanel().dataset.outcomeTone).toBe("failure");
+    expect(outcomePanel().textContent).toContain(commandRoomScenario.outcome.metric);
+
+    primaryAction().click();
+    expect(root.innerHTML).toBe(initialMarkup);
+    expect(protocolInput("independent").checked).toBe(false);
+    expect(protocolInput("cross-check").checked).toBe(false);
+    expect(primaryAction().disabled).toBe(true);
+
+    advanceToFinalOutcome("cross-check");
+    expect(tacticalMap().dataset.mapState).toBe("secured");
+    expect(outcomePanel().dataset.outcomeTone).toBe("success");
+    expect(outcomePanel().textContent).toContain(crossCheckSimulation.outcome.metric);
+    expect(protocolInput("cross-check").checked).toBe(true);
+    expect(root.querySelector("#command-protocol-status")?.textContent).toBe(
+      "고정됨: 교차 확인",
+    );
   });
 
   it("renders a substantial initial tactical graphic in command state", () => {
@@ -402,9 +485,10 @@ describe("command-room round screen", () => {
     expect(graphic.querySelector('[data-cue="failure-stamp"]')).not.toBeNull();
   });
 
-  it("renders the rerouted scenario fixture with an intact convoy on a distinct safe route", () => {
+  it("renders the cross-check rerouted phase with an intact convoy on a distinct safe route", () => {
     const scenario = structuredClone(commandRoomScenario);
-    scenario.tacticalMap.phases[0] = successBoardFixtures.rerouted;
+    const reroutedPhase = crossCheckSimulation.tacticalMap.phases[3];
+    scenario.tacticalMap.phases[0] = reroutedPhase;
     root.replaceChildren(renderTacticalMap(scenario, 0));
 
     const map = tacticalMap();
@@ -416,7 +500,7 @@ describe("command-room round screen", () => {
 
     expect(map.dataset.mapState).toBe("rerouted");
     expect(graphic.querySelector("desc")?.textContent).toBe(
-      successBoardFixtures.rerouted.description,
+      reroutedPhase.description,
     );
     expect(safeRoute?.textContent).toContain("안전 경로 · 남쪽 임시 도로");
     expect(safeRoute?.getAttribute("aria-label")).toContain("실선");
@@ -438,9 +522,10 @@ describe("command-room round screen", () => {
     expect(map.textContent).toContain("실선과 마름모: 안전 경로");
   });
 
-  it("renders the secured scenario fixture with the intact convoy and Korean success cue", () => {
+  it("renders the cross-check secured phase with the intact convoy and Korean success cue", () => {
     const scenario = structuredClone(commandRoomScenario);
-    scenario.tacticalMap.phases[0] = successBoardFixtures.secured;
+    const securedPhase = crossCheckSimulation.tacticalMap.phases[4];
+    scenario.tacticalMap.phases[0] = securedPhase;
     root.replaceChildren(renderTacticalMap(scenario, 0));
 
     const map = tacticalMap();
@@ -450,7 +535,7 @@ describe("command-room round screen", () => {
 
     expect(map.dataset.mapState).toBe("secured");
     expect(graphic.querySelector("desc")?.textContent).toBe(
-      successBoardFixtures.secured.description,
+      securedPhase.description,
     );
     expect(graphic.querySelector('[data-cue="solid-safe-route"]')).not.toBeNull();
     expect(graphic.querySelector('[data-cue="triangle-warning"]')).not.toBeNull();
@@ -492,7 +577,7 @@ describe("command-room round screen", () => {
     const initialMarkup = root.innerHTML;
     selectProtocol("cross-check");
 
-    commandRoomScenario.timeline.phases.forEach((phase, index) => {
+    crossCheckSimulation.timeline.phases.forEach((phase, index) => {
       const progress = root.querySelector<HTMLProgressElement>("progress")!;
       const currentStep = root.querySelector<HTMLElement>('[aria-current="step"]')!;
       const action = primaryAction();
@@ -507,21 +592,21 @@ describe("command-room round screen", () => {
       );
       expect(currentStep.textContent).toContain(phase.title);
       expect(progress.value).toBe(index + 1);
-      expect(progress.max).toBe(commandRoomScenario.timeline.phases.length);
+      expect(progress.max).toBe(crossCheckSimulation.timeline.phases.length);
       expect(action.textContent).toBe(phase.actionLabel);
       expectHarnessToRemainInert();
 
-      if (index === commandRoomScenario.timeline.phases.length - 1) {
+      if (index === crossCheckSimulation.timeline.phases.length - 1) {
         expect(root.querySelector('[data-region="outcome"]')?.textContent).toContain(
-          commandRoomScenario.outcome.title,
+          crossCheckSimulation.outcome.title,
         );
         expect(root.querySelector('[data-region="outcome"]')?.textContent).toContain(
-          commandRoomScenario.outcome.metric,
+          crossCheckSimulation.outcome.metric,
         );
       }
 
       action.click();
-      if (index < commandRoomScenario.timeline.phases.length - 1) {
+      if (index < crossCheckSimulation.timeline.phases.length - 1) {
         expect(document.activeElement).toBe(primaryAction());
       }
     });
