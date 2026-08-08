@@ -1,5 +1,6 @@
 export type OfficerTone = "nominal" | "warning" | "critical";
 export type TimelineTone = "complete" | "active" | "pending" | "failed";
+export type OutcomeTone = "failure" | "success";
 export type TacticalMapState =
   | "command"
   | "route"
@@ -72,6 +73,7 @@ export interface CommandRoomScenario {
     }>;
   };
   outcome: {
+    tone: OutcomeTone;
     regionLabel: string;
     pendingVerdict: string;
     pendingTitle: string;
@@ -319,6 +321,7 @@ export const commandRoomScenario: CommandRoomScenario = {
     ],
   },
   outcome: {
+    tone: "failure",
     regionLabel: "라운드 결과",
     pendingVerdict: "결과 대기",
     pendingTitle: "작전 진행 중",

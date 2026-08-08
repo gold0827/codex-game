@@ -20,6 +20,17 @@ const successBoardFixtures = {
   (typeof commandRoomScenario.tacticalMap.phases)[number]
 >;
 
+const successOutcomeFixture = {
+  ...commandRoomScenario.outcome,
+  tone: "success",
+  verdict: "작전 성공",
+  title: "수송대가 모두 도착했습니다",
+  description:
+    "최신 정찰 정보를 함께 확인해 수송대가 침수 구역을 우회하고 전방 초소에 도착했습니다.",
+  metricLabel: "조직 신뢰도",
+  metric: "91 / 100",
+} satisfies (typeof commandRoomScenario)["outcome"];
+
 describe("command-room round screen", () => {
   let root: HTMLElement;
 
@@ -67,6 +78,21 @@ describe("command-room round screen", () => {
     return tacticalMap().querySelector<SVGSVGElement>("svg")!;
   }
 
+  function outcomePanel(): HTMLElement {
+    return root.querySelector<HTMLElement>('[data-region="outcome"]')!;
+  }
+
+  function advanceToFinalOutcome(): void {
+    selectProtocol("independent");
+    for (
+      let index = 1;
+      index < commandRoomScenario.timeline.phases.length;
+      index += 1
+    ) {
+      primaryAction().click();
+    }
+  }
+
   beforeEach(() => {
     document.body.innerHTML = '<div id="app"></div>';
     root = document.querySelector<HTMLElement>("#app")!;
@@ -88,6 +114,75 @@ describe("command-room round screen", () => {
       expect(node, `missing ${region} region`).not.toBeNull();
       expect(node?.getAttribute("aria-labelledby")).toBe(`${region}-title`);
     });
+  });
+
+  it("keeps the pending outcome presentation and live region unchanged", () => {
+    const outcome = outcomePanel();
+
+    expect(outcome.dataset.outcomeState).toBe("pending");
+    expect(outcome.dataset.outcomeTone).toBeUndefined();
+    expect(outcome.classList.contains("outcome-pending")).toBe(true);
+    expect(outcome.getAttribute("aria-live")).toBe("polite");
+    expect(outcome.querySelector(".outcome-verdict")?.textContent).toBe(
+      commandRoomScenario.outcome.pendingVerdict,
+    );
+    expect(outcome.querySelector(".outcome-title")?.textContent).toBe(
+      commandRoomScenario.outcome.pendingTitle,
+    );
+    expect(outcome.querySelector(".outcome-description")?.textContent).toBe(
+      commandRoomScenario.outcome.pendingDescription,
+    );
+    expect(outcome.querySelector(".outcome-metric")).toBeNull();
+  });
+
+  it("renders the scenario-owned failure tone without changing its outcome copy", () => {
+    advanceToFinalOutcome();
+    const outcome = outcomePanel();
+
+    expect(commandRoomScenario.outcome.tone).toBe("failure");
+    expect(outcome.dataset.outcomeState).toBe("final");
+    expect(outcome.dataset.outcomeTone).toBe("failure");
+    expect(outcome.classList.contains("outcome-failure")).toBe(true);
+    expect(outcome.getAttribute("aria-live")).toBe("polite");
+    expect(outcome.querySelector(".outcome-verdict")?.textContent).toBe(
+      commandRoomScenario.outcome.verdict,
+    );
+    expect(outcome.querySelector(".outcome-title")?.textContent).toBe(
+      commandRoomScenario.outcome.title,
+    );
+    expect(outcome.querySelector(".outcome-description")?.textContent).toBe(
+      commandRoomScenario.outcome.description,
+    );
+    expect(outcome.querySelector(".metric-value")?.textContent).toBe(
+      commandRoomScenario.outcome.metric,
+    );
+  });
+
+  it("renders a Korean, semantic success outcome with success treatment hooks", () => {
+    const scenario = structuredClone(commandRoomScenario);
+    scenario.outcome = successOutcomeFixture;
+    renderCommandRoom(root, scenario);
+
+    advanceToFinalOutcome();
+    const outcome = outcomePanel();
+
+    expect(outcome.dataset.outcomeState).toBe("final");
+    expect(outcome.dataset.outcomeTone).toBe("success");
+    expect(outcome.classList.contains("outcome-success")).toBe(true);
+    expect(outcome.getAttribute("aria-live")).toBe("polite");
+    expect(outcome.querySelector(".outcome-verdict")?.textContent).toBe("작전 성공");
+    expect(outcome.querySelector(".outcome-title")?.textContent).toBe(
+      successOutcomeFixture.title,
+    );
+    expect(outcome.querySelector(".outcome-description")?.textContent).toBe(
+      successOutcomeFixture.description,
+    );
+    expect(outcome.querySelector(".outcome-metric .field-label")?.textContent).toBe(
+      successOutcomeFixture.metricLabel,
+    );
+    expect(outcome.querySelector(".metric-value")?.textContent).toBe(
+      successOutcomeFixture.metric,
+    );
   });
 
   it("gates the first action behind exactly two unselected Korean protocols", () => {
