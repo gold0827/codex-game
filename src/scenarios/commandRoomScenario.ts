@@ -1,6 +1,13 @@
 export type OfficerTone = "nominal" | "warning" | "critical";
 export type TimelineTone = "complete" | "active" | "pending" | "failed";
-export type TacticalMapState = "command" | "route" | "warning" | "stranded" | "failed";
+export type TacticalMapState =
+  | "command"
+  | "route"
+  | "warning"
+  | "stranded"
+  | "failed"
+  | "rerouted"
+  | "secured";
 
 export interface CommandRoomScenario {
   identity: {
