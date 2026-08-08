@@ -5,3 +5,5 @@ date	symptom	repo	what	caught-by	rule
 2026-08-08	duplication-effort	codex-game	PR #3 treated a reproducible doctor failure as an expected worktree condition instead of a blocking defect	user	
 2026-08-08	duplication-effort	codex-game	the shared cycle launcher could not select Codex for the liaison seat or pin role models and required a transport change	session	
 2026-08-08	duplication-effort	codex-game	Orca browser RPCs returned runtime_unavailable while status remained ready and forced repeated STOP and fresh audit work	session	
+2026-08-08	duplication-effort	codex-game	runtime-scoped handles became stale after an Orca runtime restart	user	
+2026-08-08	duplication-effort	codex-game	sandboxed Codex seats could not reach Orca RPCs even with network access while an unsandboxed control could	user	
