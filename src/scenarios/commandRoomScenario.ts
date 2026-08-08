@@ -9,41 +9,15 @@ export type TacticalMapState =
   | "failed"
   | "rerouted"
   | "secured";
+export type CommandProtocolId = "independent" | "cross-check";
 
-export interface CommandRoomScenario {
-  identity: {
-    eyebrow: string;
-    title: string;
-    round: string;
-    signal: string;
-  };
-  mission: {
-    regionLabel: string;
-    title: string;
-    briefingLabel: string;
-    briefing: string;
-    commandLabel: string;
-    command: string;
-    objectiveLabel: string;
-    objectives: string[];
-  };
+export interface CommandRoomSimulation {
   tacticalMap: {
     regionLabel: string;
     accessibleName: string;
     phases: Array<{
       state: TacticalMapState;
       description: string;
-    }>;
-  };
-  officers: {
-    regionLabel: string;
-    entries: Array<{
-      name: string;
-      assignment: string;
-      callSign: string;
-      readinessLabel: string;
-      readiness: string;
-      reportLabel: string;
     }>;
   };
   timeline: {
@@ -62,16 +36,6 @@ export interface CommandRoomScenario {
       }>;
     }>;
   };
-  harness: {
-    regionLabel: string;
-    unavailableLabel: string;
-    explanation: string;
-    controls: Array<{
-      name: string;
-      setting: string;
-      description: string;
-    }>;
-  };
   outcome: {
     tone: OutcomeTone;
     regionLabel: string;
@@ -84,10 +48,54 @@ export interface CommandRoomScenario {
     metricLabel: string;
     metric: string;
   };
-  footer: string;
 }
 
-export const commandRoomScenario: CommandRoomScenario = {
+export interface CommandRoomScenario extends CommandRoomSimulation {
+  identity: {
+    eyebrow: string;
+    title: string;
+    round: string;
+    signal: string;
+  };
+  mission: {
+    regionLabel: string;
+    title: string;
+    briefingLabel: string;
+    briefing: string;
+    commandLabel: string;
+    command: string;
+    objectiveLabel: string;
+    objectives: string[];
+  };
+  officers: {
+    regionLabel: string;
+    entries: Array<{
+      name: string;
+      assignment: string;
+      callSign: string;
+      readinessLabel: string;
+      readiness: string;
+      reportLabel: string;
+    }>;
+  };
+  harness: {
+    regionLabel: string;
+    unavailableLabel: string;
+    explanation: string;
+    controls: Array<{
+      name: string;
+      setting: string;
+      description: string;
+    }>;
+  };
+  footer: string;
+  protocolSimulations: Record<CommandProtocolId, CommandRoomSimulation>;
+}
+
+const independentCommandRoomScenario: Omit<
+  CommandRoomScenario,
+  "protocolSimulations"
+> = {
   identity: {
     eyebrow: "자율 작전 통제망 / 알파 구역",
     title: "야전 자동화 사령부",
@@ -334,4 +342,168 @@ export const commandRoomScenario: CommandRoomScenario = {
     metric: "38 / 100",
   },
   footer: "지휘 기록 저장 중",
+};
+
+const crossCheckSimulation: CommandRoomSimulation = {
+  tacticalMap: {
+    ...independentCommandRoomScenario.tacticalMap,
+    phases: [
+      independentCommandRoomScenario.tacticalMap.phases[0],
+      {
+        state: "command",
+        description:
+          "경로 정보 충돌 확인. 북쪽 우회로 계획과 최신 수위 보고가 충돌해 온전한 수송 차량 세 대가 출발 지점에서 대기한다.",
+      },
+      {
+        state: "command",
+        description:
+          "정찰 경고 공유. 침수 경고가 전 장교에게 공유되어 온전한 수송 차량 세 대의 출발이 보류되었다.",
+      },
+      {
+        state: "rerouted",
+        description:
+          "남쪽 임시 도로로 재경로 설정. 온전한 수송 차량 세 대가 침수 구역을 피해 안전 경로로 이동한다.",
+      },
+      {
+        state: "secured",
+        description:
+          "목표 확보. 온전한 수송 차량 세 대가 남쪽 임시 도로를 지나 전방 초소에 도착했다.",
+      },
+    ],
+  },
+  timeline: {
+    ...independentCommandRoomScenario.timeline,
+    phases: [
+      independentCommandRoomScenario.timeline.phases[0],
+      {
+        time: "05:18",
+        title: "경로 정보 충돌 확인",
+        detail:
+          "작전 장교가 출발 전 북쪽 우회로 계획과 최신 수위 보고가 충돌함을 확인했다.",
+        actionLabel: "정찰 경고 공유",
+        officerSummary: "3명 접속 · 경로 정보 대조 중",
+        officerUpdates: [
+          {
+            status: "정보 대조",
+            tone: "warning",
+            report:
+              "북쪽 우회로 계획과 최신 수위 보고가 맞지 않습니다. 출발 전에 함께 확인하겠습니다.",
+          },
+          {
+            status: "출발 대기",
+            tone: "nominal",
+            report:
+              "정보 확인이 끝날 때까지 수송 차량 세 대를 출발 지점에 세워 두겠습니다.",
+          },
+          {
+            status: "충돌 보고",
+            tone: "warning",
+            report:
+              "북쪽 우회로 수위가 12분 전 급상승했습니다. 기존 경로 정보와 충돌합니다.",
+          },
+        ],
+      },
+      {
+        time: "05:24",
+        title: "정찰 경고 공유",
+        detail:
+          "정보 장교의 침수 경고가 전 장교에게 공유되어 수송대 출발이 보류되었다.",
+        actionLabel: "남쪽 임시 도로 확인",
+        officerSummary: "3명 접속 · 수송 차량 3대 출발 보류",
+        officerUpdates: [
+          {
+            status: "경고 확인",
+            tone: "warning",
+            report:
+              "최신 정찰 경고를 확인했습니다. 북쪽 우회로 계획을 취소하겠습니다.",
+          },
+          {
+            status: "수송대 정지",
+            tone: "nominal",
+            report:
+              "수송 차량 세 대 모두 출발 지점에 있습니다. 새 경로가 정해질 때까지 대기합니다.",
+          },
+          {
+            status: "정보 공유",
+            tone: "nominal",
+            report:
+              "침수 예상 구역과 남쪽 임시 도로 정보를 전 장교에게 공유했습니다.",
+          },
+        ],
+      },
+      {
+        time: "05:39",
+        title: "남쪽 임시 도로로 재경로 설정",
+        detail:
+          "수송대가 침수 구역을 피해 남쪽 임시 도로의 안전 경로로 이동했다.",
+        actionLabel: "목표 도착 확인",
+        officerSummary: "3명 접속 · 수송 차량 3대 이동 중",
+        officerUpdates: [
+          {
+            status: "경로 재선정",
+            tone: "nominal",
+            report:
+              "남쪽 임시 도로로 호위 경로를 다시 설정했습니다. 정찰 정보와 일치합니다.",
+          },
+          {
+            status: "수송 재개",
+            tone: "nominal",
+            report:
+              "수송 차량 세 대 모두 온전합니다. 안전 경로를 따라 이동하겠습니다.",
+          },
+          {
+            status: "경로 감시",
+            tone: "nominal",
+            report:
+              "남쪽 임시 도로의 수위는 안정적입니다. 목표까지 계속 감시하겠습니다.",
+          },
+        ],
+      },
+      {
+        time: "06:17",
+        title: "목표 확보",
+        detail:
+          "온전한 수송 차량 세 대가 전방 초소에 도착해 보급품 인계를 마쳤다.",
+        actionLabel: "라운드 다시 시작",
+        officerSummary: "3명 접속 · 수송 차량 3대 도착",
+        officerUpdates: [
+          {
+            status: "작전 완료",
+            tone: "nominal",
+            report:
+              "상충한 정보를 출발 전에 확인해 안전 경로로 임무를 완수했습니다.",
+          },
+          {
+            status: "보급 인계",
+            tone: "nominal",
+            report:
+              "차량 세 대와 보급품이 모두 도착했습니다. 전방 초소에 인계합니다.",
+          },
+          {
+            status: "정찰 완료",
+            tone: "nominal",
+            report:
+              "공유한 경고가 경로 변경에 반영되었습니다. 추가 위험은 없습니다.",
+          },
+        ],
+      },
+    ],
+  },
+  outcome: {
+    ...independentCommandRoomScenario.outcome,
+    tone: "success",
+    verdict: "작전 성공",
+    title: "수송대가 모두 도착했습니다",
+    description:
+      "최신 정찰 정보를 함께 확인해 온전한 수송 차량 세 대가 남쪽 임시 도로로 전방 초소에 도착했습니다.",
+    metric: "91 / 100",
+  },
+};
+
+export const commandRoomScenario: CommandRoomScenario = {
+  ...independentCommandRoomScenario,
+  protocolSimulations: {
+    independent: independentCommandRoomScenario,
+    "cross-check": crossCheckSimulation,
+  },
 };

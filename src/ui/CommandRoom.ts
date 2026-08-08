@@ -1,11 +1,10 @@
 import type {
+  CommandProtocolId,
   CommandRoomScenario,
   OfficerTone,
   TimelineTone,
 } from "../scenarios/commandRoomScenario";
 import { renderTacticalMap } from "./TacticalMap";
-
-type CommandProtocolId = "independent" | "cross-check";
 
 const commandProtocols: ReadonlyArray<{
   id: CommandProtocolId;
@@ -267,8 +266,10 @@ function renderTimeline(
     const tone: TimelineTone =
       index < currentPhaseIndex
         ? "complete"
-        : isCurrent && isFinalPhase
+        : isCurrent && isFinalPhase && scenario.outcome.tone === "failure"
           ? "failed"
+          : isCurrent && isFinalPhase
+            ? "complete"
           : isCurrent
             ? "active"
             : "pending";
@@ -408,8 +409,17 @@ export function renderCommandRoom(
     restoreProtocolFocus = false,
   ): void => {
     root.replaceChildren();
-    const currentPhase = scenario.timeline.phases[currentPhaseIndex];
-    const isFinalPhase = currentPhaseIndex === scenario.timeline.phases.length - 1;
+    const simulation =
+      selectedProtocol === null || selectedProtocol === "independent"
+        ? scenario
+        : scenario.protocolSimulations[selectedProtocol];
+    const activeScenario: CommandRoomScenario = {
+      ...scenario,
+      ...simulation,
+    };
+    const currentPhase = activeScenario.timeline.phases[currentPhaseIndex];
+    const isFinalPhase =
+      currentPhaseIndex === activeScenario.timeline.phases.length - 1;
 
     const shell = element("div", "command-room");
     const header = element("header", "topbar");
@@ -445,22 +455,22 @@ export function renderCommandRoom(
     };
     const grid = element("main", "command-grid");
     grid.append(
-      renderTacticalMap(scenario, currentPhaseIndex),
+      renderTacticalMap(activeScenario, currentPhaseIndex),
       renderMission(
-        scenario,
+        activeScenario,
         selectedProtocol,
         protocolLocked,
         selectProtocol,
       ),
-      renderOfficers(scenario, currentPhaseIndex),
+      renderOfficers(activeScenario, currentPhaseIndex),
       renderTimeline(
-        scenario,
+        activeScenario,
         currentPhaseIndex,
         currentPhaseIndex === 0 && selectedProtocol === null,
         advance,
       ),
-      renderHarness(scenario),
-      renderOutcome(scenario, isFinalPhase),
+      renderHarness(activeScenario),
+      renderOutcome(activeScenario, isFinalPhase),
     );
 
     const footer = element("footer", "screen-footer", scenario.footer);
