@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commandRoomScenario } from "../../src/scenarios/commandRoomScenario";
 import { renderCommandRoom } from "../../src/ui/CommandRoom";
+import { renderTacticalMap } from "../../src/ui/TacticalMap";
 
 describe("command-room round screen", () => {
   let root: HTMLElement;
@@ -220,7 +221,7 @@ describe("command-room round screen", () => {
       );
       expect(title?.textContent).toBe(commandRoomScenario.tacticalMap.accessibleName);
       expect(description?.textContent).toBe(
-        commandRoomScenario.tacticalMap.phaseDescriptions[index],
+        commandRoomScenario.tacticalMap.phases[index].description,
       );
       expect(description?.textContent?.startsWith(`${phase.title}.`)).toBe(true);
       expect(tacticalMap().textContent).toContain(phase.title);
@@ -230,9 +231,12 @@ describe("command-room round screen", () => {
   });
 
   it("distinguishes every map phase with shapes, labels, and line styles", () => {
-    const expectedStates = ["command", "route", "warning", "stranded", "failed"];
+    const expectedStates = ["command", "route", "warning", "stranded", "failed"] as const;
     selectProtocol("independent");
 
+    expect(commandRoomScenario.tacticalMap.phases.map(({ state }) => state)).toEqual(
+      expectedStates,
+    );
     expectedStates.forEach((state, index) => {
       const graphic = mapGraphic();
 
@@ -268,6 +272,23 @@ describe("command-room round screen", () => {
       expectHarnessToRemainInert();
       primaryAction().click();
     });
+  });
+
+  it("renders the scenario-owned state instead of deriving it from phase position", () => {
+    const scenario = structuredClone(commandRoomScenario);
+    scenario.tacticalMap.phases[0].state = "failed";
+    root.replaceChildren(renderTacticalMap(scenario, 0));
+
+    const map = tacticalMap();
+    const graphic = mapGraphic();
+
+    expect(map.dataset.phaseIndex).toBe("0");
+    expect(map.dataset.mapState).toBe("failed");
+    expect(graphic.querySelector('[data-cue="dashed-route"]')).not.toBeNull();
+    expect(graphic.querySelector('[data-cue="triangle-warning"]')).not.toBeNull();
+    expect(graphic.querySelector('[data-cue="hatched-zone"]')).not.toBeNull();
+    expect(graphic.querySelector('[data-cue="stranded-cross"]')).not.toBeNull();
+    expect(graphic.querySelector('[data-cue="failure-stamp"]')).not.toBeNull();
   });
 
   it("identifies the first phase and its scripted information on initial render", () => {

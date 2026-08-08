@@ -1,5 +1,6 @@
 export type OfficerTone = "nominal" | "warning" | "critical";
 export type TimelineTone = "complete" | "active" | "pending" | "failed";
+export type TacticalMapState = "command" | "route" | "warning" | "stranded" | "failed";
 
 export interface CommandRoomScenario {
   identity: {
@@ -21,7 +22,10 @@ export interface CommandRoomScenario {
   tacticalMap: {
     regionLabel: string;
     accessibleName: string;
-    phaseDescriptions: string[];
+    phases: Array<{
+      state: TacticalMapState;
+      description: string;
+    }>;
   };
   officers: {
     regionLabel: string;
@@ -96,12 +100,32 @@ export const commandRoomScenario: CommandRoomScenario = {
   tacticalMap: {
     regionLabel: "전술 작전도",
     accessibleName: "협곡 7번 보급로 전술 작전도",
-    phaseDescriptions: [
-      "명령 하달. 수송대는 출발 지점에서 대기하고 북쪽 우회로는 아직 선정되지 않았다.",
-      "경로 선정. 수송대가 북쪽 우회로로 출발했으며 불어난 하천의 교차점으로 향한다.",
-      "정찰 경고 수신. 정보 장교의 경고가 침수 예상 교차점을 가리키지만 수송대는 선정 경로를 계속 이동한다.",
-      "수송 2호차 고립. 선두 차량이 불어난 하천에 고립되고 후속 차량은 교차점 앞에서 정지했다.",
-      "작전 실패. 최신 정찰 정보가 반영되지 않아 수송대가 침수 구역에 고립되었다.",
+    phases: [
+      {
+        state: "command",
+        description:
+          "명령 하달. 수송대는 출발 지점에서 대기하고 북쪽 우회로는 아직 선정되지 않았다.",
+      },
+      {
+        state: "route",
+        description:
+          "경로 선정. 수송대가 북쪽 우회로로 출발했으며 불어난 하천의 교차점으로 향한다.",
+      },
+      {
+        state: "warning",
+        description:
+          "정찰 경고 수신. 정보 장교의 경고가 침수 예상 교차점을 가리키지만 수송대는 선정 경로를 계속 이동한다.",
+      },
+      {
+        state: "stranded",
+        description:
+          "수송 2호차 고립. 선두 차량이 불어난 하천에 고립되고 후속 차량은 교차점 앞에서 정지했다.",
+      },
+      {
+        state: "failed",
+        description:
+          "작전 실패. 최신 정찰 정보가 반영되지 않아 수송대가 침수 구역에 고립되었다.",
+      },
     ],
   },
   officers: {
