@@ -10,6 +10,19 @@ describe("command-room round screen", () => {
     return root.querySelector<HTMLButtonElement>(".primary-action")!;
   }
 
+  function protocolInput(value: "independent" | "cross-check"): HTMLInputElement {
+    return root.querySelector<HTMLInputElement>(
+      `input[name="command-protocol"][value="${value}"]`,
+    )!;
+  }
+
+  function selectProtocol(
+    value: "independent" | "cross-check",
+  ): HTMLInputElement {
+    protocolInput(value).click();
+    return protocolInput(value);
+  }
+
   function expectHarnessToRemainInert(): void {
     const harness = root.querySelector<HTMLElement>('[data-region="harness"]')!;
     const fieldset = harness.querySelector<HTMLFieldSetElement>("fieldset")!;
@@ -60,6 +73,120 @@ describe("command-room round screen", () => {
     });
   });
 
+  it("gates the first action behind exactly two unselected Korean protocols", () => {
+    const selector = root.querySelector<HTMLFieldSetElement>(".protocol-selector")!;
+    const choices = [...selector.querySelectorAll<HTMLElement>(".protocol-choice")];
+    const inputs = [...selector.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+
+    expect(choices).toHaveLength(2);
+    expect(inputs).toHaveLength(2);
+    expect(choices[0].textContent).toContain("각자 판단");
+    expect(choices[0].textContent).toContain(
+      "장교들이 임무를 받고 각자 판단해 독립적으로 행동합니다.",
+    );
+    expect(choices[1].textContent).toContain("교차 확인");
+    expect(choices[1].textContent).toContain(
+      "이동 전 정찰대와 수송대가 같은 경로 정보를 확인합니다.",
+    );
+    expect(inputs.every((input) => !input.checked)).toBe(true);
+    expect(selector.disabled).toBe(false);
+    expect(selector.dataset.locked).toBe("false");
+    expect(selector.querySelector('[data-selected="true"]')).toBeNull();
+    expect(root.querySelector("#command-protocol-status")?.textContent).toBe(
+      "선택되지 않음",
+    );
+    expect(primaryAction().disabled).toBe(true);
+    expect(primaryAction().getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it.each([
+    [
+      "independent",
+      "각자 판단",
+      "장교들이 임무를 받고 각자 판단해 독립적으로 행동합니다.",
+    ],
+    [
+      "cross-check",
+      "교차 확인",
+      "이동 전 정찰대와 수송대가 같은 경로 정보를 확인합니다.",
+    ],
+  ] as const)(
+    "selects %s visibly and accessibly and enables the first action",
+    (value, label, description) => {
+      const input = selectProtocol(value);
+      const choice = input.closest<HTMLLabelElement>("label")!;
+      const descriptionId = input.getAttribute("aria-describedby")!;
+
+      expect(input.checked).toBe(true);
+      expect(choice.htmlFor).toBe(input.id);
+      expect(choice.dataset.selected).toBe("true");
+      expect(choice.textContent).toContain(label);
+      expect(root.querySelector(`#${descriptionId}`)?.textContent).toBe(description);
+      expect(root.querySelector("#command-protocol-status")?.textContent).toBe(
+        `선택됨: ${label}`,
+      );
+      expect(primaryAction().disabled).toBe(false);
+      expect(primaryAction().getAttribute("aria-disabled")).toBe("false");
+      expect(document.activeElement).toBe(input);
+    },
+  );
+
+  it("allows switching before start and locks the final selection on first action", () => {
+    selectProtocol("independent");
+    const selected = selectProtocol("cross-check");
+
+    expect(selected.checked).toBe(true);
+    expect(protocolInput("independent").checked).toBe(false);
+
+    primaryAction().click();
+
+    const selector = root.querySelector<HTMLFieldSetElement>(".protocol-selector")!;
+    expect(selector.disabled).toBe(true);
+    expect(selector.dataset.locked).toBe("true");
+    expect(selector.getAttribute("aria-disabled")).toBe("true");
+    expect(protocolInput("cross-check").checked).toBe(true);
+    expect(root.querySelector("#command-protocol-status")?.textContent).toBe(
+      "고정됨: 교차 확인",
+    );
+    expect(root.querySelector(".current-phase-title")?.textContent).toBe(
+      commandRoomScenario.timeline.phases[1].title,
+    );
+
+    protocolInput("independent").click();
+    expect(protocolInput("cross-check").checked).toBe(true);
+    expect(protocolInput("independent").checked).toBe(false);
+  });
+
+  it("keeps the locked protocol visible through every remaining phase and outcome", () => {
+    selectProtocol("independent");
+    primaryAction().click();
+
+    for (let index = 1; index < commandRoomScenario.timeline.phases.length; index += 1) {
+      const selector = root.querySelector<HTMLFieldSetElement>(".protocol-selector")!;
+      const selectedChoice = protocolInput("independent").closest<HTMLElement>(
+        ".protocol-choice",
+      )!;
+
+      expect(selector.disabled).toBe(true);
+      expect(protocolInput("independent").checked).toBe(true);
+      expect(selectedChoice.dataset.selected).toBe("true");
+      expect(root.querySelector("#command-protocol-status")?.textContent).toBe(
+        "고정됨: 각자 판단",
+      );
+      expect(root.querySelector(".current-phase-title")?.textContent).toBe(
+        commandRoomScenario.timeline.phases[index].title,
+      );
+
+      if (index === commandRoomScenario.timeline.phases.length - 1) {
+        expect(root.querySelector('[data-region="outcome"]')?.textContent).toContain(
+          commandRoomScenario.outcome.title,
+        );
+      } else {
+        primaryAction().click();
+      }
+    }
+  });
+
   it("renders a substantial initial tactical graphic in command state", () => {
     const map = tacticalMap();
     const graphic = mapGraphic();
@@ -80,6 +207,8 @@ describe("command-room round screen", () => {
   });
 
   it("exposes a Korean accessible name and scenario-owned phase description", () => {
+    selectProtocol("independent");
+
     commandRoomScenario.timeline.phases.forEach((phase, index) => {
       const graphic = mapGraphic();
       const title = graphic.querySelector("title");
@@ -102,6 +231,7 @@ describe("command-room round screen", () => {
 
   it("distinguishes every map phase with shapes, labels, and line styles", () => {
     const expectedStates = ["command", "route", "warning", "stranded", "failed"];
+    selectProtocol("independent");
 
     expectedStates.forEach((state, index) => {
       const graphic = mapGraphic();
@@ -161,6 +291,7 @@ describe("command-room round screen", () => {
 
   it("advances through the complete ordered sequence and resets exactly", () => {
     const initialMarkup = root.innerHTML;
+    selectProtocol("cross-check");
 
     commandRoomScenario.timeline.phases.forEach((phase, index) => {
       const progress = root.querySelector<HTMLProgressElement>("progress")!;
@@ -191,7 +322,9 @@ describe("command-room round screen", () => {
       }
 
       action.click();
-      expect(document.activeElement).toBe(primaryAction());
+      if (index < commandRoomScenario.timeline.phases.length - 1) {
+        expect(document.activeElement).toBe(primaryAction());
+      }
     });
 
     expect(root.innerHTML).toBe(initialMarkup);
@@ -205,22 +338,34 @@ describe("command-room round screen", () => {
     expect(root.querySelector('[data-region="outcome"]')?.textContent).not.toContain(
       commandRoomScenario.outcome.title,
     );
+    expect(protocolInput("independent").checked).toBe(false);
+    expect(protocolInput("cross-check").checked).toBe(false);
+    expect(root.querySelector<HTMLFieldSetElement>(".protocol-selector")?.disabled).toBe(
+      false,
+    );
+    expect(primaryAction().disabled).toBe(true);
   });
 
   it("exposes progress and the primary action to keyboard and screen-reader users", () => {
     const phaseCount = commandRoomScenario.timeline.phases.length;
     const progress = root.querySelector<HTMLProgressElement>("progress")!;
-    const status = root.querySelector<HTMLElement>('[role="status"]')!;
-    const action = primaryAction();
+    const status = root.querySelector<HTMLElement>('.current-phase[role="status"]')!;
+    let action = primaryAction();
 
     expect(progress.getAttribute("aria-label")).toBe(`${phaseCount}단계 중 1단계`);
     expect(status.getAttribute("aria-live")).toBe("polite");
     expect(status.getAttribute("aria-atomic")).toBe("true");
     expect(action.type).toBe("button");
-    expect(action.disabled).toBe(false);
+    expect(action.disabled).toBe(true);
+    expect(action.getAttribute("aria-disabled")).toBe("true");
     expect(action.getAttribute("aria-describedby")).toBe(
-      "round-progress current-phase-detail",
+      "command-protocol-status round-progress current-phase-detail",
     );
+
+    selectProtocol("independent");
+    action = primaryAction();
+    expect(action.disabled).toBe(false);
+    expect(action.getAttribute("aria-disabled")).toBe("false");
     expect(root.querySelectorAll("button:not([disabled])")).toHaveLength(1);
 
     action.focus();

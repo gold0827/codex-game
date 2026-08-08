@@ -5,6 +5,25 @@ import type {
 } from "../scenarios/commandRoomScenario";
 import { renderTacticalMap } from "./TacticalMap";
 
+type CommandProtocolId = "independent" | "cross-check";
+
+const commandProtocols: ReadonlyArray<{
+  id: CommandProtocolId;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "independent",
+    label: "각자 판단",
+    description: "장교들이 임무를 받고 각자 판단해 독립적으로 행동합니다.",
+  },
+  {
+    id: "cross-check",
+    label: "교차 확인",
+    description: "이동 전 정찰대와 수송대가 같은 경로 정보를 확인합니다.",
+  },
+];
+
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className?: string,
@@ -30,7 +49,81 @@ function labelledSection(
   return section;
 }
 
-function renderMission(scenario: CommandRoomScenario): HTMLElement {
+function renderProtocolSelector(
+  selectedProtocol: CommandProtocolId | null,
+  protocolLocked: boolean,
+  onSelect: (protocol: CommandProtocolId) => void,
+): HTMLElement {
+  const selector = element("fieldset", "protocol-selector");
+  selector.dataset.locked = String(protocolLocked);
+  selector.disabled = protocolLocked;
+  selector.setAttribute(
+    "aria-describedby",
+    "command-protocol-help command-protocol-status",
+  );
+  if (protocolLocked) selector.setAttribute("aria-disabled", "true");
+
+  selector.append(element("legend", "field-label protocol-label", "명령 프로토콜"));
+  const help = element(
+    "p",
+    "protocol-help",
+    "첫 작전 행동 전에 지휘 방식을 선택하십시오.",
+  );
+  help.id = "command-protocol-help";
+  selector.append(help);
+
+  const options = element("div", "protocol-options");
+  commandProtocols.forEach((protocol) => {
+    const input = element("input", "protocol-input");
+    input.type = "radio";
+    input.name = "command-protocol";
+    input.id = `command-protocol-${protocol.id}`;
+    input.value = protocol.id;
+    input.checked = selectedProtocol === protocol.id;
+
+    const description = element("span", "protocol-description", protocol.description);
+    description.id = `${input.id}-description`;
+    input.setAttribute("aria-describedby", description.id);
+    input.addEventListener("change", () => {
+      if (input.checked) onSelect(protocol.id);
+    });
+
+    const choice = element("label", "protocol-choice");
+    choice.htmlFor = input.id;
+    choice.dataset.selected = String(input.checked);
+    choice.append(
+      input,
+      element("strong", "protocol-name", protocol.label),
+      description,
+    );
+    options.append(choice);
+  });
+
+  const selectedLabel = commandProtocols.find(
+    (protocol) => protocol.id === selectedProtocol,
+  )?.label;
+  const status = element(
+    "p",
+    "protocol-status",
+    selectedLabel
+      ? protocolLocked
+        ? `고정됨: ${selectedLabel}`
+        : `선택됨: ${selectedLabel}`
+      : "선택되지 않음",
+  );
+  status.id = "command-protocol-status";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  selector.append(options, status);
+  return selector;
+}
+
+function renderMission(
+  scenario: CommandRoomScenario,
+  selectedProtocol: CommandProtocolId | null,
+  protocolLocked: boolean,
+  onProtocolSelect: (protocol: CommandProtocolId) => void,
+): HTMLElement {
   const { mission } = scenario;
   const section = labelledSection("mission", "panel mission", mission.regionLabel);
   section.append(element("h3", "mission-title", mission.title));
@@ -55,7 +148,11 @@ function renderMission(scenario: CommandRoomScenario): HTMLElement {
     objectiveList.append(element("li", "objective-item", objective));
   });
   objectiveGroup.append(objectiveList);
-  section.append(briefing, objectiveGroup);
+  section.append(
+    briefing,
+    objectiveGroup,
+    renderProtocolSelector(selectedProtocol, protocolLocked, onProtocolSelect),
+  );
   return section;
 }
 
@@ -127,6 +224,7 @@ function renderTimelineStatus(tone: TimelineTone, status: string): HTMLElement {
 function renderTimeline(
   scenario: CommandRoomScenario,
   currentPhaseIndex: number,
+  primaryActionDisabled: boolean,
   onPrimaryAction: () => void,
 ): HTMLElement {
   const { timeline } = scenario;
@@ -200,7 +298,12 @@ function renderTimeline(
   });
   const action = element("button", "primary-action", currentPhase.actionLabel);
   action.type = "button";
-  action.setAttribute("aria-describedby", "round-progress current-phase-detail");
+  action.disabled = primaryActionDisabled;
+  action.setAttribute("aria-disabled", String(primaryActionDisabled));
+  action.setAttribute(
+    "aria-describedby",
+    "command-protocol-status round-progress current-phase-detail",
+  );
   action.addEventListener("click", onPrimaryAction);
   action.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -294,8 +397,13 @@ export function renderCommandRoom(
   scenario: CommandRoomScenario,
 ): void {
   let currentPhaseIndex = 0;
+  let selectedProtocol: CommandProtocolId | null = null;
+  let protocolLocked = false;
 
-  const render = (restoreActionFocus = false): void => {
+  const render = (
+    restoreActionFocus = false,
+    restoreProtocolFocus = false,
+  ): void => {
     root.replaceChildren();
     const currentPhase = scenario.timeline.phases[currentPhaseIndex];
     const isFinalPhase = currentPhaseIndex === scenario.timeline.phases.length - 1;
@@ -316,15 +424,38 @@ export function renderCommandRoom(
     header.append(brand, round, signal);
 
     const advance = (): void => {
-      currentPhaseIndex = isFinalPhase ? 0 : currentPhaseIndex + 1;
+      if (currentPhaseIndex === 0 && selectedProtocol === null) return;
+      if (isFinalPhase) {
+        currentPhaseIndex = 0;
+        selectedProtocol = null;
+        protocolLocked = false;
+      } else {
+        if (currentPhaseIndex === 0) protocolLocked = true;
+        currentPhaseIndex += 1;
+      }
       render(true);
+    };
+    const selectProtocol = (protocol: CommandProtocolId): void => {
+      if (protocolLocked) return;
+      selectedProtocol = protocol;
+      render(false, true);
     };
     const grid = element("main", "command-grid");
     grid.append(
       renderTacticalMap(scenario, currentPhaseIndex),
-      renderMission(scenario),
+      renderMission(
+        scenario,
+        selectedProtocol,
+        protocolLocked,
+        selectProtocol,
+      ),
       renderOfficers(scenario, currentPhaseIndex),
-      renderTimeline(scenario, currentPhaseIndex, advance),
+      renderTimeline(
+        scenario,
+        currentPhaseIndex,
+        currentPhaseIndex === 0 && selectedProtocol === null,
+        advance,
+      ),
       renderHarness(scenario),
       renderOutcome(scenario, isFinalPhase),
     );
@@ -334,6 +465,12 @@ export function renderCommandRoom(
     root.append(shell);
     if (restoreActionFocus) {
       root.querySelector<HTMLButtonElement>(".primary-action")?.focus();
+    } else if (restoreProtocolFocus && selectedProtocol) {
+      root
+        .querySelector<HTMLInputElement>(
+          `#command-protocol-${selectedProtocol}`,
+        )
+        ?.focus();
     }
   };
 

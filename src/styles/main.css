@@ -558,6 +558,89 @@ select {
   font-size: 0.76rem;
 }
 
+.protocol-selector {
+  margin: 18px 20px 0;
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.protocol-label {
+  padding: 0;
+  color: var(--amber);
+}
+
+.protocol-help {
+  margin: 7px 0 12px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.protocol-options {
+  display: grid;
+  gap: 8px;
+}
+
+.protocol-choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 9px;
+  padding: 11px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.018);
+  cursor: pointer;
+}
+
+.protocol-choice:hover {
+  border-color: rgba(155, 226, 180, 0.55);
+}
+
+.protocol-choice:focus-within {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.protocol-choice[data-selected="true"] {
+  border-color: var(--green);
+  background: rgba(155, 226, 180, 0.09);
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.protocol-input {
+  margin: 2px 0 0;
+  accent-color: var(--green);
+}
+
+.protocol-name {
+  color: #e8f4ed;
+  font-size: 0.84rem;
+}
+
+.protocol-description {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.protocol-status {
+  margin: 10px 0 0;
+  color: var(--green);
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 0.7rem;
+}
+
+.protocol-selector[aria-disabled="true"] .protocol-choice {
+  cursor: default;
+}
+
+.protocol-selector[aria-disabled="true"]
+  .protocol-choice:not([data-selected="true"]) {
+  opacity: 0.5;
+}
+
 .officers {
   grid-area: officers;
 }
@@ -816,6 +899,14 @@ select {
 
 .primary-action:hover {
   background: #b7f1ca;
+}
+
+.primary-action:disabled,
+.primary-action:disabled:hover {
+  border-color: var(--line-strong);
+  color: var(--dim);
+  background: #19201d;
+  cursor: not-allowed;
 }
 
 .primary-action:focus,
