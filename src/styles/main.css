@@ -1,0 +1,688 @@
+:root {
+  color: #e8eee8;
+  background: #060a09;
+  font-family:
+    "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --ink: #e8eee8;
+  --muted: #899690;
+  --dim: #7d8983;
+  --panel: rgba(13, 22, 19, 0.92);
+  --line: rgba(145, 176, 158, 0.18);
+  --line-strong: rgba(145, 176, 158, 0.38);
+  --green: #9ce6b7;
+  --amber: #f3c66b;
+  --red: #ff775f;
+  --cyan: #7cd7d3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(92, 130, 109, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92, 130, 109, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 14% 8%, rgba(54, 113, 79, 0.17), transparent 32rem),
+    radial-gradient(circle at 92% 92%, rgba(164, 80, 43, 0.12), transparent 35rem),
+    #060a09;
+  background-size: 28px 28px, 28px 28px, auto, auto, auto;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.015),
+    rgba(255, 255, 255, 0.015) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  content: "";
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.command-room {
+  width: min(1720px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: minmax(270px, 1fr) auto minmax(220px, 1fr);
+  align-items: center;
+  gap: 24px;
+  min-height: 92px;
+  margin-bottom: 14px;
+  padding: 16px 20px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 16, 13, 0.9);
+  box-shadow: inset 3px 0 0 var(--green), 0 18px 50px rgba(0, 0, 0, 0.2);
+}
+
+.eyebrow,
+.section-summary,
+.operation-clock,
+.screen-footer,
+.field-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.eyebrow,
+.screen-title,
+.section-summary,
+.officer-assignment,
+.officer-report p,
+.timeline-detail,
+.harness-explanation,
+.control-description,
+.outcome-description {
+  margin: 0;
+}
+
+.screen-title {
+  margin-top: 5px;
+  font-size: clamp(1.25rem, 2vw, 1.8rem);
+  letter-spacing: -0.04em;
+}
+
+.round-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  color: var(--green);
+}
+
+.round-label {
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.signal-warning {
+  justify-self: end;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 119, 95, 0.5);
+  color: #ffb09f;
+  background: rgba(144, 42, 26, 0.16);
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+.signal-warning::before {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 12px var(--red);
+  content: "";
+}
+
+.command-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.1fr) minmax(360px, 1.35fr) minmax(320px, 1fr);
+  grid-template-areas:
+    "mission mission outcome"
+    "officers timeline harness";
+  gap: 14px;
+}
+
+.panel {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.16);
+}
+
+.panel::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 34px;
+  height: 34px;
+  border-top: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+  content: "";
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  color: #b9c7c0;
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+}
+
+.section-heading::before {
+  width: 4px;
+  height: 12px;
+  background: var(--green);
+  content: "";
+}
+
+.section-summary {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-family: "D2Coding", Consolas, monospace;
+  letter-spacing: 0.03em;
+}
+
+.mission {
+  grid-area: mission;
+  padding-bottom: 20px;
+}
+
+.mission-title {
+  margin: 22px 20px 18px;
+  color: #fff6df;
+  font-size: clamp(1.35rem, 2vw, 2.1rem);
+  letter-spacing: -0.045em;
+}
+
+.briefing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 0 20px;
+  background: var(--line);
+}
+
+.briefing-block {
+  min-height: 88px;
+  padding: 14px;
+  background: #0d1714;
+}
+
+.command-block {
+  box-shadow: inset 2px 0 0 var(--amber);
+}
+
+.field-copy {
+  margin: 9px 0 0;
+  color: #ccd6d0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.objectives {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin: 17px 20px 0;
+}
+
+.objective-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.objective-item {
+  padding: 6px 10px;
+  border: 1px solid rgba(124, 215, 211, 0.24);
+  color: #b7dedb;
+  background: rgba(36, 113, 110, 0.1);
+  font-size: 0.76rem;
+}
+
+.officers {
+  grid-area: officers;
+}
+
+.officer-list {
+  padding: 7px;
+}
+
+.officer-card {
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.officer-card:last-child {
+  border-bottom: 0;
+}
+
+.officer-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.officer-index {
+  color: var(--dim);
+  font-family: Consolas, monospace;
+  font-size: 0.7rem;
+}
+
+.officer-name {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.officer-assignment {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.status-chip,
+.timeline-status {
+  padding: 4px 7px;
+  border: 1px solid currentColor;
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.status-nominal,
+.timeline-complete {
+  color: var(--green);
+}
+
+.status-warning,
+.timeline-active {
+  color: var(--amber);
+}
+
+.status-critical,
+.timeline-failed {
+  color: var(--red);
+}
+
+.timeline-pending {
+  color: var(--dim);
+}
+
+.readiness {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 9px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.readiness-value {
+  color: var(--cyan);
+  font-family: Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+.readiness-meter {
+  height: 3px;
+  overflow: hidden;
+  background: #1d2b26;
+}
+
+.readiness-fill {
+  display: block;
+  height: 100%;
+  background: var(--cyan);
+}
+
+.officer-report {
+  margin: 12px 0 0;
+  padding: 11px 12px;
+  border: 0;
+  border-left: 1px solid var(--line-strong);
+  color: #bdc9c2;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.officer-report p {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.timeline {
+  grid-area: timeline;
+}
+
+.timeline-list {
+  margin: 0;
+  padding: 14px 16px 18px;
+  list-style: none;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 48px 16px 1fr;
+  min-height: 78px;
+}
+
+.timeline-time {
+  padding-top: 3px;
+  color: var(--muted);
+  font-family: Consolas, monospace;
+  font-size: 0.7rem;
+}
+
+.timeline-marker {
+  position: relative;
+}
+
+.timeline-marker::before {
+  position: absolute;
+  top: 6px;
+  left: 4px;
+  z-index: 1;
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  background: #0d1613;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.timeline-marker::after {
+  position: absolute;
+  top: 17px;
+  bottom: -3px;
+  left: 7px;
+  width: 1px;
+  background: var(--line-strong);
+  content: "";
+}
+
+.timeline-item:last-child .timeline-marker::after {
+  display: none;
+}
+
+.timeline-item-complete {
+  color: var(--green);
+}
+
+.timeline-item-active {
+  color: var(--amber);
+}
+
+.timeline-item-failed {
+  color: var(--red);
+}
+
+.timeline-item-pending {
+  color: var(--dim);
+}
+
+.timeline-copy {
+  color: var(--ink);
+}
+
+.timeline-heading {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.timeline-title {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.timeline-detail {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.harness {
+  grid-area: harness;
+}
+
+.unavailable-banner {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin: 14px 14px 0;
+  padding: 10px 12px;
+  border: 1px dashed rgba(243, 198, 107, 0.4);
+  color: var(--amber);
+  background: rgba(130, 94, 31, 0.09);
+  font-size: 0.76rem;
+}
+
+.lock-icon {
+  display: grid;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  border: 1px solid currentColor;
+  font-family: Consolas, monospace;
+}
+
+.harness-explanation {
+  padding: 12px 15px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.control-list {
+  margin: 0;
+  padding: 0 7px 7px;
+  border: 0;
+}
+
+.control-card {
+  position: relative;
+  padding: 13px 78px 13px 9px;
+  border-top: 1px solid var(--line);
+}
+
+.control-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.control-name {
+  margin: 0;
+  color: #aebbb4;
+  font-size: 0.81rem;
+}
+
+.control-setting {
+  color: var(--amber);
+  font-family: Consolas, monospace;
+  font-size: 0.68rem;
+}
+
+.control-description {
+  margin-top: 6px;
+  color: var(--dim);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.control-button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 58px;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid #3c4742;
+  color: transparent;
+  background: #19201d;
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: translateY(-50%);
+}
+
+.control-button::before {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 16px;
+  height: 16px;
+  background: #545d58;
+  content: "";
+}
+
+.control-button::after {
+  position: absolute;
+  top: 9px;
+  right: 7px;
+  color: #69736e;
+  content: "×";
+}
+
+.outcome {
+  display: grid;
+  grid-area: outcome;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  padding: 0 18px 18px;
+  border-color: rgba(255, 119, 95, 0.36);
+  background:
+    linear-gradient(110deg, rgba(118, 29, 20, 0.2), transparent 55%),
+    var(--panel);
+}
+
+.outcome .section-heading {
+  grid-column: 1 / -1;
+  margin: 0 -18px 18px;
+}
+
+.outcome-verdict {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 0.67rem;
+  letter-spacing: 0.08em;
+}
+
+.outcome-title {
+  margin: 0;
+  color: #ffe7dd;
+  font-size: 1.12rem;
+}
+
+.outcome-description {
+  margin-top: 7px;
+  color: #bdaaa4;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.outcome-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: end;
+  padding-left: 16px;
+}
+
+.metric-value {
+  margin-top: 3px;
+  color: var(--red);
+  font-family: Consolas, monospace;
+  font-size: 1.2rem;
+}
+
+.screen-footer {
+  padding: 13px 4px 0;
+  text-align: right;
+}
+
+@media (max-width: 1180px) {
+  .command-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "mission mission"
+      "outcome outcome"
+      "officers timeline"
+      "harness harness";
+  }
+}
+
+@media (max-width: 720px) {
+  .command-room {
+    padding: 10px;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .round-identity {
+    align-items: start;
+  }
+
+  .signal-warning {
+    justify-self: start;
+  }
+
+  .command-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "mission"
+      "outcome"
+      "officers"
+      "timeline"
+      "harness";
+  }
+
+  .briefing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .command-block {
+    box-shadow: inset 0 2px 0 var(--amber);
+  }
+
+  .objectives {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .outcome {
+    grid-template-columns: 1fr;
+  }
+
+  .outcome-metric {
+    align-items: start;
+    margin-top: 16px;
+    padding-left: 0;
+  }
+}
