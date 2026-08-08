@@ -27,16 +27,22 @@ documentation use Codex only. Four distinct Codex sessions own these roles:
 - **Codex implementer.** Owns issue → branch → PR, verification, and audit
   responses under liaison control. The implementer does not audit or merge its
   own work.
-- **Fresh Codex auditor.** Has no implementation or liaison role and audits the
-  issue and PR artifacts before merge.
+- **Fresh Codex auditor.** Has no implementation or liaison role, receives no
+  liaison Run history, and returns a verdict without merging.
 
 ## Cycle continuity
 
 Bootstrap rule — expires after 3 cycles under `catalog.md` § How a rule enters.
 
 - Pin the Codex model and reasoning effort for every role launch.
-- An unavailable Orca runtime stops cycle mutation. Resume after tracked
-  transport is restored; do not substitute local files or direct prompts.
+- An unavailable Orca runtime stops cycle mutation. The affected role writes
+  `.cycle/STOP.md` with its role, failed command, timestamp, and uncommitted
+  state, then halts. This is a one-way distress beacon, not a message channel.
+- Resume after tracked transport is restored; do not continue through direct
+  prompts or a file-based message channel.
+- The secretary may take over an orphaned implementer Run only after recording
+  the former liaison dispatch, uncommitted state, and reason in a liaison
+  handoff note. The takeover becomes the implementer's sole controller.
 
 ## Work-item intake
 
