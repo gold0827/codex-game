@@ -59,11 +59,50 @@ function appendVehicle(
   title.textContent = `${label} 차량 실루엣`;
   vehicle.append(
     title,
-    svgElement("rect", { x: "-20", y: "-9", width: "27", height: "16", rx: "2" }),
-    svgElement("path", { d: "M7 -7 H17 L23 -1 V7 H7 Z" }),
-    svgElement("path", { d: "M12 -5 H16 L19 -1 H12 Z", class: "vehicle-window" }),
-    svgElement("circle", { cx: "-12", cy: "10", r: "4" }),
-    svgElement("circle", { cx: "15", cy: "10", r: "4" }),
+    svgElement("rect", {
+      x: "-24",
+      y: "-12",
+      width: "48",
+      height: "24",
+      class: "vehicle-shadow",
+    }),
+    svgElement("rect", { x: "-20", y: "-10", width: "28", height: "20" }),
+    svgElement("path", { d: "M8 -8 H18 V-4 H24 V8 H8 Z" }),
+    svgElement("rect", {
+      x: "12",
+      y: "-5",
+      width: "8",
+      height: "8",
+      class: "vehicle-window",
+    }),
+    svgElement("rect", {
+      x: "-16",
+      y: "-14",
+      width: "8",
+      height: "4",
+      class: "vehicle-wheel",
+    }),
+    svgElement("rect", {
+      x: "12",
+      y: "-14",
+      width: "8",
+      height: "4",
+      class: "vehicle-wheel",
+    }),
+    svgElement("rect", {
+      x: "-16",
+      y: "10",
+      width: "8",
+      height: "4",
+      class: "vehicle-wheel",
+    }),
+    svgElement("rect", {
+      x: "12",
+      y: "10",
+      width: "8",
+      height: "4",
+      class: "vehicle-wheel",
+    }),
   );
   if (state === "stranded") {
     vehicle.append(
@@ -84,15 +123,28 @@ function appendFriendlyMarker(
   code: string,
   label: string,
   symbol: string,
+  landmark: "headquarters" | "intelligence" | "objective",
 ): void {
   const marker = svgElement("g", {
-    class: "friendly-marker",
+    class: `friendly-marker landmark-${landmark}`,
     transform: `translate(${x} ${y})`,
+    "data-landmark": landmark,
     role: "img",
     "aria-label": label,
   });
   marker.append(
-    svgElement("rect", { x: "-24", y: "-18", width: "48", height: "36", rx: "2" }),
+    svgElement("rect", {
+      x: "-28",
+      y: "-20",
+      width: "56",
+      height: "40",
+      class: "marker-shadow",
+    }),
+    svgElement("rect", { x: "-24", y: "-16", width: "48", height: "32" }),
+    svgElement("path", {
+      d: "M-16 -8 H-8 V-12 H8 V-8 H16 V8 H8 V12 H-8 V8 H-16 Z",
+      class: "marker-core",
+    }),
   );
   appendText(marker, symbol, 0, 5, "marker-symbol").setAttribute("text-anchor", "middle");
   appendText(marker, code, 0, 33, "marker-code").setAttribute("text-anchor", "middle");
@@ -104,33 +156,55 @@ function appendMapDefinitions(svg: SVGSVGElement): void {
 
   const minorGrid = svgElement("pattern", {
     id: "minor-grid",
-    width: "32",
-    height: "32",
+    width: "24",
+    height: "24",
     patternUnits: "userSpaceOnUse",
   });
-  minorGrid.append(svgElement("path", { d: "M32 0 H0 V32", class: "minor-grid-line" }));
+  minorGrid.append(svgElement("path", { d: "M24 0 H0 V24", class: "minor-grid-line" }));
 
   const majorGrid = svgElement("pattern", {
     id: "major-grid",
-    width: "160",
-    height: "160",
+    width: "120",
+    height: "120",
     patternUnits: "userSpaceOnUse",
   });
   majorGrid.append(
-    svgElement("rect", { width: "160", height: "160", fill: "url(#minor-grid)" }),
-    svgElement("path", { d: "M160 0 H0 V160", class: "major-grid-line" }),
+    svgElement("rect", { width: "120", height: "120", fill: "url(#minor-grid)" }),
+    svgElement("path", { d: "M120 0 H0 V120", class: "major-grid-line" }),
+  );
+
+  const terrainDither = svgElement("pattern", {
+    id: "terrain-dither",
+    width: "24",
+    height: "24",
+    patternUnits: "userSpaceOnUse",
+  });
+  terrainDither.append(
+    svgElement("rect", {
+      x: "0",
+      y: "0",
+      width: "6",
+      height: "6",
+      class: "terrain-pixel",
+    }),
+    svgElement("rect", {
+      x: "18",
+      y: "12",
+      width: "6",
+      height: "6",
+      class: "terrain-pixel",
+    }),
   );
 
   const hatch = svgElement("pattern", {
     id: "flood-hatch",
-    width: "14",
-    height: "14",
+    width: "12",
+    height: "12",
     patternUnits: "userSpaceOnUse",
-    patternTransform: "rotate(35)",
   });
   hatch.append(
-    svgElement("rect", { width: "14", height: "14", class: "hatch-base" }),
-    svgElement("line", { x1: "0", y1: "0", x2: "0", y2: "14", class: "hatch-line" }),
+    svgElement("rect", { width: "12", height: "12", class: "hatch-base" }),
+    svgElement("path", { d: "M0 12 H3 V9 H6 V6 H9 V3 H12", class: "hatch-line" }),
   );
 
   const routeArrow = svgElement("marker", {
@@ -142,7 +216,12 @@ function appendMapDefinitions(svg: SVGSVGElement): void {
     markerHeight: "8",
     orient: "auto-start-reverse",
   });
-  routeArrow.append(svgElement("path", { d: "M0 0 L10 5 L0 10 Z", class: "route-arrow" }));
+  routeArrow.append(
+    svgElement("path", {
+      d: "M0 0 H4 V3 H10 V7 H4 V10 H0 Z",
+      class: "route-arrow",
+    }),
+  );
 
   const safeRouteArrow = svgElement("marker", {
     id: "safe-route-arrow",
@@ -154,53 +233,75 @@ function appendMapDefinitions(svg: SVGSVGElement): void {
     orient: "auto-start-reverse",
   });
   safeRouteArrow.append(
-    svgElement("path", { d: "M0 0 L10 5 L0 10 Z", class: "safe-route-arrow" }),
+    svgElement("path", {
+      d: "M0 0 H4 V3 H10 V7 H4 V10 H0 Z",
+      class: "safe-route-arrow",
+    }),
   );
 
-  definitions.append(minorGrid, majorGrid, hatch, routeArrow, safeRouteArrow);
+  definitions.append(
+    minorGrid,
+    majorGrid,
+    terrainDither,
+    hatch,
+    routeArrow,
+    safeRouteArrow,
+  );
   svg.append(definitions);
 }
 
 function appendTerrain(svg: SVGSVGElement): void {
-  const terrain = svgElement("g", { class: "map-terrain", "aria-hidden": "true" });
+  const terrain = svgElement("g", {
+    class: "map-terrain",
+    "data-map-layer": "terrain",
+    "aria-hidden": "true",
+  });
   terrain.append(
     svgElement("rect", { width: "960", height: "540", class: "terrain-base" }),
     svgElement("path", {
-      d: "M0 82 C118 28 236 38 326 104 S514 188 620 112 S838 36 960 74 V0 H0 Z",
+      d: "M0 0 H960 V72 H864 V48 H768 V72 H672 V96 H600 V120 H528 V144 H432 V120 H360 V96 H288 V72 H192 V48 H96 V72 H0 Z",
       class: "terrain-rise terrain-rise-north",
     }),
     svgElement("path", {
-      d: "M0 410 C156 338 258 438 376 394 S622 334 760 398 S900 450 960 410 V540 H0 Z",
+      d: "M0 396 H96 V372 H192 V396 H288 V420 H384 V396 H480 V372 H576 V360 H672 V384 H768 V408 H864 V396 H960 V540 H0 Z",
       class: "terrain-rise terrain-rise-south",
+    }),
+    svgElement("rect", {
+      x: "0",
+      y: "0",
+      width: "960",
+      height: "540",
+      fill: "url(#terrain-dither)",
+      class: "terrain-dither",
     }),
     svgElement("rect", { width: "960", height: "540", fill: "url(#major-grid)" }),
   );
 
   const contours = [
-    "M-30 138 C112 70 240 86 340 148 S548 224 676 132 S882 52 1000 106",
-    "M-24 174 C116 108 232 124 332 180 S544 258 688 166 S878 94 994 142",
-    "M-18 212 C98 162 232 166 322 220 S536 302 696 202 S870 138 990 184",
-    "M-30 374 C90 302 236 316 348 370 S554 420 678 356 S876 300 994 350",
-    "M-28 414 C98 350 230 354 342 408 S552 462 692 394 S866 346 990 392",
-    "M-16 456 C114 396 238 400 360 452 S568 504 704 438 S866 392 984 438",
+    "M0 132 H96 V108 H216 V120 H312 V144 H408 V168 H528 V156 H624 V120 H744 V96 H864 V108 H960",
+    "M0 180 H120 V156 H240 V168 H336 V192 H432 V216 H552 V204 H648 V168 H768 V144 H864 V156 H960",
+    "M0 228 H96 V204 H216 V216 H312 V240 H432 V264 H552 V252 H672 V216 H768 V192 H864 V204 H960",
+    "M0 360 H96 V336 H216 V348 H312 V372 H432 V384 H552 V372 H672 V348 H768 V336 H864 V348 H960",
+    "M0 408 H120 V384 H240 V396 H336 V420 H456 V432 H576 V420 H696 V396 H792 V384 H888 V396 H960",
+    "M0 456 H96 V432 H216 V444 H336 V468 H456 V480 H576 V468 H696 V444 H816 V432 H912 V444 H960",
   ];
   contours.forEach((path) => {
     terrain.append(svgElement("path", { d: path, class: "map-contour" }));
   });
 
   terrain.append(
-    svgElement("path", { d: "M58 420 C146 372 218 334 302 314", class: "map-road" }),
+    svgElement("path", { d: "M48 432 L120 408 L192 360 L300 312", class: "map-road" }),
     svgElement("path", {
-      d: "M302 314 C398 258 452 198 548 210 C652 224 734 278 850 210",
+      d: "M300 312 L396 264 L456 216 L552 216 L648 240 L744 264 L852 216",
       class: "map-road map-road-north",
     }),
-    svgElement("path", { d: "M302 314 C430 366 590 430 828 448", class: "map-road minor-road" }),
+    svgElement("path", { d: "M300 312 L420 360 L588 432 L828 456", class: "map-road minor-road" }),
     svgElement("path", {
-      d: "M602 -30 C548 76 586 144 526 224 C470 298 532 364 470 438 C438 476 440 508 422 570",
+      d: "M576 0 H624 V72 H600 V144 H576 V216 H540 V288 H516 V360 H492 V432 H468 V540 H396 V468 H420 V408 H444 V336 H468 V264 H492 V192 H516 V120 H540 V48 H576 Z",
       class: "river-bank",
     }),
     svgElement("path", {
-      d: "M602 -30 C548 76 586 144 526 224 C470 298 532 364 470 438 C438 476 440 508 422 570",
+      d: "M588 0 H612 V72 H588 V144 H564 V216 H528 V288 H504 V360 H480 V432 H456 V540 H408 V468 H432 V408 H456 V336 H480 V264 H504 V192 H528 V120 H552 V48 H588 Z",
       class: "river-water",
     }),
   );
@@ -213,9 +314,9 @@ function appendTerrain(svg: SVGSVGElement): void {
     "data-cue": "broken-bridge",
   });
   bridge.append(
-    svgElement("path", { d: "M474 278 L501 257", class: "bridge-deck" }),
-    svgElement("path", { d: "M523 240 L550 219", class: "bridge-deck" }),
-    svgElement("path", { d: "M503 259 l10 -18 l10 1 l-11 17", class: "bridge-break" }),
+    svgElement("path", { d: "M468 288 L504 252 L516 264 L480 300 Z", class: "bridge-deck" }),
+    svgElement("path", { d: "M528 240 L564 204 L576 216 L540 252 Z", class: "bridge-deck" }),
+    svgElement("path", { d: "M504 252 L516 240 L528 252 L516 264 Z", class: "bridge-break" }),
   );
   appendText(bridge, "교량 붕괴", 548, 265, "map-label map-label-fixed");
   svg.append(bridge);
@@ -230,11 +331,11 @@ function appendRoute(svg: SVGSVGElement): void {
   });
   route.append(
     svgElement("path", {
-      d: "M112 410 C184 366 250 338 302 314 C398 258 452 198 548 210 C652 224 734 278 850 210",
+      d: "M120 408 L192 360 L300 312 L396 264 L456 216 L552 216 L648 240 L744 264 L852 216",
       class: "convoy-route route-outline",
     }),
     svgElement("path", {
-      d: "M112 410 C184 366 250 338 302 314 C398 258 452 198 548 210 C652 224 734 278 850 210",
+      d: "M120 408 L192 360 L300 312 L396 264 L456 216 L552 216 L648 240 L744 264 L852 216",
       class: "convoy-route",
       "marker-end": "url(#route-arrow)",
     }),
@@ -245,7 +346,7 @@ function appendRoute(svg: SVGSVGElement): void {
 
 function appendSafeRoute(svg: SVGSVGElement): void {
   const path =
-    "M112 410 C184 366 250 338 302 314 C430 366 590 430 828 448 C898 410 916 302 850 210";
+    "M120 408 L192 360 L300 312 L420 360 L588 432 L828 456 L888 408 L912 312 L852 216";
   const route = svgElement("g", {
     class: "safe-route-layer",
     "data-cue": "solid-safe-route",
@@ -298,7 +399,7 @@ function appendFloodWarning(svg: SVGSVGElement): void {
   });
   zone.append(
     svgElement("path", {
-      d: "M438 180 C492 154 574 166 622 220 C652 254 630 316 570 344 C510 372 432 330 416 278 C402 234 410 198 438 180 Z",
+      d: "M444 180 H540 V192 H588 V216 H624 V252 H636 V300 H612 V324 H564 V348 H492 V336 H444 V312 H420 V276 H408 V228 H420 V204 H444 Z",
       fill: "url(#flood-hatch)",
       class: "flood-boundary",
     }),
@@ -324,7 +425,7 @@ function appendFloodWarning(svg: SVGSVGElement): void {
     "data-cue": "warning-trace",
   });
   warningTrace.append(
-    svgElement("path", { d: "M686 126 C648 154 596 176 546 224", class: "warning-line" }),
+    svgElement("path", { d: "M684 132 L648 156 H612 L576 192 L540 228", class: "warning-line" }),
   );
   appendText(warningTrace, "정찰 경고 · 수위 급상승", 716, 105, "map-label warning-label");
   svg.append(warningTrace);
@@ -404,9 +505,12 @@ function appendSuccessCue(svg: SVGSVGElement): void {
     transform: "translate(694 352)",
   });
   cue.append(
-    svgElement("circle", { cx: "0", cy: "0", r: "42" }),
     svgElement("path", {
-      d: "M-20 0 L-6 15 L22 -18",
+      d: "M-36 -36 H36 V-24 H48 V24 H36 V36 H12 V48 H-12 V36 H-36 V24 H-48 V-24 H-36 Z",
+      class: "success-shield",
+    }),
+    svgElement("path", {
+      d: "M-24 0 L-12 12 H0 V0 H12 V-12 H24",
       class: "success-check",
     }),
   );
@@ -426,7 +530,7 @@ function appendFailureStamp(svg: SVGSVGElement): void {
     transform: "translate(692 400) rotate(-7)",
   });
   stamp.append(
-    svgElement("rect", { x: "-132", y: "-48", width: "264", height: "96", rx: "4" }),
+    svgElement("rect", { x: "-132", y: "-48", width: "264", height: "96" }),
     svgElement("path", { d: "M-110 -28 L-62 28 M-62 -28 L-110 28", class: "stamp-cross" }),
   );
   appendText(stamp, "작전 실패", 20, 13, "failure-stamp-text").setAttribute(
@@ -468,6 +572,9 @@ export function renderTacticalMap(
   const svg = svgElement("svg", {
     class: "operations-board",
     viewBox: "0 0 960 540",
+    "data-visual-language": "pixel-battlefield",
+    "data-grid-step": "12",
+    "shape-rendering": "crispEdges",
     role: "img",
     "aria-labelledby": "tactical-map-name tactical-map-description",
     preserveAspectRatio: "xMidYMid meet",
@@ -480,9 +587,33 @@ export function renderTacticalMap(
 
   appendMapDefinitions(svg);
   appendTerrain(svg);
-  appendFriendlyMarker(svg, 116, 454, "HQ", "수송대 출발 지점", "◆");
-  appendFriendlyMarker(svg, 714, 146, "INT", "정보 장교 정찰 지점", "△");
-  appendFriendlyMarker(svg, 850, 210, "OBJ", "전방 초소 목표", "★");
+  appendFriendlyMarker(
+    svg,
+    120,
+    456,
+    "HQ",
+    "수송대 출발 지점",
+    "◆",
+    "headquarters",
+  );
+  appendFriendlyMarker(
+    svg,
+    708,
+    144,
+    "INT",
+    "정보 장교 정찰 지점",
+    "△",
+    "intelligence",
+  );
+  appendFriendlyMarker(
+    svg,
+    852,
+    216,
+    "OBJ",
+    "전방 초소 목표",
+    "★",
+    "objective",
+  );
   if (
     mapState === "route" ||
     mapState === "warning" ||

@@ -15,6 +15,13 @@
   --amber: #f3c66b;
   --red: #ff775f;
   --cyan: #7cd7d3;
+  --map-charcoal: #0b1110;
+  --map-olive-deep: #1d2416;
+  --map-olive: #343b22;
+  --map-olive-light: #47502d;
+  --map-amber: #e6b85c;
+  --map-cyan: #64c8c8;
+  --map-red: #d95b49;
 }
 
 * {
@@ -143,7 +150,8 @@ select {
 
 .command-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 0.78fr);
+  grid-template-columns:
+    minmax(0, 1.18fr) minmax(0, 1.18fr) minmax(300px, 0.64fr);
   grid-template-areas:
     "map map mission"
     "map map outcome"
@@ -202,7 +210,12 @@ select {
 .tactical-map {
   grid-area: map;
   align-self: start;
-  background: #111812;
+  z-index: 1;
+  border-color: rgba(100, 200, 200, 0.42);
+  background: var(--map-charcoal);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(100, 200, 200, 0.08);
 }
 
 .map-phase-summary {
@@ -216,7 +229,8 @@ select {
   margin: 0;
   padding: 4px 7px;
   color: #d8dfc9;
-  background: rgba(8, 13, 10, 0.86);
+  border-right: 4px solid var(--map-amber);
+  background: rgba(11, 17, 16, 0.94);
   font-family: "D2Coding", Consolas, monospace;
   font-size: 0.7rem;
 }
@@ -229,94 +243,106 @@ select {
   width: 100%;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
-  background: #202719;
+  background: var(--map-olive-deep);
+  image-rendering: pixelated;
 }
 
 .operations-board {
   display: block;
   width: 100%;
   height: auto;
-  min-height: 360px;
+  min-height: 420px;
+  background: var(--map-olive-deep);
+  shape-rendering: crispEdges;
 }
 
 .terrain-base {
-  fill: #252b1d;
+  fill: var(--map-olive);
 }
 
 .terrain-rise {
-  fill: #313825;
+  fill: var(--map-olive-light);
 }
 
 .terrain-rise-south {
-  fill: #1d251b;
+  fill: #252d19;
+}
+
+.terrain-dither {
+  opacity: 0.34;
+}
+
+.terrain-pixel {
+  fill: #667044;
 }
 
 .minor-grid-line,
 .major-grid-line {
   fill: none;
-  stroke: rgba(196, 211, 178, 0.12);
+  stroke: rgba(205, 218, 175, 0.1);
   stroke-width: 1;
 }
 
 .major-grid-line {
-  stroke: rgba(196, 211, 178, 0.26);
-  stroke-width: 1.5;
+  stroke: rgba(205, 218, 175, 0.22);
+  stroke-width: 2;
 }
 
 .map-contour {
   fill: none;
-  stroke: #677052;
-  stroke-dasharray: 3 4;
-  stroke-width: 1.3;
+  stroke: #737b4c;
+  stroke-dasharray: 4 4;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 2;
 }
 
 .map-road {
   fill: none;
-  stroke: #736f50;
-  stroke-linecap: round;
-  stroke-width: 14;
+  stroke: #766f4b;
+  stroke-linecap: square;
+  stroke-linejoin: bevel;
+  stroke-width: 16;
 }
 
 .map-road-north {
-  stroke: #837b55;
+  stroke: #887b4d;
 }
 
 .minor-road {
-  stroke: #575b42;
-  stroke-dasharray: 3 10;
-  stroke-width: 8;
+  stroke: #5d6040;
+  stroke-dasharray: 8 8;
+  stroke-width: 10;
 }
 
 .river-bank {
-  fill: none;
-  stroke: #0c1210;
-  stroke-width: 74;
+  fill: #101614;
+  stroke: none;
 }
 
 .river-water {
-  fill: none;
-  stroke: #3f6768;
-  stroke-linecap: round;
-  stroke-width: 62;
+  fill: #31575b;
+  stroke: none;
 }
 
 .broken-bridge .bridge-deck {
-  fill: none;
-  stroke: #d3c4a0;
-  stroke-width: 13;
+  fill: #c7b98e;
+  stroke: var(--map-charcoal);
+  stroke-width: 4;
 }
 
 .bridge-break {
-  fill: #161b15;
-  stroke: #f3c66b;
-  stroke-width: 3;
+  fill: var(--map-charcoal);
+  stroke: var(--map-amber);
+  stroke-width: 4;
 }
 
 .convoy-route {
   fill: none;
-  stroke: #f3c66b;
-  stroke-dasharray: 15 9;
+  stroke: var(--map-amber);
+  stroke-dasharray: 16 8;
   stroke-linecap: square;
+  stroke-linejoin: bevel;
   stroke-width: 5;
 }
 
@@ -327,14 +353,14 @@ select {
 }
 
 .route-arrow {
-  fill: #f3c66b;
+  fill: var(--map-amber);
 }
 
 .safe-convoy-route {
   fill: none;
-  stroke: #9ce6b7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  stroke: var(--map-cyan);
+  stroke-linecap: square;
+  stroke-linejoin: bevel;
   stroke-width: 6;
 }
 
@@ -344,12 +370,12 @@ select {
 }
 
 .safe-route-arrow {
-  fill: #9ce6b7;
+  fill: var(--map-cyan);
 }
 
 .safe-route-waypoints rect {
-  fill: #15231d;
-  stroke: #c8f4d6;
+  fill: var(--map-charcoal);
+  stroke: #a8eceb;
   stroke-width: 4;
 }
 
@@ -359,7 +385,8 @@ select {
   stroke: #101510;
   stroke-linejoin: round;
   stroke-width: 6px;
-  font-family: "D2Coding", Consolas, monospace;
+  font-family:
+    "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
   font-size: 17px;
   font-weight: 800;
   letter-spacing: 0.03em;
@@ -375,37 +402,38 @@ select {
 }
 
 .safe-route-label {
-  fill: #c8f4d6;
+  fill: #a8eceb;
 }
 
 .hatch-base {
-  fill: rgba(142, 34, 28, 0.42);
+  fill: rgba(84, 32, 25, 0.52);
 }
 
 .hatch-line {
-  stroke: #ff7b68;
-  stroke-width: 5;
+  fill: none;
+  stroke: var(--map-red);
+  stroke-width: 3;
 }
 
 .flood-boundary {
-  stroke: #ff7b68;
-  stroke-dasharray: 10 6;
+  stroke: var(--map-red);
+  stroke-dasharray: 12 6;
   stroke-width: 4;
 }
 
 .flood-label,
 .convoy-label-critical {
-  fill: #ff9a87;
+  fill: #f08b7c;
 }
 
 .warning-triangle {
   fill: #332817;
-  stroke: #f3c66b;
+  stroke: var(--map-amber);
   stroke-width: 5;
 }
 
 .warning-symbol {
-  fill: #f3c66b;
+  fill: var(--map-amber);
   font-family: Consolas, monospace;
   font-size: 30px;
   font-weight: 900;
@@ -413,9 +441,10 @@ select {
 
 .warning-line {
   fill: none;
-  stroke: #f3c66b;
-  stroke-dasharray: 3 8;
-  stroke-linecap: round;
+  stroke: var(--map-amber);
+  stroke-dasharray: 4 8;
+  stroke-linecap: square;
+  stroke-linejoin: bevel;
   stroke-width: 4;
 }
 
@@ -425,39 +454,62 @@ select {
 }
 
 .friendly-marker rect {
-  fill: #15231d;
-  stroke: #9ce6b7;
+  fill: #142324;
+  stroke: var(--map-cyan);
   stroke-width: 3;
 }
 
+.friendly-marker .marker-shadow {
+  fill: var(--map-charcoal);
+  stroke: none;
+}
+
+.friendly-marker .marker-core {
+  fill: #203c3c;
+  stroke: #a8eceb;
+  stroke-width: 2;
+}
+
 .marker-symbol {
-  fill: #c8f4d6;
+  fill: #d2ffff;
+  font-family:
+    "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
   font-size: 20px;
 }
 
 .marker-code {
-  fill: #b3d9bd;
+  fill: #a8eceb;
   font-family: Consolas, monospace;
   font-size: 13px;
   font-weight: 800;
 }
 
 .convoy-vehicle {
-  fill: #a9c8a7;
-  stroke: #102019;
+  fill: #aeb78a;
+  stroke: var(--map-charcoal);
   stroke-width: 2;
 }
 
+.convoy-vehicle .vehicle-shadow {
+  fill: rgba(6, 10, 9, 0.52);
+  stroke: none;
+}
+
+.convoy-vehicle .vehicle-wheel {
+  fill: #0c1211;
+  stroke: none;
+}
+
 .convoy-waiting {
-  fill: #7f9580;
+  fill: #858d68;
 }
 
 .convoy-stranded {
-  fill: #e9c0a8;
+  fill: #c79d76;
 }
 
 .convoy-secured {
-  fill: #c8f4d6;
+  fill: #a8eceb;
   stroke-width: 3;
 }
 
@@ -467,13 +519,13 @@ select {
 
 .stranded-cross {
   fill: none;
-  stroke: #ff6d57;
+  stroke: var(--map-red);
   stroke-width: 6;
 }
 
 .failure-stamp rect {
   fill: rgba(42, 12, 10, 0.82);
-  stroke: #ff6d57;
+  stroke: var(--map-red);
   stroke-width: 8;
 }
 
@@ -487,26 +539,26 @@ select {
 
 .stamp-cross {
   fill: none;
-  stroke: #ff6d57;
+  stroke: var(--map-red);
   stroke-width: 9;
 }
 
-.success-badge circle {
-  fill: rgba(15, 50, 31, 0.88);
-  stroke: #9ce6b7;
+.success-shield {
+  fill: rgba(18, 55, 57, 0.92);
+  stroke: var(--map-cyan);
   stroke-width: 7;
 }
 
 .success-check {
   fill: none;
-  stroke: #d7ffe1;
+  stroke: #d2ffff;
   stroke-linecap: square;
   stroke-linejoin: miter;
   stroke-width: 9;
 }
 
 .success-label {
-  fill: #d7ffe1;
+  fill: #d2ffff;
   font-size: 24px;
 }
 
@@ -517,7 +569,8 @@ select {
   margin: 0;
   padding: 11px 14px;
   color: #aeb8ab;
-  font-family: "D2Coding", Consolas, monospace;
+  font-family:
+    "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
   font-size: 0.68rem;
   list-style: none;
 }
@@ -550,7 +603,7 @@ select {
 
 .legend-safe-route {
   position: relative;
-  border-top: 3px solid #9ce6b7;
+  border-top: 3px solid var(--map-cyan);
 }
 
 .legend-safe-route::after {
@@ -559,23 +612,22 @@ select {
   left: 8px;
   width: 7px;
   height: 7px;
-  border: 2px solid #c8f4d6;
-  background: #15231d;
+  border: 2px solid #a8eceb;
+  background: var(--map-charcoal);
   content: "";
   transform: rotate(45deg);
 }
 
 .legend-success {
   position: relative;
-  border: 2px solid #9ce6b7;
-  border-radius: 50%;
+  border: 2px solid var(--map-cyan);
 }
 
 .legend-success::after {
   position: absolute;
   top: -3px;
   left: 7px;
-  color: #d7ffe1;
+  color: #d2ffff;
   content: "✓";
   font-size: 0.85rem;
   font-weight: 900;

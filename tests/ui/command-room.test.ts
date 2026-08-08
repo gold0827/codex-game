@@ -401,6 +401,38 @@ describe("command-room round screen", () => {
     expect(graphic.textContent).toContain("수송대 · 출발 대기");
   });
 
+  it("renders a code-native pixel battlefield as the first command-grid surface", () => {
+    const grid = root.querySelector<HTMLElement>(".command-grid")!;
+    const map = tacticalMap();
+    const graphic = mapGraphic();
+    const landmarks = [
+      ...graphic.querySelectorAll<SVGGElement>("[data-landmark]"),
+    ];
+    const vehicles = [...graphic.querySelectorAll<SVGGElement>(".convoy-vehicle")];
+
+    expect(grid.firstElementChild).toBe(map);
+    expect(graphic.dataset.visualLanguage).toBe("pixel-battlefield");
+    expect(graphic.dataset.gridStep).toBe("12");
+    expect(graphic.getAttribute("shape-rendering")).toBe("crispEdges");
+    expect(graphic.querySelector('[data-map-layer="terrain"]')).not.toBeNull();
+    expect(graphic.querySelector("#minor-grid")).not.toBeNull();
+    expect(graphic.querySelector("#terrain-dither")).not.toBeNull();
+    expect(graphic.querySelector(".terrain-base")).not.toBeNull();
+    expect(graphic.querySelector(".river-water")).not.toBeNull();
+    expect(graphic.querySelector('[data-cue="broken-bridge"]')).not.toBeNull();
+    expect(landmarks.map(({ dataset }) => dataset.landmark)).toEqual([
+      "headquarters",
+      "intelligence",
+      "objective",
+    ]);
+    expect(graphic.querySelectorAll("circle, ellipse")).toHaveLength(0);
+    expect(vehicles).toHaveLength(3);
+    vehicles.forEach((vehicle) => {
+      expect(vehicle.querySelectorAll(".vehicle-wheel")).toHaveLength(4);
+      expect(vehicle.querySelector(".vehicle-window")).not.toBeNull();
+    });
+  });
+
   it("exposes a Korean accessible name and scenario-owned phase description", () => {
     selectProtocol("independent");
 
