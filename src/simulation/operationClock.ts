@@ -24,7 +24,8 @@ function validateSchedule(schedule: readonly number[]): void {
     throw new RangeError("Operation clock schedule must contain a boundary.");
   }
 
-  schedule.forEach((elapsedMs, index) => {
+  for (let index = 0; index < schedule.length; index += 1) {
+    const elapsedMs = schedule[index];
     if (!Number.isSafeInteger(elapsedMs) || elapsedMs < 0) {
       throw new RangeError(
         "Operation clock boundaries must be non-negative safe integer milliseconds.",
@@ -36,7 +37,7 @@ function validateSchedule(schedule: readonly number[]): void {
         "Operation clock boundaries must be in strictly increasing order.",
       );
     }
-  });
+  }
 }
 
 function validateElapsedMs(elapsedMs: number): void {

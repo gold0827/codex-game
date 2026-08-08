@@ -104,6 +104,10 @@ describe("operation clock", () => {
     });
   });
 
+  it("rejects sparse schedules explicitly", () => {
+    expect(() => createOperationClock(new Array<number>(2))).toThrow(RangeError);
+  });
+
   it("rejects invalid advances without changing state", () => {
     const invalidAdvances = [
       -1,
