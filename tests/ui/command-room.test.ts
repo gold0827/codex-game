@@ -29,6 +29,14 @@ describe("command-room round screen", () => {
     expect(onClick).not.toHaveBeenCalled();
   }
 
+  function tacticalMap(): HTMLElement {
+    return root.querySelector<HTMLElement>('[data-region="tactical-map"]')!;
+  }
+
+  function mapGraphic(): SVGSVGElement {
+    return tacticalMap().querySelector<SVGSVGElement>("svg")!;
+  }
+
   beforeEach(() => {
     document.body.innerHTML = '<div id="app"></div>';
     root = document.querySelector<HTMLElement>("#app")!;
@@ -36,12 +44,99 @@ describe("command-room round screen", () => {
   });
 
   it("renders every required round region", () => {
-    const requiredRegions = ["mission", "officers", "timeline", "harness", "outcome"];
+    const requiredRegions = [
+      "tactical-map",
+      "mission",
+      "officers",
+      "timeline",
+      "harness",
+      "outcome",
+    ];
 
     requiredRegions.forEach((region) => {
       const node = root.querySelector(`[data-region="${region}"]`);
       expect(node, `missing ${region} region`).not.toBeNull();
       expect(node?.getAttribute("aria-labelledby")).toBe(`${region}-title`);
+    });
+  });
+
+  it("renders a substantial initial tactical graphic in command state", () => {
+    const map = tacticalMap();
+    const graphic = mapGraphic();
+
+    expect(map.dataset.phaseIndex).toBe("0");
+    expect(map.dataset.mapState).toBe("command");
+    expect(graphic.getAttribute("viewBox")).toBe("0 0 960 540");
+    expect(graphic.querySelectorAll(".map-contour").length).toBeGreaterThanOrEqual(6);
+    expect(graphic.querySelector('[data-cue="broken-bridge"]')).not.toBeNull();
+    expect(graphic.querySelectorAll(".friendly-marker")).toHaveLength(3);
+    expect(graphic.querySelectorAll(".convoy-vehicle")).toHaveLength(3);
+    expect(graphic.querySelector('[data-cue="dashed-route"]')).toBeNull();
+    expect(graphic.querySelector('[data-cue="triangle-warning"]')).toBeNull();
+    expect(graphic.querySelector('[data-cue="hatched-zone"]')).toBeNull();
+    expect(graphic.querySelector('[data-cue="failure-stamp"]')).toBeNull();
+    expect(map.textContent).toContain("명령 하달");
+    expect(graphic.textContent).toContain("수송대 · 출발 대기");
+  });
+
+  it("exposes a Korean accessible name and scenario-owned phase description", () => {
+    commandRoomScenario.timeline.phases.forEach((phase, index) => {
+      const graphic = mapGraphic();
+      const title = graphic.querySelector("title");
+      const description = graphic.querySelector("desc");
+
+      expect(graphic.getAttribute("role")).toBe("img");
+      expect(graphic.getAttribute("aria-labelledby")).toBe(
+        "tactical-map-name tactical-map-description",
+      );
+      expect(title?.textContent).toBe(commandRoomScenario.tacticalMap.accessibleName);
+      expect(description?.textContent).toBe(
+        commandRoomScenario.tacticalMap.phaseDescriptions[index],
+      );
+      expect(description?.textContent?.startsWith(`${phase.title}.`)).toBe(true);
+      expect(tacticalMap().textContent).toContain(phase.title);
+
+      primaryAction().click();
+    });
+  });
+
+  it("distinguishes every map phase with shapes, labels, and line styles", () => {
+    const expectedStates = ["command", "route", "warning", "stranded", "failed"];
+
+    expectedStates.forEach((state, index) => {
+      const graphic = mapGraphic();
+
+      expect(tacticalMap().dataset.mapState).toBe(state);
+      expect(tacticalMap().dataset.phaseIndex).toBe(String(index));
+      expect(graphic.querySelectorAll(".convoy-vehicle")).toHaveLength(3);
+
+      if (index >= 1) {
+        const route = graphic.querySelector('[data-cue="dashed-route"]');
+        expect(route).not.toBeNull();
+        expect(route?.textContent).toContain("선정 경로 · 북쪽 우회로");
+        expect(route?.getAttribute("aria-label")).toContain("점선");
+      }
+      if (index >= 2) {
+        const warning = graphic.querySelector('[data-cue="triangle-warning"]');
+        const flood = graphic.querySelector('[data-cue="hatched-zone"]');
+        expect(warning?.textContent).toContain("!");
+        expect(warning?.getAttribute("aria-label")).toContain("삼각형 느낌표");
+        expect(flood?.textContent).toContain("침수 위험 구역");
+        expect(flood?.getAttribute("aria-label")).toContain("빗금");
+      }
+      if (index >= 3) {
+        const stranded = graphic.querySelector('[data-cue="stranded-cross"]');
+        expect(stranded).not.toBeNull();
+        expect(graphic.textContent).toContain("수송 2호차 · 고립");
+      }
+      if (index === 4) {
+        const failure = graphic.querySelector('[data-cue="failure-stamp"]');
+        expect(failure?.textContent).toContain("작전 실패");
+        expect(failure?.getAttribute("aria-label")).toContain("엑스 표식");
+      }
+
+      expectHarnessToRemainInert();
+      primaryAction().click();
     });
   });
 
@@ -100,6 +195,10 @@ describe("command-room round screen", () => {
     });
 
     expect(root.innerHTML).toBe(initialMarkup);
+    expect(tacticalMap().dataset.mapState).toBe("command");
+    expect(mapGraphic().querySelector('[data-cue="dashed-route"]')).toBeNull();
+    expect(mapGraphic().querySelector('[data-cue="triangle-warning"]')).toBeNull();
+    expect(mapGraphic().querySelector('[data-cue="hatched-zone"]')).toBeNull();
     expect(root.querySelector(".current-phase-title")?.textContent).toBe(
       commandRoomScenario.timeline.phases[0].title,
     );

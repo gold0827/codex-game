@@ -3,6 +3,7 @@ import type {
   OfficerTone,
   TimelineTone,
 } from "../scenarios/commandRoomScenario";
+import { renderTacticalMap } from "./TacticalMap";
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -320,6 +321,7 @@ export function renderCommandRoom(
     };
     const grid = element("main", "command-grid");
     grid.append(
+      renderTacticalMap(scenario, currentPhaseIndex),
       renderMission(scenario),
       renderOfficers(scenario, currentPhaseIndex),
       renderTimeline(scenario, currentPhaseIndex, advance),

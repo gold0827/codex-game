@@ -23,6 +23,7 @@
 
 body {
   margin: 0;
+  overflow-x: hidden;
   min-width: 320px;
   min-height: 100vh;
   background:
@@ -142,9 +143,10 @@ select {
 
 .command-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 1.1fr) minmax(360px, 1.35fr) minmax(320px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 0.78fr);
   grid-template-areas:
-    "mission mission outcome"
+    "map map mission"
+    "map map outcome"
     "officers timeline harness";
   gap: 14px;
 }
@@ -195,6 +197,304 @@ select {
   right: 16px;
   font-family: "D2Coding", Consolas, monospace;
   letter-spacing: 0.03em;
+}
+
+.tactical-map {
+  grid-area: map;
+  align-self: start;
+  background: #111812;
+}
+
+.map-phase-summary {
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  padding: 4px 7px;
+  color: #d8dfc9;
+  background: rgba(8, 13, 10, 0.86);
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 0.7rem;
+}
+
+.map-phase-summary time {
+  color: var(--amber);
+}
+
+.tactical-map-frame {
+  width: 100%;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: #202719;
+}
+
+.operations-board {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 360px;
+}
+
+.terrain-base {
+  fill: #252b1d;
+}
+
+.terrain-rise {
+  fill: #313825;
+}
+
+.terrain-rise-south {
+  fill: #1d251b;
+}
+
+.minor-grid-line,
+.major-grid-line {
+  fill: none;
+  stroke: rgba(196, 211, 178, 0.12);
+  stroke-width: 1;
+}
+
+.major-grid-line {
+  stroke: rgba(196, 211, 178, 0.26);
+  stroke-width: 1.5;
+}
+
+.map-contour {
+  fill: none;
+  stroke: #677052;
+  stroke-dasharray: 3 4;
+  stroke-width: 1.3;
+}
+
+.map-road {
+  fill: none;
+  stroke: #736f50;
+  stroke-linecap: round;
+  stroke-width: 14;
+}
+
+.map-road-north {
+  stroke: #837b55;
+}
+
+.minor-road {
+  stroke: #575b42;
+  stroke-dasharray: 3 10;
+  stroke-width: 8;
+}
+
+.river-bank {
+  fill: none;
+  stroke: #0c1210;
+  stroke-width: 74;
+}
+
+.river-water {
+  fill: none;
+  stroke: #3f6768;
+  stroke-linecap: round;
+  stroke-width: 62;
+}
+
+.broken-bridge .bridge-deck {
+  fill: none;
+  stroke: #d3c4a0;
+  stroke-width: 13;
+}
+
+.bridge-break {
+  fill: #161b15;
+  stroke: #f3c66b;
+  stroke-width: 3;
+}
+
+.convoy-route {
+  fill: none;
+  stroke: #f3c66b;
+  stroke-dasharray: 15 9;
+  stroke-linecap: square;
+  stroke-width: 5;
+}
+
+.route-outline {
+  stroke: #11150e;
+  stroke-dasharray: none;
+  stroke-width: 11;
+}
+
+.route-arrow {
+  fill: #f3c66b;
+}
+
+.map-label {
+  fill: #fff3d3;
+  paint-order: stroke;
+  stroke: #101510;
+  stroke-linejoin: round;
+  stroke-width: 6px;
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.map-label-fixed {
+  fill: #d6d0bb;
+  font-size: 14px;
+}
+
+.route-label {
+  fill: #ffd77d;
+}
+
+.hatch-base {
+  fill: rgba(142, 34, 28, 0.42);
+}
+
+.hatch-line {
+  stroke: #ff7b68;
+  stroke-width: 5;
+}
+
+.flood-boundary {
+  stroke: #ff7b68;
+  stroke-dasharray: 10 6;
+  stroke-width: 4;
+}
+
+.flood-label,
+.convoy-label-critical {
+  fill: #ff9a87;
+}
+
+.warning-triangle {
+  fill: #332817;
+  stroke: #f3c66b;
+  stroke-width: 5;
+}
+
+.warning-symbol {
+  fill: #f3c66b;
+  font-family: Consolas, monospace;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.warning-line {
+  fill: none;
+  stroke: #f3c66b;
+  stroke-dasharray: 3 8;
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.warning-label {
+  fill: #ffd77d;
+  font-size: 15px;
+}
+
+.friendly-marker rect {
+  fill: #15231d;
+  stroke: #9ce6b7;
+  stroke-width: 3;
+}
+
+.marker-symbol {
+  fill: #c8f4d6;
+  font-size: 20px;
+}
+
+.marker-code {
+  fill: #b3d9bd;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.convoy-vehicle {
+  fill: #a9c8a7;
+  stroke: #102019;
+  stroke-width: 2;
+}
+
+.convoy-waiting {
+  fill: #7f9580;
+}
+
+.convoy-stranded {
+  fill: #e9c0a8;
+}
+
+.vehicle-window {
+  fill: #263c3c;
+}
+
+.stranded-cross {
+  fill: none;
+  stroke: #ff6d57;
+  stroke-width: 6;
+}
+
+.failure-stamp rect {
+  fill: rgba(42, 12, 10, 0.82);
+  stroke: #ff6d57;
+  stroke-width: 8;
+}
+
+.failure-stamp-text {
+  fill: #ff8f7c;
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.stamp-cross {
+  fill: none;
+  stroke: #ff6d57;
+  stroke-width: 9;
+}
+
+.tactical-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0;
+  padding: 11px 14px;
+  color: #aeb8ab;
+  font-family: "D2Coding", Consolas, monospace;
+  font-size: 0.68rem;
+  list-style: none;
+}
+
+.tactical-legend li {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.tactical-legend span {
+  display: inline-block;
+  width: 24px;
+  height: 12px;
+}
+
+.legend-route {
+  border-top: 2px dashed var(--amber);
+}
+
+.legend-warning {
+  border: 2px solid var(--amber);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.legend-failure {
+  border: 1px solid var(--red);
+  background: repeating-linear-gradient(135deg, transparent 0 4px, var(--red) 4px 6px);
 }
 
 .mission {
@@ -709,8 +1009,8 @@ select {
   .command-grid {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      "mission mission"
-      "outcome outcome"
+      "map map"
+      "mission outcome"
       "officers timeline"
       "harness harness";
   }
@@ -737,6 +1037,7 @@ select {
   .command-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
+      "map"
       "mission"
       "outcome"
       "officers"
@@ -746,6 +1047,20 @@ select {
 
   .briefing-grid {
     grid-template-columns: 1fr;
+  }
+
+  .operations-board {
+    min-height: 0;
+  }
+
+  .map-phase-summary {
+    position: static;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .map-label {
+    font-size: 19px;
   }
 
   .command-block {

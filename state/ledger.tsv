@@ -7,3 +7,4 @@ date	symptom	repo	what	caught-by	rule
 2026-08-08	duplication-effort	codex-game	Orca browser RPCs returned runtime_unavailable while status remained ready and forced repeated STOP and fresh audit work	session	
 2026-08-08	duplication-effort	codex-game	runtime-scoped handles became stale after an Orca runtime restart	user	
 2026-08-08	duplication-effort	codex-game	sandboxed Codex seats could not reach Orca RPCs even with network access while an unsandboxed control could	user	
+2026-08-08	duplication-effort	codex-game	small ledger observations were promoted to full cycles instead of appended within the cycle that observed them	user	
