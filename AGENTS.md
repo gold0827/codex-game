@@ -8,6 +8,11 @@ only rules true of this project.
 `goal.md` is this project's acceptance test. Its creation and maintenance
 belong to this project's session.
 
+## Korean reader-facing surfaces
+
+`game-proposal.ko.md` and player-visible game copy are Korean reader-facing
+surfaces under `catalog.md` § Language.
+
 ## Session roles
 
 Bootstrap rule — expires after 3 cycles under `catalog.md` § How a rule enters.
