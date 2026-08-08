@@ -1132,6 +1132,34 @@ select {
   color: var(--muted);
 }
 
+.outcome-success {
+  border-color: rgba(156, 230, 183, 0.44);
+  background:
+    linear-gradient(110deg, rgba(32, 108, 63, 0.2), transparent 55%),
+    var(--panel);
+}
+
+.outcome-success .outcome-verdict {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.outcome-success .outcome-title {
+  color: #d7ffe1;
+}
+
+.outcome-success .outcome-description {
+  color: #b5d9bf;
+}
+
+.outcome-success .outcome-metric .field-label {
+  color: #b5d9bf;
+}
+
+.outcome-success .metric-value {
+  color: var(--green);
+}
+
 .outcome .section-heading {
   grid-column: 1 / -1;
   margin: 0 -18px 18px;

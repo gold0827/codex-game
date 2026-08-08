@@ -353,13 +353,16 @@ function renderOutcome(
   showOutcome: boolean,
 ): HTMLElement {
   const { outcome } = scenario;
-  const stateClass = showOutcome ? "outcome-final" : "outcome-pending";
+  const stateClass = showOutcome
+    ? `outcome-final outcome-${outcome.tone}`
+    : "outcome-pending";
   const section = labelledSection(
     "outcome",
     `panel outcome ${stateClass}`,
     outcome.regionLabel,
   );
   section.dataset.outcomeState = showOutcome ? "final" : "pending";
+  if (showOutcome) section.dataset.outcomeTone = outcome.tone;
   section.setAttribute("aria-live", "polite");
   const verdict = element(
     "span",
