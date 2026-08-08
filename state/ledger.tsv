@@ -3,3 +3,4 @@ date	symptom	repo	what	caught-by	rule
 2026-08-08	duplication-effort	codex-game	project role instructions allowed a non-Codex development session and caused the issue #1 cycle work to be discarded	user	
 2026-08-08	fragmentation	codex-game	the session created an external-repository work item without explicit per-action user authorization	user	
 2026-08-08	duplication-effort	codex-game	PR #3 treated a reproducible doctor failure as an expected worktree condition instead of a blocking defect	user	
+2026-08-08	duplication-effort	codex-game	the shared cycle launcher could not select Codex for the liaison seat or pin role models and required a transport change	session	
