@@ -1,4 +1,7 @@
-import type { CommandRoomScenario } from "../scenarios/commandRoomScenario";
+import type {
+  CommandRoomScenario,
+  TacticalMapState,
+} from "../scenarios/commandRoomScenario";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -261,35 +264,41 @@ function appendFloodWarning(svg: SVGSVGElement): void {
   svg.append(warningTrace);
 }
 
-function appendConvoy(svg: SVGSVGElement, phaseIndex: number): void {
+function appendConvoy(svg: SVGSVGElement, mapState: TacticalMapState): void {
   const convoy = svgElement("g", {
     class: "convoy-layer",
     "data-map-layer": "convoy",
   });
-  const positions = [
-    { x: 126, y: 407, rotation: -25 },
-    { x: 282, y: 320, rotation: -24 },
-    { x: 412, y: 258, rotation: -34 },
-    { x: 505, y: 254, rotation: -38 },
-    { x: 505, y: 254, rotation: -38 },
-  ][phaseIndex];
-  const state = phaseIndex < 1 ? "waiting" : phaseIndex < 3 ? "moving" : "stranded";
+  const positions: Record<TacticalMapState, { x: number; y: number; rotation: number }> = {
+    command: { x: 126, y: 407, rotation: -25 },
+    route: { x: 282, y: 320, rotation: -24 },
+    warning: { x: 412, y: 258, rotation: -34 },
+    stranded: { x: 505, y: 254, rotation: -38 },
+    failed: { x: 505, y: 254, rotation: -38 },
+  };
+  const position = positions[mapState];
+  const isStranded = mapState === "stranded" || mapState === "failed";
+  const vehicleState = mapState === "command" ? "waiting" : "moving";
 
-  if (phaseIndex < 3) {
-    appendVehicle(convoy, positions.x - 50, positions.y + 26, "수송 3호차", state, positions.rotation);
-    appendVehicle(convoy, positions.x - 25, positions.y + 13, "수송 2호차", state, positions.rotation);
-    appendVehicle(convoy, positions.x, positions.y, "수송 1호차", state, positions.rotation);
+  if (!isStranded) {
+    appendVehicle(convoy, position.x - 50, position.y + 26, "수송 3호차", vehicleState, position.rotation);
+    appendVehicle(convoy, position.x - 25, position.y + 13, "수송 2호차", vehicleState, position.rotation);
+    appendVehicle(convoy, position.x, position.y, "수송 1호차", vehicleState, position.rotation);
   } else {
     appendVehicle(convoy, 424, 284, "수송 3호차", "waiting", -35);
     appendVehicle(convoy, 458, 266, "수송 1호차", "waiting", -35);
-    appendVehicle(convoy, positions.x, positions.y, "수송 2호차", "stranded", positions.rotation);
+    appendVehicle(convoy, position.x, position.y, "수송 2호차", "stranded", position.rotation);
   }
   appendText(
     convoy,
-    phaseIndex >= 3 ? "수송 2호차 · 고립" : phaseIndex === 0 ? "수송대 · 출발 대기" : "수송대 · 이동 중",
-    phaseIndex >= 3 ? 520 : Math.max(115, positions.x - 20),
-    phaseIndex >= 3 ? 300 : positions.y + 52,
-    `map-label convoy-label${phaseIndex >= 3 ? " convoy-label-critical" : ""}`,
+    isStranded
+      ? "수송 2호차 · 고립"
+      : mapState === "command"
+        ? "수송대 · 출발 대기"
+        : "수송대 · 이동 중",
+    isStranded ? 520 : Math.max(115, position.x - 20),
+    isStranded ? 300 : position.y + 52,
+    `map-label convoy-label${isStranded ? " convoy-label-critical" : ""}`,
   );
   svg.append(convoy);
 }
@@ -319,13 +328,13 @@ export function renderTacticalMap(
 ): HTMLElement {
   const phase = scenario.timeline.phases[currentPhaseIndex];
   const map = scenario.tacticalMap;
+  const mapPhase = map.phases[currentPhaseIndex];
+  const mapState = mapPhase.state;
   const section = document.createElement("section");
   section.className = "panel tactical-map";
   section.dataset.region = "tactical-map";
   section.dataset.phaseIndex = String(currentPhaseIndex);
-  section.dataset.mapState = ["command", "route", "warning", "stranded", "failed"][
-    currentPhaseIndex
-  ];
+  section.dataset.mapState = mapState;
   section.setAttribute("aria-labelledby", "tactical-map-title");
 
   const heading = document.createElement("h2");
@@ -352,7 +361,7 @@ export function renderTacticalMap(
   const title = svgElement("title", { id: "tactical-map-name" });
   title.textContent = map.accessibleName;
   const description = svgElement("desc", { id: "tactical-map-description" });
-  description.textContent = map.phaseDescriptions[currentPhaseIndex];
+  description.textContent = mapPhase.description;
   svg.append(title, description);
 
   appendMapDefinitions(svg);
@@ -360,10 +369,12 @@ export function renderTacticalMap(
   appendFriendlyMarker(svg, 116, 454, "HQ", "수송대 출발 지점", "◆");
   appendFriendlyMarker(svg, 714, 146, "INT", "정보 장교 정찰 지점", "△");
   appendFriendlyMarker(svg, 850, 210, "OBJ", "전방 초소 목표", "★");
-  if (currentPhaseIndex >= 1) appendRoute(svg);
-  if (currentPhaseIndex >= 2) appendFloodWarning(svg);
-  appendConvoy(svg, currentPhaseIndex);
-  if (currentPhaseIndex === scenario.timeline.phases.length - 1) appendFailureStamp(svg);
+  if (mapState !== "command") appendRoute(svg);
+  if (mapState === "warning" || mapState === "stranded" || mapState === "failed") {
+    appendFloodWarning(svg);
+  }
+  appendConvoy(svg, mapState);
+  if (mapState === "failed") appendFailureStamp(svg);
   frame.append(svg);
 
   const legend = document.createElement("ul");
