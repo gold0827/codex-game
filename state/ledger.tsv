@@ -1,1 +1,3 @@
 date	symptom	repo	what	caught-by	rule
+2026-08-08	fragmentation	codex-game	issue #1 combined six independently reviewable product surfaces into one cycle instead of separating the product milestone from merge units	user	""
+2026-08-08	duplication-effort	codex-game	project role instructions allowed a non-Codex development session and caused the issue #1 cycle work to be discarded	user	""

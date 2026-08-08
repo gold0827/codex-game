@@ -12,6 +12,30 @@ belong to this project's session.
 
 Bootstrap rule — expires after 3 cycles under `catalog.md` § How a rule enters.
 
-- **Claude — secretary and independent auditor.** Keeps the user-facing thread,
-  dispatches implementation, and audits the resulting PR.
-- **Codex — implementer.** Owns issue → branch → PR and audit responses.
+All project planning, implementation, coordination, verification, audit, and
+documentation use Codex only. Project work is not launched or delegated to
+Claude.
+
+Four distinct Codex sessions own the following roles. The liaison and
+implementer run in the same issue worktree as separate sessions.
+
+- **Codex — secretary.** Keeps the user-facing thread, coordinates work, and
+  dispatches the liaison.
+- **Codex — liaison.** Solely controls the implementer. The liaison does not
+  implement, audit, or merge.
+- **Codex — implementer.** Owns issue → branch → PR, verification, and audit
+  responses under liaison control. The implementer does not audit or merge its
+  own work.
+- **Fresh Codex — independent auditor.** Has no implementation role and audits
+  the resulting PR.
+
+## Work-item intake
+
+Bootstrap rule — expires after 3 cycles under `catalog.md` § How a rule enters.
+
+- Decompose a product milestone before issue opening.
+- One issue supplies one independently testable behavior or one mechanical
+  prerequisite. Declared touch surfaces are required.
+- Split an issue that combines simulation, player interaction, presentation,
+  and deployment.
+- Draft work does not justify a larger merge unit.
