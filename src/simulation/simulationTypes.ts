@@ -1,0 +1,210 @@
+import type {
+  CampaignOfficer,
+  CampaignScene,
+  OfficerDisposition,
+  ThreatKind,
+  ThreatLane,
+  ThreatSeverity,
+} from "../campaign/types";
+import type { RandomSeed } from "./seededRandom";
+
+export const OPERATION_FIXED_STEP_MS = 100;
+
+export interface HarnessConfiguration {
+  readonly informationReach: number;
+  readonly authorityClarity: number;
+  readonly verificationDepth: number;
+  readonly feedbackCompression: number;
+}
+
+export const BALANCED_HARNESS: HarnessConfiguration = Object.freeze({
+  informationReach: 0.68,
+  authorityClarity: 0.72,
+  verificationDepth: 0.68,
+  feedbackCompression: 0.7,
+});
+
+export type OfficerIntent =
+  | "advance-locally"
+  | "engage-threat"
+  | "secure-objective"
+  | "cross-check-report"
+  | "inspect-source"
+  | "hold-for-evidence"
+  | "route-report"
+  | "broadcast-update"
+  | "compress-feedback";
+
+export type VerificationState =
+  | "unverified"
+  | "pending"
+  | "verified"
+  | "contradicted";
+
+export interface OfficerBeliefSnapshot {
+  readonly subjectId: string;
+  readonly category: "report" | "threat" | "outcome";
+  readonly assertion: string;
+  readonly sourceOfficerId: string | null;
+  readonly receivedAtMs: number;
+  readonly reliability: number;
+  readonly verificationState: VerificationState;
+}
+
+export interface OfficerDecisionSnapshot {
+  readonly intent: OfficerIntent;
+  readonly reason: string;
+  readonly dueAtMs: number;
+}
+
+export interface OfficerSimulationSnapshot {
+  readonly id: string;
+  readonly disposition: OfficerDisposition;
+  readonly intent: OfficerIntent;
+  readonly confidence: number;
+  readonly currentBelief: OfficerBeliefSnapshot | null;
+  readonly beliefs: readonly OfficerBeliefSnapshot[];
+  readonly pendingDecision: OfficerDecisionSnapshot | null;
+  readonly authorized: boolean;
+}
+
+export type MessageDeliveryState = "queued" | "delivered";
+
+export interface OperationMessageSnapshot {
+  readonly id: string;
+  readonly authoredReportId: string;
+  readonly sourceOfficerId: string;
+  readonly recipientOfficerIds: readonly string[];
+  readonly createdAtMs: number;
+  readonly deliveryAtMs: number;
+  readonly reliability: number;
+  readonly verificationState: VerificationState;
+  readonly deliveryState: MessageDeliveryState;
+  readonly text: string;
+  readonly prioritized: boolean;
+}
+
+export type ThreatState = "telegraphed" | "resolved";
+export type ThreatResult = "blocked" | "damaged-objective" | null;
+
+export interface OperationThreatSnapshot {
+  readonly id: string;
+  readonly kind: ThreatKind;
+  readonly lane: ThreatLane;
+  readonly severity: ThreatSeverity;
+  readonly target: string;
+  readonly telegraphedAtMs: number;
+  readonly telegraphEndsAtMs: number;
+  readonly resolutionTimeMs: number;
+  readonly state: ThreatState;
+  readonly result: ThreatResult;
+}
+
+export interface OperationUnitSnapshot {
+  readonly officerId: string;
+  readonly lane: ThreatLane;
+  readonly position: number;
+  readonly route: readonly ThreatLane[];
+  readonly intent: OfficerIntent;
+  readonly health: number;
+  readonly objectiveId: string | null;
+}
+
+export interface OperationObjectiveSnapshot {
+  readonly id: string;
+  readonly required: boolean;
+  readonly progress: number;
+  readonly completed: boolean;
+}
+
+export interface OperationMetricsSnapshot {
+  readonly objectiveProgress: number;
+  readonly civilianSafety: number;
+  readonly logistics: number;
+  readonly organizationTrust: number;
+  readonly signalBacklog: number;
+  readonly interventionCount: number;
+  readonly autonomyScore: number;
+}
+
+export type HarnessConsequence =
+  | "information-saturation"
+  | "ambiguous-authority"
+  | "verification-congestion"
+  | "noisy-feedback"
+  | "over-centralization";
+
+export type OperationStatus = "running" | "success" | "retry";
+
+export interface OperationSnapshot {
+  readonly sceneId: string;
+  readonly elapsedMs: number;
+  readonly durationMs: number;
+  readonly fixedStepMs: number;
+  readonly status: OperationStatus;
+  readonly outcomeId: string | null;
+  readonly harness: HarnessConfiguration;
+  readonly officers: readonly OfficerSimulationSnapshot[];
+  readonly messages: readonly OperationMessageSnapshot[];
+  readonly threats: readonly OperationThreatSnapshot[];
+  readonly units: readonly OperationUnitSnapshot[];
+  readonly objectives: readonly OperationObjectiveSnapshot[];
+  readonly metrics: OperationMetricsSnapshot;
+  readonly consequences: readonly HarnessConsequence[];
+}
+
+export type OperationReplayKind =
+  | "operation-started"
+  | "beat-activated"
+  | "random-choice"
+  | "report-queued"
+  | "report-delivered"
+  | "report-verified"
+  | "threat-telegraphed"
+  | "threat-resolved"
+  | "decision"
+  | "harness-consequence"
+  | "cross-check"
+  | "authority-reassigned"
+  | "autonomous-replan"
+  | "intervention"
+  | "outcome";
+
+export type ReplayDataValue = string | number | boolean | readonly string[];
+
+export interface OperationReplayEntry {
+  readonly sequence: number;
+  readonly timeMs: number;
+  readonly kind: OperationReplayKind;
+  readonly description: string;
+  readonly data: Readonly<Record<string, ReplayDataValue>>;
+}
+
+export type OperationIntervention =
+  | Readonly<{
+      kind: "route-report";
+      reportId: string;
+      recipientOfficerId: string;
+    }>
+  | Readonly<{
+      kind: "authorize-officer";
+      officerId: string;
+    }>
+  | Readonly<{
+      kind: "prioritize-verification";
+      reportId: string;
+    }>;
+
+export type OperationSimulation = Readonly<{
+  snapshot: () => OperationSnapshot;
+  replay: () => readonly OperationReplayEntry[];
+  advance: (elapsedMs: number) => OperationSnapshot;
+  intervene: (command: OperationIntervention) => OperationSnapshot;
+}>;
+
+export type OperationSimulationFactory = (
+  scene: CampaignScene,
+  roster: readonly CampaignOfficer[],
+  runSeed: RandomSeed,
+  harness: HarnessConfiguration,
+) => OperationSimulation;
