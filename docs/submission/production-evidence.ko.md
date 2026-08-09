@@ -1,7 +1,7 @@
 # 자율군단 지휘학교 제작·심사 증거
 
 - 플레이: [브라우저에서 바로 실행](https://gold0827.github.io/codex-game/)
-- 제출 썸네일: [공개 이미지](https://github.com/gold0827/codex-game/blob/main/docs/submission/thumbnail.png)
+- 제출 썸네일: [공개 이미지](https://github.com/gold0827/codex-game/blob/master/docs/submission/thumbnail.png)
 - 심사 기준: [OpenAI Game Builders Seoul 참가·심사 안내](https://openaigame2026.com/#apply) ([OpenAI Game Builders Seoul, 2026](https://openaigame2026.com/#apply))
 
 ## 다섯 심사 기준 대응
@@ -23,8 +23,8 @@
 1. **목적과 위임** — [issue #59](https://github.com/gold0827/codex-game/issues/59)가 모든 캠페인 장면을 편집하는 제작 도구의 목적, 범위, acceptance를 정했고, 구현은 별도 Codex 구현 역할에 위임됐다 ([gold0827/codex-game, 2026](https://github.com/gold0827/codex-game/issues/59)).
 2. **구현과 수정** — [PR #60](https://github.com/gold0827/codex-game/pull/60)이 편집기 구현과 검토 중 수정을 한곳에 기록했다. 감사 대상 editor head는 [`94c3e91b2247e0504be126e4671befa1155e0435`](https://github.com/gold0827/codex-game/commit/94c3e91b2247e0504be126e4671befa1155e0435)이다 ([gold0827/codex-game, 2026](https://github.com/gold0827/codex-game/pull/60)).
 3. **검증** — PR #60은 production build 완료, `13 files / 182 tests` 통과, `git diff --check` exit `0`을 기록한다.
-4. **독립 감사** — 구현·liaison 역할을 맡지 않은 fresh Codex session이 exact commit을 감사했다. 같은 core suite를 다시 실행하고 전체 diff와 편집 필드 coverage를 확인한 뒤 `PASS`를 반환했다.
-5. **감사 대응과 병합** — 감사 후 수정은 없었다. secretary가 PR head가 감사한 commit과 동일함을 확인해 병합을 승인했고, GitHub는 PR #60을 [`18e2fbd793c4f472108e675dea812ba0a99abd53`](https://github.com/gold0827/codex-game/commit/18e2fbd793c4f472108e675dea812ba0a99abd53)으로 병합했다.
+4. **독립 감사** — 구현·liaison 역할을 맡지 않은 fresh Codex session이 exact commit을 감사했다. 같은 core suite를 다시 실행하고 전체 diff와 편집 필드 coverage를 확인한 뒤 `PASS`를 반환했다. 감사 결과는 [병합 후 게시된 공개 증거 보관 기록](https://github.com/gold0827/codex-game/pull/60#issuecomment-5233107223)에서 확인할 수 있다.
+5. **감사 대응과 병합** — 감사 후 수정은 없었다. secretary가 PR head가 감사한 commit과 동일함을 확인해 병합을 승인했다. 이 승인 근거는 [병합 후 게시된 공개 증거 보관 기록](https://github.com/gold0827/codex-game/pull/60#issuecomment-5233107223)에 보존되어 있으며, GitHub는 PR #60을 [`18e2fbd793c4f472108e675dea812ba0a99abd53`](https://github.com/gold0827/codex-game/commit/18e2fbd793c4f472108e675dea812ba0a99abd53)으로 병합했다.
 
 ## Exact commit 코드와 테스트
 
