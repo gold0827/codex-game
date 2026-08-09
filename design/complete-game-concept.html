@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07100e" />
+    <meta name="description" content="야전 자동화 사령부 완성형 디자인 검토 보드" />
+    <title>야전 자동화 사령부 — 디자인 검토 보드</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #edf5e4;
+        --muted: #91a398;
+        --dim: #5b6e63;
+        --panel: #0b1714;
+        --panel-2: #10221c;
+        --line: #29483b;
+        --mint: #7de1ad;
+        --cyan: #6cd7d2;
+        --gold: #eac56b;
+        --red: #f0675d;
+        --purple: #ae98ea;
+        font-family: Inter, Pretendard, "Noto Sans KR", system-ui, sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; }
+      body {
+        overflow: hidden;
+        color: var(--ink);
+        background: radial-gradient(circle at 46% 10%, #173128, #07100e 48%, #030807);
+      }
+      button, input, select, textarea { font: inherit; }
+      button, select, input, textarea { color: inherit; }
+      button { cursor: pointer; }
+      .sr-only {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+      }
+
+      /* Review chrome */
+      .review-toolbar {
+        height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        border-bottom: 1px solid #36594a;
+        background: #091410;
+        box-shadow: 0 10px 32px rgba(0, 0, 0, .32);
+      }
+      .review-title { margin-right: auto; }
+      .review-title strong, .review-title span { display: block; }
+      .review-title strong { font-size: 13px; }
+      .review-title span { margin-top: 2px; color: var(--muted); font-size: 10px; }
+      .review-button, .review-select, .icon-button {
+        min-height: 34px;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        background: #102019;
+        font-weight: 750;
+        font-size: 11px;
+      }
+      .review-button:hover, .review-button:focus-visible,
+      .review-select:hover, .review-select:focus-visible,
+      .icon-button:hover, .icon-button:focus-visible {
+        outline: 2px solid transparent;
+        border-color: var(--mint);
+        color: #fff;
+      }
+      .review-button.primary { border-color: #609c7a; background: var(--mint); color: #07100e; }
+      .workspace { height: calc(100% - 54px); display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+      .stage { min-width: 0; min-height: 0; display: grid; place-items: center; padding: 14px; }
+      .review-panel {
+        min-width: 0;
+        overflow: auto;
+        border-left: 1px solid #36594a;
+        background: #0a1512;
+      }
+      .review-section { padding: 16px; border-bottom: 1px solid #21382f; }
+      .review-section h2 { margin: 0 0 5px; font-size: 13px; }
+      .review-help { margin: 0 0 12px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+      .element-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      .element-button {
+        min-width: 0; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        border: 1px solid #29483b; border-radius: 2px; background: #0d1c18; color: var(--muted); font-size: 10px;
+      }
+      .element-button[aria-pressed="true"] { border-color: var(--gold); background: #272111; color: var(--gold); }
+      .element-button[data-hidden="true"]::after { content: " · 숨김"; color: var(--red); }
+      .empty-state { margin: 0; color: var(--dim); font-size: 11px; }
+      .selected-name { display: block; margin-bottom: 10px; color: var(--gold); font-size: 12px; }
+      .field-label { display: block; margin: 10px 0 5px; color: var(--muted); font-size: 10px; font-weight: 800; }
+      .scale-row { display: grid; grid-template-columns: 1fr 44px; align-items: center; gap: 8px; }
+      .scale-row input { width: 100%; accent-color: var(--mint); }
+      .scale-value { color: var(--mint); font: 11px ui-monospace, monospace; text-align: right; }
+      .nudge-grid { width: 112px; display: grid; grid-template-columns: repeat(3, 34px); gap: 5px; margin: 8px auto; }
+      .nudge-grid .icon-button { width: 34px; min-height: 32px; padding: 4px; }
+      .nudge-grid .up { grid-column: 2; }
+      .nudge-grid .left { grid-column: 1; grid-row: 2; }
+      .nudge-grid .down { grid-column: 2; grid-row: 2; }
+      .nudge-grid .right { grid-column: 3; grid-row: 2; }
+      .button-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+      .button-row .review-button { flex: 1; }
+      textarea {
+        width: 100%; min-height: 74px; resize: vertical; padding: 9px;
+        border: 1px solid var(--line); border-radius: 3px; background: #07100e; font-size: 12px; line-height: 1.45;
+      }
+      textarea:focus-visible { outline: 1px solid var(--mint); border-color: var(--mint); }
+      .comment-list { display: grid; gap: 8px; margin-top: 12px; }
+      .comment-card { padding: 10px; border: 1px solid #29483b; background: #0d1c18; }
+      .comment-card.resolved { opacity: .58; }
+      .comment-meta { display: flex; gap: 6px; justify-content: space-between; color: var(--muted); font-size: 9px; }
+      .comment-card p { margin: 7px 0 9px; white-space: pre-wrap; font-size: 11px; line-height: 1.45; }
+      .comment-actions { display: flex; gap: 5px; }
+      .comment-actions button { padding: 4px 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 9px; }
+      .danger { border-color: #713d38 !important; color: #f6aaa4 !important; }
+      .live-status { min-height: 18px; margin: 8px 0 0; color: var(--cyan); font-size: 10px; }
+
+      body[data-review-mode="presentation"] .review-toolbar,
+      body[data-review-mode="presentation"] .review-panel { display: none; }
+      body[data-review-mode="presentation"] .workspace { height: 100%; display: block; }
+      body[data-review-mode="presentation"] .stage { width: 100%; height: 100%; padding: 12px; }
+      body[data-review-mode="presentation"] [data-review-id] { cursor: auto; }
+
+      /* Game concept */
+      .game-shell {
+        position: relative;
+        width: min(calc((100vh - 82px) * 16 / 9), calc(100vw - 382px));
+        max-width: 1440px;
+        aspect-ratio: 16 / 9;
+        max-height: calc(100vh - 82px);
+        overflow: hidden;
+        border: 1px solid #3a5b4b;
+        background: #07100e;
+        box-shadow: 0 28px 90px #000, inset 0 0 0 1px rgba(125, 225, 173, .05);
+      }
+      body[data-review-mode="presentation"] .game-shell {
+        width: min(calc(100vh * 16 / 9 - 24px), calc(100vw - 24px));
+        max-height: calc(100vh - 24px);
+      }
+      .game-shell::before {
+        content: ""; position: absolute; inset: 0; z-index: 60; pointer-events: none; opacity: .1;
+        background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,.05) 4px);
+      }
+      .topbar {
+        height: 11.4%; display: grid; grid-template-columns: 1.2fr 1fr auto; align-items: center; gap: 1.2%; padding: 0 1.4%;
+        border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(125,225,173,.05), transparent 40%), #0a1512;
+      }
+      .brand-kicker, .eyebrow { margin: 0; color: var(--mint); font-size: clamp(6px, .62vw, 11px); font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+      h1 { margin: .3% 0 0; font-size: clamp(14px, 1.5vw, 27px); line-height: 1; letter-spacing: -.045em; }
+      .operation-id { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4%; padding-left: 4%; border-left: 1px solid var(--line); }
+      .round-badge { display: grid; place-items: center; width: clamp(34px, 3.3vw, 58px); aspect-ratio: 1; border: 1px solid #6f5f33; background: #211d10; color: var(--gold); font-size: clamp(8px,.7vw,12px); font-weight: 900; }
+      .operation-copy strong, .operation-copy span { display: block; }
+      .operation-copy strong { font-size: clamp(9px,.82vw,14px); }
+      .operation-copy span { margin-top: 3px; color: var(--muted); font-size: clamp(6px,.58vw,10px); }
+      .scene-switch { display: flex; gap: 4px; }
+      .scene-button, .tiny-button, .decision-button {
+        border: 1px solid var(--line); background: #0d1c18; color: var(--muted); font-weight: 800; transition: 120ms ease;
+      }
+      .scene-button { min-width: clamp(48px,4.7vw,82px); padding: clamp(5px,.48vw,8px) 7px; font-size: clamp(6px,.58vw,10px); }
+      .scene-button:hover, .scene-button:focus-visible, .tiny-button:hover, .tiny-button:focus-visible, .decision-button:hover, .decision-button:focus-visible { outline: none; border-color: var(--mint); color: var(--ink); }
+      .scene-button[aria-pressed="true"] { border-color: var(--mint); background: var(--mint); color: #07100e; }
+      .game-grid { height: 80.4%; display: grid; grid-template-columns: 22.5% 52% 25.5%; min-height: 0; }
+      .panel { min-width: 0; min-height: 0; background: var(--panel); }
+      .harness-panel { display: flex; flex-direction: column; padding: 4.2% 5%; border-right: 1px solid var(--line); }
+      .panel-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; padding-bottom: 4%; border-bottom: 1px solid var(--line); }
+      .panel-heading h2, .battlefield-title h2 { margin: 2px 0 0; font-size: clamp(10px,.98vw,17px); letter-spacing: -.03em; }
+      .round-status { color: var(--gold); font-size: clamp(6px,.55vw,9px); font-weight: 800; }
+      .control-stack { display: grid; gap: clamp(5px,.65vw,11px); margin-top: 5%; }
+      .control-card { padding: 4%; border: 1px solid #1d342b; background: #0d1c18; }
+      .control-head { display: flex; justify-content: space-between; gap: 5px; }
+      .control-name { font-size: clamp(7px,.65vw,11px); font-weight: 850; }
+      .control-value { color: var(--mint); font: clamp(6px,.55vw,9px) ui-monospace, monospace; }
+      .control-caption { display: flex; justify-content: space-between; margin-top: 1.5%; color: var(--dim); font-size: clamp(5px,.44vw,7px); }
+      .control-card input[type="range"] { width: 100%; height: 4px; margin: 7% 0 0; appearance: none; background: linear-gradient(90deg,var(--mint) 0 var(--fill,50%),#243b32 var(--fill,50%) 100%); cursor: pointer; }
+      .control-card input[type="range"]::-webkit-slider-thumb { width: 8px; height: 14px; appearance: none; border: 1px solid #dfffea; background: var(--mint); }
+      .tradeoff-box { margin-top: auto; padding: 4%; border: 1px solid #594c29; background: linear-gradient(135deg,#211d10,#131711); }
+      .tradeoff-title { display: flex; justify-content: space-between; color: var(--gold); font-size: clamp(6px,.56vw,9px); font-weight: 800; }
+      .metric-row { display: grid; grid-template-columns: 34% 1fr auto; align-items: center; gap: 5px; margin-top: 4%; color: var(--muted); font-size: clamp(5px,.49vw,8px); }
+      .metric-track { height: 4px; background: #2d3425; }
+      .metric-fill { display: block; width: 50%; height: 100%; background: var(--gold); transition: width 180ms; }
+      .battlefield-panel { position: relative; display: grid; grid-template-rows: 14% 1fr 17%; overflow: hidden; }
+      .battlefield-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2.8%; border-bottom: 1px solid var(--line); }
+      .battlefield-title { display: flex; align-items: center; gap: 8px; }
+      .live-dot { width: 7px; height: 7px; background: var(--red); box-shadow: 0 0 10px var(--red); animation: blink 1s steps(2,end) infinite; }
+      .battlefield-hud { display: flex; align-items: center; gap: 8px; font: clamp(6px,.56vw,10px) ui-monospace, monospace; }
+      .clock { color: var(--cyan); font-size: clamp(11px,1.08vw,19px); font-weight: 900; }
+      .tiny-button { padding: 4px 7px; font-size: clamp(5px,.49vw,8px); }
+      .battlefield { position: relative; overflow: hidden; isolation: isolate; background-color: #273c2d; background-image: linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px),radial-gradient(circle at 17% 22%,#3c543a 0 4%,transparent 4.5%),linear-gradient(135deg,#314733,#1b3227 58%,#233b2c); background-size: 16px 16px,16px 16px,auto,auto; }
+      .battlefield::after { content:""; position:absolute; inset:0; z-index:30; pointer-events:none; background:radial-gradient(circle,transparent 48%,rgba(3,8,7,.48)); }
+      .river { position:absolute; z-index:1; top:-30%; left:44%; width:18%; height:165%; transform:rotate(17deg); border-left:5px solid #152a2b; border-right:5px solid #152a2b; background:repeating-linear-gradient(0deg,#1f5356 0 7px,#286368 7px 12px,#1a464b 12px 18px); }
+      .road { position:absolute; z-index:2; height:10px; background:#6d6647; box-shadow:0 -3px #4e4c39,0 3px #3c3c2f; transform-origin:left; }
+      .road-a { left:8%; top:67%; width:55%; transform:rotate(-15deg); }
+      .road-b { left:57%; top:51%; width:40%; transform:rotate(12deg); }
+      .bridge { position:absolute; z-index:5; left:52%; top:50%; width:10%; height:7%; transform:rotate(17deg); background:repeating-linear-gradient(90deg,#9d8c5f 0 8px,#665b41 8px 12px); box-shadow:0 0 0 3px #3b3528; }
+      .zone { position:absolute; z-index:3; display:grid; place-items:center; border:1px dashed currentColor; font:800 clamp(5px,.46vw,8px) ui-monospace,monospace; letter-spacing:.08em; }
+      .zone-base { left:4%; bottom:7%; width:16%; height:15%; color:var(--cyan); background:rgba(31,84,84,.18); }
+      .zone-target { right:4%; top:10%; width:17%; height:15%; color:var(--gold); background:rgba(234,197,107,.12); }
+      .zone-danger { right:17%; bottom:11%; width:20%; height:20%; color:var(--red); background:repeating-linear-gradient(135deg,rgba(240,103,93,.12) 0 6px,transparent 6px 12px); }
+      .unit { position:absolute; z-index:8; width:20px; height:12px; background:#c4b66f; box-shadow:4px 0 #c4b66f,-4px 0 #827a4e,0 -5px #8f895d,-4px 9px #111,6px 9px #111; image-rendering:pixelated; }
+      .unit::after { content:attr(data-label); position:absolute; left:50%; bottom:20px; width:max-content; transform:translateX(-50%); padding:2px 4px; border:1px solid rgba(233,242,220,.26); background:rgba(7,16,14,.86); font-size:clamp(5px,.43vw,7px); }
+      .unit-one { left:32%; top:61%; animation:convoy-one 8s linear infinite alternate; }
+      .unit-two { left:24%; top:68%; animation:convoy-two 8s linear .7s infinite alternate; }
+      .unit-three { left:17%; top:74%; animation:convoy-three 8s linear 1.3s infinite alternate; }
+      .scout { position:absolute; z-index:9; left:70%; top:24%; width:9px; height:9px; transform:rotate(45deg); background:var(--cyan); box-shadow:0 0 12px var(--cyan); animation:scout 5s steps(5,end) infinite; }
+      .intent-line { position:absolute; z-index:6; left:31%; top:58%; width:31%; height:2px; transform:rotate(-18deg); transform-origin:left; background:repeating-linear-gradient(90deg,var(--mint) 0 5px,transparent 5px 9px); }
+      .signal { position:absolute; z-index:10; padding:4px 6px; border:1px solid #557a66; background:rgba(6,18,15,.91); font-size:clamp(5px,.49vw,8px); font-weight:700; }
+      .signal-info { left:57%; top:13%; color:var(--cyan); }
+      .signal-command { left:19%; top:29%; color:var(--gold); }
+      .crisis-banner { position:absolute; z-index:18; top:3%; left:50%; width:62%; transform:translateX(-50%) translateY(-150%); padding:2.4% 3%; border:1px solid var(--red); background:rgba(49,12,10,.94); transition:transform 260ms; }
+      .crisis-banner strong,.crisis-banner span { display:block; }
+      .crisis-banner strong { color:#ffb1aa; font-size:clamp(8px,.8vw,14px); }
+      .crisis-banner span { margin-top:4px; color:#dba4a0; font-size:clamp(5px,.51vw,8px); }
+      [data-scene="crisis"] .crisis-banner { transform:translateX(-50%) translateY(0); }
+      [data-scene="crisis"] .zone-danger { animation:danger-pulse .7s steps(2,end) infinite; }
+      [data-scene="crisis"] .unit-one { animation-duration:2.7s; }
+      [data-scene="crisis"] .signal-info { border-color:var(--red); color:#ffb1aa; }
+      .event-strip { display:grid; grid-template-columns:auto repeat(5,1fr); border-top:1px solid var(--line); background:#091410; }
+      .event-label { display:grid; place-items:center; padding:0 8px; border-right:1px solid var(--line); color:var(--muted); font-size:clamp(5px,.48vw,8px); font-weight:800; writing-mode:vertical-rl; }
+      .event { position:relative; display:flex; flex-direction:column; justify-content:center; gap:3px; padding:0 8%; border-right:1px solid #162a22; }
+      .event::before { content:""; position:absolute; top:0; left:0; width:var(--progress,0%); height:2px; background:var(--mint); }
+      .event time { color:var(--dim); font:clamp(5px,.43vw,7px) ui-monospace,monospace; }
+      .event strong { color:var(--muted); font-size:clamp(5px,.49vw,8px); }
+      .event.active { background:rgba(125,225,173,.06); }
+      .event.active strong { color:var(--ink); }
+      .officer-panel { display:grid; grid-template-rows:auto 1fr auto; padding:3.7% 4.4%; border-left:1px solid var(--line); }
+      .autonomy-score { display:flex; align-items:baseline; gap:4px; }
+      .autonomy-score strong { color:var(--mint); font-size:clamp(13px,1.28vw,23px); }
+      .autonomy-score span { color:var(--dim); font-size:clamp(5px,.48vw,8px); }
+      .officer-stack { display:grid; align-content:start; gap:2.6%; min-height:0; padding-top:4%; }
+      .officer-card { position:relative; display:grid; grid-template-columns:auto 1fr auto; gap:3%; align-items:center; padding:3.4%; border:1px solid #1e342b; background:#0d1b17; overflow:hidden; }
+      .officer-card::after { content:""; position:absolute; inset:auto 0 0; height:2px; width:var(--certainty,70%); background:var(--tone,var(--mint)); }
+      .portrait { width:clamp(24px,2.35vw,42px); aspect-ratio:1; display:grid; place-items:center; border:1px solid #496356; background:#152920; color:var(--mint); font:900 clamp(8px,.8vw,14px) ui-monospace,monospace; }
+      .officer-copy { min-width:0; }
+      .officer-copy strong,.officer-copy span,.officer-copy em { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .officer-copy strong { font-size:clamp(6px,.63vw,11px); }
+      .officer-copy span { margin-top:2px; color:var(--muted); font-size:clamp(5px,.49vw,8px); }
+      .officer-copy em { margin-top:3px; color:var(--dim); font-size:clamp(5px,.43vw,7px); font-style:normal; }
+      .officer-action { max-width:64px; color:var(--tone,var(--mint)); font-size:clamp(5px,.48vw,8px); font-weight:900; text-align:right; }
+      .radio-log { min-height:0; margin-top:4%; padding:4%; border:1px solid #1f352c; background:#08120f; }
+      .radio-head { display:flex; justify-content:space-between; color:var(--muted); font-size:clamp(5px,.49vw,8px); font-weight:800; }
+      .radio-head span:last-child { color:var(--cyan); }
+      .log-list { display:grid; gap:5px; margin-top:4%; }
+      .log-line { display:grid; grid-template-columns:auto 1fr; gap:6px; color:var(--muted); font-size:clamp(5px,.44vw,7px); line-height:1.35; }
+      .log-line time { color:var(--dim); font-family:ui-monospace,monospace; }
+      .decision-box { margin-top:4%; padding-top:4%; border-top:1px solid var(--line); }
+      .decision-copy { display:flex; justify-content:space-between; color:var(--muted); font-size:clamp(5px,.48vw,8px); }
+      .decision-copy strong { color:var(--gold); }
+      .decision-actions { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:4%; }
+      .decision-button { min-height:27px; padding:5px; font-size:clamp(5px,.49vw,8px); }
+      .decision-button.primary { border-color:#786533; color:var(--gold); background:#211d10; }
+      .statusbar { height:8.2%; display:grid; grid-template-columns:1.25fr repeat(4,1fr) auto; align-items:center; gap:1.2%; padding:0 1.4%; border-top:1px solid var(--line); background:#08120f; }
+      .mission-state strong,.mission-state span,.footer-metric span,.footer-metric strong { display:block; }
+      .mission-state strong { color:var(--gold); font-size:clamp(6px,.6vw,10px); }
+      .mission-state span { margin-top:2px; color:var(--muted); font-size:clamp(5px,.47vw,8px); }
+      .footer-metric { padding-left:8%; border-left:1px solid var(--line); }
+      .footer-metric span { color:var(--dim); font-size:clamp(5px,.42vw,7px); }
+      .footer-metric strong { margin-top:2px; font:clamp(7px,.7vw,12px) ui-monospace,monospace; }
+      .concept-badge { padding:5px 8px; border:1px dashed #557a66; color:var(--muted); font-size:clamp(5px,.43vw,7px); font-weight:800; text-align:center; }
+      .graduation { position:absolute; z-index:40; inset:0; display:grid; grid-template-columns:1.05fr .95fr; visibility:hidden; opacity:0; background:#d7d7a4; color:#203427; transition:opacity 350ms; }
+      [data-scene="graduation"] .graduation { visibility:visible; opacity:1; }
+      .graduation-copy { display:flex; flex-direction:column; justify-content:center; padding:9%; background:linear-gradient(135deg,rgba(255,255,255,.32),transparent),#ece4b7; }
+      .graduation-copy .eyebrow { color:#55714e; }
+      .graduation-copy h2 { max-width:10em; margin:2.5% 0; font-size:clamp(24px,3.2vw,58px); line-height:.98; letter-spacing:-.065em; }
+      .graduation-copy p { max-width:34em; margin:0; color:#536456; font-size:clamp(7px,.77vw,13px); line-height:1.7; }
+      .graduation-score { display:grid; grid-template-columns:repeat(3,1fr); gap:2%; margin-top:7%; }
+      .graduation-score div { padding:7%; border:1px solid #a9a975; background:rgba(255,255,255,.24); }
+      .graduation-score span,.graduation-score strong { display:block; }
+      .graduation-score span { color:#697764; font-size:clamp(5px,.51vw,8px); }
+      .graduation-score strong { margin-top:4px; color:#263e2d; font-size:clamp(9px,1vw,17px); }
+      .garden { position:relative; overflow:hidden; background:linear-gradient(#9bc7c0 0 55%,#75925e 55% 76%,#69503a 76%); image-rendering:pixelated; }
+      .sun { position:absolute; top:9%; right:12%; width:13%; aspect-ratio:1; background:#f5d56a; box-shadow:12px 0 #f5d56a,-12px 0 #f5d56a,0 12px #f5d56a,0 -12px #f5d56a; }
+      .house { position:absolute; left:10%; bottom:22%; width:38%; height:31%; background:#e8dbad; box-shadow:inset -12px 0 rgba(64,65,44,.1); }
+      .house::before { content:""; position:absolute; left:-8%; bottom:100%; width:116%; height:38%; background:#a85d43; clip-path:polygon(50% 0,100% 100%,0 100%); }
+      .house::after { content:""; position:absolute; left:18%; bottom:0; width:22%; height:55%; background:#5a6d55; }
+      .gardener { position:absolute; z-index:3; left:54%; bottom:19%; width:19px; height:38px; background:#586f4f; box-shadow:0 -15px #d6aa7e,-8px 6px #769066,8px 6px #769066,-5px 38px #34483b,5px 38px #34483b; animation:water 2.4s steps(2,end) infinite; }
+      .watering-can { position:absolute; z-index:4; left:63%; bottom:22%; width:22px; height:15px; background:#7b9a95; box-shadow:17px -4px #7b9a95; }
+      .plant { position:absolute; bottom:10%; width:8px; height:25px; background:#3f6c3d; box-shadow:-8px 4px #5f8f52,8px -3px #4e8148,0 18px #314d32; }
+      .plant-one { left:68%; }.plant-two { left:77%; transform:scale(.85); }.plant-three { left:86%; transform:scale(1.18); }
+      .graduation-note { position:absolute; right:5%; bottom:5%; padding:7px 10px; background:rgba(236,228,183,.86); color:#465b48; font-size:clamp(5px,.52vw,9px); font-weight:800; }
+
+      /* Adjustable elements and pins */
+      [data-review-id] { position:relative; --review-x:0px; --review-y:0px; --review-scale:1; transform:translate(var(--review-x),var(--review-y)) scale(var(--review-scale)); transform-origin:center; }
+      body[data-review-mode="edit"] [data-review-id] { cursor:grab; outline:1px dashed rgba(125,225,173,.28); outline-offset:-2px; }
+      body[data-review-mode="edit"] [data-review-id]:hover { outline-color:rgba(125,225,173,.8); }
+      body[data-review-mode="edit"] [data-review-id].is-selected { z-index:55; outline:2px solid var(--gold); box-shadow:0 0 0 4px rgba(234,197,107,.18); }
+      body[data-review-mode="edit"] [data-review-id]:focus-visible { outline:3px solid var(--cyan); }
+      [data-review-id].is-hidden { display:none !important; }
+      .comment-pin { position:absolute; z-index:75; top:8px; right:8px; width:22px; height:22px; display:grid; place-items:center; border:1px solid #fff2b1; border-radius:50%; background:var(--gold); color:#181305; font:900 10px ui-monospace,monospace; box-shadow:0 3px 10px rgba(0,0,0,.45); }
+      .comment-pin.resolved { background:#607168; color:#dce7df; border-color:#aabbb1; }
+      body[data-review-mode="presentation"] .comment-pin { display:none; }
+
+      @keyframes blink { 50% { opacity:.35; } }
+      @keyframes danger-pulse { 50% { opacity:.5; } }
+      @keyframes convoy-one { to { translate:90px -34px; } }
+      @keyframes convoy-two { to { translate:76px -27px; } }
+      @keyframes convoy-three { to { translate:66px -20px; } }
+      @keyframes scout { 50% { translate:28px 10px; } }
+      @keyframes water { 50% { rotate:4deg; } }
+      @media (max-width: 980px) {
+        body[data-review-mode="edit"] { overflow:auto; }
+        .review-toolbar { position:sticky; top:0; z-index:100; }
+        .workspace { height:auto; min-height:calc(100% - 54px); grid-template-columns:1fr; }
+        .stage { min-height:60vw; }
+        .review-panel { border-left:0; border-top:1px solid #36594a; }
+        .game-shell { width:calc(100vw - 28px); max-height:none; }
+      }
+      @media (max-width: 680px) {
+        .review-toolbar { height:auto; flex-wrap:wrap; }
+        .review-title { width:100%; }
+        .workspace { min-height:calc(100% - 100px); }
+        .review-button,.review-select { flex:1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,*::before,*::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+      }
+    </style>
+  </head>
+  <body data-review-mode="edit">
+    <header class="review-toolbar" aria-label="디자인 검토 도구">
+      <div class="review-title"><strong>디자인 검토 보드</strong><span>배치를 조정하고 한국어 검토 의견을 남깁니다.</span></div>
+      <label class="sr-only" for="review-scene">검토 장면</label>
+      <select class="review-select" id="review-scene">
+        <option value="operation">기본 작전</option>
+        <option value="crisis">복합 위기</option>
+        <option value="graduation">졸업 엔딩</option>
+      </select>
+      <button class="review-button" id="export-button" type="button">JSON 내보내기</button>
+      <button class="review-button" id="import-button" type="button">JSON 가져오기</button>
+      <input class="sr-only" id="import-file" type="file" accept="application/json,.json" />
+      <button class="review-button primary" id="mode-button" type="button">프레젠테이션 보기</button>
+    </header>
+
+    <div class="workspace">
+      <main class="stage">
+        <section class="game-shell" id="game-shell" data-scene="operation" aria-label="완성형 게임 디자인 초안">
+          <header class="topbar" data-review-id="mission-header" data-review-label="임무 헤더">
+            <div><p class="brand-kicker">Autonomous Field Command / Sector Alpha</p><h1>야전 자동화 사령부</h1></div>
+            <div class="operation-id"><div class="round-badge">R-03</div><div class="operation-copy"><strong>복합 위기 · 비 오는 날의 정직한 오해</strong><span>같은 명령, 서로 다른 믿음, 너무 성실한 장교 셋</span></div></div>
+            <nav class="scene-switch" aria-label="디자인 장면 전환">
+              <button class="scene-button" type="button" data-scene-button="operation" aria-pressed="true">기본 작전</button>
+              <button class="scene-button" type="button" data-scene-button="crisis" aria-pressed="false">복합 위기</button>
+              <button class="scene-button" type="button" data-scene-button="graduation" aria-pressed="false">졸업 엔딩</button>
+            </nav>
+          </header>
+
+          <div class="game-grid">
+            <aside class="panel harness-panel" aria-label="지휘 조건 조정" data-review-id="harness-console" data-review-label="지휘 조건 패널">
+              <div class="panel-heading"><div><p class="eyebrow">Harness console</p><h2>지휘 조건</h2></div><span class="round-status">라운드 중 조정 가능</span></div>
+              <div class="control-stack">
+                <label class="control-card"><span class="control-head"><span class="control-name">정보 공유</span><span class="control-value" data-value-for="information">선별 공유</span></span><input data-control="information" type="range" min="0" max="100" value="62" aria-label="정보 공유 범위" /><span class="control-caption"><span>직무 격리</span><span>전면 공개</span></span></label>
+                <label class="control-card"><span class="control-head"><span class="control-name">현장 권한</span><span class="control-value" data-value-for="authority">조건부 자율</span></span><input data-control="authority" type="range" min="0" max="100" value="68" aria-label="현장 실행 권한" /><span class="control-caption"><span>승인 대기</span><span>완전 위임</span></span></label>
+                <label class="control-card"><span class="control-head"><span class="control-name">교차 검증</span><span class="control-value" data-value-for="verification">위험 시 강제</span></span><input data-control="verification" type="range" min="0" max="100" value="74" aria-label="교차 검증 강도" /><span class="control-caption"><span>속도 우선</span><span>전건 확인</span></span></label>
+                <label class="control-card"><span class="control-head"><span class="control-name">피드백 밀도</span><span class="control-value" data-value-for="feedback">사건 중심</span></span><input data-control="feedback" type="range" min="0" max="100" value="55" aria-label="피드백 밀도" /><span class="control-caption"><span>결과 요약</span><span>실시간 보고</span></span></label>
+              </div>
+              <section class="tradeoff-box" aria-label="현재 조직 효과">
+                <div class="tradeoff-title"><span>현재 조직 효과</span><span id="tradeoff-summary">균형 유지</span></div>
+                <div class="metric-row"><span>판단 속도</span><span class="metric-track"><span class="metric-fill" data-meter="speed"></span></span><b data-score="speed">72</b></div>
+                <div class="metric-row"><span>상황 명료도</span><span class="metric-track"><span class="metric-fill" data-meter="clarity"></span></span><b data-score="clarity">78</b></div>
+                <div class="metric-row"><span>충돌 억제</span><span class="metric-track"><span class="metric-fill" data-meter="safety"></span></span><b data-score="safety">74</b></div>
+                <div class="metric-row"><span>보고 피로</span><span class="metric-track"><span class="metric-fill" data-meter="fatigue"></span></span><b data-score="fatigue">42</b></div>
+              </section>
+            </aside>
+
+            <section class="panel battlefield-panel" aria-label="실시간 전장" data-review-id="live-battlefield" data-review-label="실시간 전장 패널">
+              <header class="battlefield-head"><div class="battlefield-title"><span class="live-dot" aria-hidden="true"></span><div><p class="eyebrow">Live battlefield</p><h2>협곡 7번 보급로</h2></div></div><div class="battlefield-hud"><span>작전 경과</span><time class="clock" id="operation-clock">00:18</time><button class="tiny-button" id="pause-button" type="button" aria-pressed="false">일시정지</button></div></header>
+              <div class="battlefield">
+                <div class="river" aria-hidden="true"></div><div class="road road-a" aria-hidden="true"></div><div class="road road-b" aria-hidden="true"></div><div class="bridge" aria-label="임시 교량"></div>
+                <div class="zone zone-base">출발 기지</div><div class="zone zone-target">전방 초소</div><div class="zone zone-danger">침수 예상 구역</div><div class="intent-line" aria-hidden="true"></div>
+                <div class="unit unit-one" data-label="수송 1 · 북쪽 이동" aria-label="수송 차량 1"></div><div class="unit unit-two" data-label="수송 2 · 간격 유지" aria-label="수송 차량 2"></div><div class="unit unit-three" data-label="의무 1 · 재계획 대기" aria-label="의무 차량"></div><div class="scout" aria-label="정찰 드론"></div>
+                <div class="signal signal-info" id="field-signal">부엉이: 수위 자료와 경로 계획이 충돌합니다</div><div class="signal signal-command">검독수리: 40초 내 독자 재계획</div>
+                <div class="crisis-banner" role="status"><strong>복합 위기: 임시 교량 붕괴 + 의무 차량 통신 두절</strong><span>명령을 기다리면 늦습니다. 조직이 스스로 정보 대조와 권한 충돌을 해결해야 합니다.</span></div>
+              </div>
+              <div class="event-strip" aria-label="작전 사건 흐름"><div class="event-label">사건 흐름</div><div class="event" style="--progress:100%"><time>00:00</time><strong>명령 해석</strong></div><div class="event" style="--progress:100%"><time>00:08</time><strong>경로 충돌</strong></div><div class="event active" style="--progress:72%"><time>00:18</time><strong>자율 재계획</strong></div><div class="event"><time>00:30</time><strong>복합 위기</strong></div><div class="event"><time>00:44</time><strong>결과 관측</strong></div></div>
+            </section>
+
+            <aside class="panel officer-panel" aria-label="자율 장교 판단" data-review-id="officer-decisions" data-review-label="장교 판단 패널">
+              <div class="panel-heading"><div><p class="eyebrow">Autonomous officers</p><h2>장교 판단</h2></div><div class="autonomy-score"><strong id="autonomy-score">81</strong><span>자율도</span></div></div>
+              <div class="officer-stack">
+                <article class="officer-card" data-officer="operations" style="--tone:var(--gold);--certainty:76%"><div class="portrait">작</div><div class="officer-copy"><strong>한서진 대위 · 작전</strong><span>성향: 속도 중시 / 책임 회피 싫어함</span><em>믿음: 남쪽 도로가 늦지만 생존 확률이 높다</em></div><div class="officer-action">재경로 계산</div></article>
+                <article class="officer-card" data-officer="logistics" style="--tone:var(--cyan);--certainty:68%"><div class="portrait">보</div><div class="officer-copy"><strong>박철민 중위 · 보급</strong><span>성향: 일정 집착 / 차량은 소모품</span><em>기억: 지난 라운드에 의약품을 물에 빠뜨림</em></div><div class="officer-action">차량 분산</div></article>
+                <article class="officer-card" data-officer="intel" style="--tone:var(--mint);--certainty:91%"><div class="portrait">정</div><div class="officer-copy"><strong>오미래 소위 · 정보</strong><span>성향: 증거 우선 / 무시당한 보고를 기억함</span><em>관계: 작전 장교의 경로 모델을 신뢰하기 시작함</em></div><div class="officer-action">충돌 상신</div></article>
+                <section class="radio-log" aria-label="실시간 보고"><div class="radio-head"><span>실시간 보고</span><span id="network-state">통신 안정</span></div><div class="log-list" id="log-list"><div class="log-line"><time>00:16</time><span>정보: “수위 보고와 경로 계획의 작성 시각이 다릅니다.”</span></div><div class="log-line"><time>00:17</time><span>작전: “출발 보류. 남쪽 임시 도로를 독자 검토합니다.”</span></div><div class="log-line"><time>00:18</time><span>보급: “이번에는 차량 한 대쯤 빠져도 된다는 말 안 했습니다.”</span></div></div></section>
+              </div>
+              <section class="decision-box" aria-label="플레이어 개입"><div class="decision-copy"><span>남은 직접 개입</span><strong><span id="interventions">2</span>회 · 개입할수록 졸업 지연</strong></div><div class="decision-actions"><button class="decision-button primary" id="intervene-button" type="button">예외 승인</button><button class="decision-button" id="observe-button" type="button">조직에 맡긴다</button></div></section>
+            </aside>
+          </div>
+
+          <footer class="statusbar" data-review-id="mission-status" data-review-label="임무 상태 막대">
+            <div class="mission-state"><strong id="mission-verdict">조직이 독자 재계획 중</strong><span id="mission-detail">플레이어는 부대를 움직이지 않습니다. 판단 조건만 바꿉니다.</span></div><div class="footer-metric"><span>수송대 생존</span><strong id="survival-score">87%</strong></div><div class="footer-metric"><span>명령 지연</span><strong id="delay-score">04.8초</strong></div><div class="footer-metric"><span>조직 신뢰</span><strong id="trust-score">73</strong></div><div class="footer-metric"><span>무개입 연속</span><strong id="streak-score">2 ROUND</strong></div><div class="concept-badge">완성형 디자인 초안<br />실제 구현 전</div>
+          </footer>
+
+          <section class="graduation" aria-label="졸업 엔딩">
+            <div class="graduation-copy" data-review-id="graduation-message" data-review-label="졸업 메시지"><p class="eyebrow">Mission complete / command released</p><h2>이제, 당신 없이도 됩니다.</h2><p>장교들은 처음 보는 복합 위기를 스스로 대조하고, 권한 충돌을 해결하고, 계획을 다시 세웠습니다. 더 강한 명령이 아니라 더 나은 조건이 조직을 승리시켰습니다.</p><div class="graduation-score"><div><span>직접 개입</span><strong>없음</strong></div><div><span>자율 재계획</span><strong>성공</strong></div><div><span>다음 임무</span><strong>물 주기</strong></div></div></div>
+            <div class="garden" aria-label="전장을 떠나 식물을 돌보는 일상" data-review-id="garden-scene" data-review-label="일상 정원 장면"><div class="sun"></div><div class="house"></div><div class="gardener"></div><div class="watering-can"></div><div class="plant plant-one"></div><div class="plant plant-two"></div><div class="plant plant-three"></div><div class="graduation-note">오늘의 작전: 바질에 물 주기</div></div>
+          </section>
+        </section>
+      </main>
+
+      <aside class="review-panel" aria-label="검토 속성 패널">
+        <section class="review-section">
+          <h2>조정 요소</h2>
+          <p class="review-help">요소를 클릭하거나 Tab으로 이동해 선택합니다. 화살표 키는 1px, Shift+화살표는 10px 이동합니다.</p>
+          <div class="element-list" id="element-list"></div>
+        </section>
+        <section class="review-section" id="inspector-section">
+          <h2>배치</h2>
+          <p class="empty-state" id="selection-empty">조정할 요소를 선택합니다.</p>
+          <div id="inspector-controls" hidden>
+            <strong class="selected-name" id="selected-name"></strong>
+            <label class="field-label" for="scale-input">크기</label>
+            <div class="scale-row"><input id="scale-input" type="range" min="50" max="160" step="1" value="100" /><output class="scale-value" id="scale-value" for="scale-input">100%</output></div>
+            <span class="field-label">위치 미세 조정</span>
+            <div class="nudge-grid" aria-label="위치 미세 조정"><button class="icon-button up" type="button" data-nudge="0,-1" aria-label="위로 1픽셀 이동">↑</button><button class="icon-button left" type="button" data-nudge="-1,0" aria-label="왼쪽으로 1픽셀 이동">←</button><button class="icon-button down" type="button" data-nudge="0,1" aria-label="아래로 1픽셀 이동">↓</button><button class="icon-button right" type="button" data-nudge="1,0" aria-label="오른쪽으로 1픽셀 이동">→</button></div>
+            <div class="button-row"><button class="review-button" id="hide-button" type="button">요소 숨기기</button><button class="review-button" id="reset-element-button" type="button">요소 초기화</button></div>
+          </div>
+        </section>
+        <section class="review-section">
+          <h2>검토 의견</h2>
+          <p class="review-help">선택한 요소에 한국어 의견을 연결합니다. 번호 핀과 목록은 같은 의견을 가리킵니다.</p>
+          <label class="field-label" for="comment-input">새 의견</label>
+          <textarea id="comment-input" maxlength="1000" placeholder="예: 위기 경고를 더 크게 보여 주세요." disabled></textarea>
+          <div class="button-row"><button class="review-button primary" id="add-comment-button" type="button" disabled>의견 추가</button></div>
+          <div class="comment-list" id="comment-list"></div>
+        </section>
+        <section class="review-section">
+          <h2>전체 배치</h2>
+          <p class="review-help">저장된 배치와 의견은 이 브라우저에 자동 보존됩니다.</p>
+          <button class="review-button danger" id="reset-all-button" type="button">전체 배치 초기화</button>
+          <p class="live-status" id="review-status" role="status" aria-live="polite"></p>
+        </section>
+      </aside>
+    </div>
+
+    <script>
+      (() => {
+        "use strict";
+        const STORAGE_KEY = "field-command-design-review-v1";
+        const SCHEMA_VERSION = 1;
+        const scenes = ["operation", "crisis", "graduation"];
+        const shell = document.querySelector("#game-shell");
+        const targets = [...document.querySelectorAll("[data-review-id]")];
+        const targetIds = new Set(targets.map((target) => target.dataset.reviewId));
+        const targetById = Object.fromEntries(targets.map((target) => [target.dataset.reviewId, target]));
+        const labelsById = Object.fromEntries(targets.map((target) => [target.dataset.reviewId, target.dataset.reviewLabel]));
+        const emptyLayout = () => Object.fromEntries(targets.map((target) => [target.dataset.reviewId, { x: 0, y: 0, scale: 1, hidden: false }]));
+        let state = { version: SCHEMA_VERSION, scene: "operation", layout: emptyLayout(), comments: [] };
+        let selectedId = null;
+        let drag = null;
+
+        const elementList = document.querySelector("#element-list");
+        const inspectorControls = document.querySelector("#inspector-controls");
+        const selectionEmpty = document.querySelector("#selection-empty");
+        const selectedName = document.querySelector("#selected-name");
+        const scaleInput = document.querySelector("#scale-input");
+        const scaleValue = document.querySelector("#scale-value");
+        const commentInput = document.querySelector("#comment-input");
+        const addCommentButton = document.querySelector("#add-comment-button");
+        const commentList = document.querySelector("#comment-list");
+        const reviewStatus = document.querySelector("#review-status");
+        const reviewScene = document.querySelector("#review-scene");
+
+        function announce(message) {
+          reviewStatus.textContent = message;
+        }
+
+        function finiteNumber(value, min, max) {
+          return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
+        }
+
+        function validateReviewState(candidate) {
+          if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("JSON 최상위 값은 객체여야 합니다.");
+          if (candidate.version !== SCHEMA_VERSION) throw new Error(`지원하지 않는 버전입니다. version ${SCHEMA_VERSION}이 필요합니다.`);
+          if (!scenes.includes(candidate.scene)) throw new Error("장면 값이 올바르지 않습니다.");
+          if (!candidate.layout || typeof candidate.layout !== "object" || Array.isArray(candidate.layout)) throw new Error("layout 객체가 필요합니다.");
+          const normalizedLayout = emptyLayout();
+          for (const [id, value] of Object.entries(candidate.layout)) {
+            if (!targetIds.has(id)) throw new Error(`알 수 없는 요소 식별자입니다: ${id}`);
+            if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${id} 배치 값이 올바르지 않습니다.`);
+            if (!finiteNumber(value.x, -2000, 2000) || !finiteNumber(value.y, -2000, 2000)) throw new Error(`${id} 위치 값이 범위를 벗어났습니다.`);
+            if (!finiteNumber(value.scale, .5, 1.6)) throw new Error(`${id} 크기 값이 범위를 벗어났습니다.`);
+            if (typeof value.hidden !== "boolean") throw new Error(`${id} 숨김 값이 올바르지 않습니다.`);
+            normalizedLayout[id] = { x: value.x, y: value.y, scale: value.scale, hidden: value.hidden };
+          }
+          if (!Array.isArray(candidate.comments)) throw new Error("comments 배열이 필요합니다.");
+          const ids = new Set();
+          const normalizedComments = candidate.comments.map((comment, index) => {
+            if (!comment || typeof comment !== "object" || Array.isArray(comment)) throw new Error(`${index + 1}번 의견이 올바르지 않습니다.`);
+            if (typeof comment.id !== "string" || !comment.id || ids.has(comment.id)) throw new Error(`${index + 1}번 의견 식별자가 올바르지 않습니다.`);
+            ids.add(comment.id);
+            if (!targetIds.has(comment.elementId)) throw new Error(`${index + 1}번 의견의 요소 연결이 올바르지 않습니다.`);
+            if (typeof comment.text !== "string" || !comment.text.trim() || comment.text.length > 1000) throw new Error(`${index + 1}번 의견 내용이 올바르지 않습니다.`);
+            if (typeof comment.resolved !== "boolean") throw new Error(`${index + 1}번 의견의 해결 상태가 올바르지 않습니다.`);
+            if (typeof comment.createdAt !== "string" || Number.isNaN(Date.parse(comment.createdAt))) throw new Error(`${index + 1}번 의견의 작성 시각이 올바르지 않습니다.`);
+            return { id: comment.id, elementId: comment.elementId, text: comment.text, resolved: comment.resolved, createdAt: comment.createdAt };
+          });
+          return { version: SCHEMA_VERSION, scene: candidate.scene, layout: normalizedLayout, comments: normalizedComments };
+        }
+
+        function save() {
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+          catch { announce("브라우저 저장소에 저장하지 못했습니다."); }
+        }
+
+        function load() {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          try { state = validateReviewState(JSON.parse(raw)); }
+          catch { localStorage.removeItem(STORAGE_KEY); announce("손상된 로컬 검토 상태를 제외하고 기본 배치를 열었습니다."); }
+        }
+
+        function setScene(scene, persist = true) {
+          if (!scenes.includes(scene)) return;
+          state.scene = scene;
+          shell.dataset.scene = scene;
+          reviewScene.value = scene;
+          document.querySelectorAll("[data-scene-button]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.sceneButton === scene)));
+          if (persist) save();
+        }
+
+        function applyLayout() {
+          for (const [id, layout] of Object.entries(state.layout)) {
+            const target = targetById[id];
+            target.style.setProperty("--review-x", `${layout.x}px`);
+            target.style.setProperty("--review-y", `${layout.y}px`);
+            target.style.setProperty("--review-scale", String(layout.scale));
+            target.classList.toggle("is-hidden", layout.hidden);
+          }
+          renderElementList();
+          renderInspector();
+        }
+
+        function selectTarget(id, focus = false) {
+          if (!targetIds.has(id)) return;
+          selectedId = id;
+          targets.forEach((target) => target.classList.toggle("is-selected", target.dataset.reviewId === id));
+          renderElementList();
+          renderInspector();
+          renderComments();
+          if (focus && !state.layout[id].hidden) targetById[id].focus();
+        }
+
+        function renderElementList() {
+          elementList.replaceChildren(...targets.map((target) => {
+            const id = target.dataset.reviewId;
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "element-button";
+            button.textContent = target.dataset.reviewLabel;
+            button.dataset.elementId = id;
+            button.dataset.hidden = String(state.layout[id].hidden);
+            button.setAttribute("aria-pressed", String(id === selectedId));
+            button.addEventListener("click", () => {
+              if (state.layout[id].hidden) { state.layout[id].hidden = false; applyLayout(); save(); announce(`${labelsById[id]} 복원`); }
+              selectTarget(id, true);
+            });
+            return button;
+          }));
+        }
+
+        function renderInspector() {
+          const hasSelection = Boolean(selectedId);
+          inspectorControls.hidden = !hasSelection;
+          selectionEmpty.hidden = hasSelection;
+          commentInput.disabled = !hasSelection;
+          addCommentButton.disabled = !hasSelection;
+          if (!hasSelection) return;
+          const layout = state.layout[selectedId];
+          selectedName.textContent = labelsById[selectedId];
+          scaleInput.value = String(Math.round(layout.scale * 100));
+          scaleValue.textContent = `${Math.round(layout.scale * 100)}%`;
+          document.querySelector("#hide-button").textContent = layout.hidden ? "요소 복원" : "요소 숨기기";
+        }
+
+        function updateSelected(mutator, message) {
+          if (!selectedId) return;
+          mutator(state.layout[selectedId]);
+          applyLayout();
+          save();
+          if (message) announce(message);
+        }
+
+        function renderPins() {
+          document.querySelectorAll(".comment-pin").forEach((pin) => pin.remove());
+          const sequence = new Map();
+          state.comments.forEach((comment, index) => {
+            const count = (sequence.get(comment.elementId) || 0) + 1;
+            sequence.set(comment.elementId, count);
+            const pin = document.createElement("button");
+            pin.type = "button";
+            pin.className = `comment-pin${comment.resolved ? " resolved" : ""}`;
+            pin.style.top = `${8 + (count - 1) * 26}px`;
+            pin.textContent = String(index + 1);
+            pin.setAttribute("aria-label", `${labelsById[comment.elementId]}의 ${index + 1}번 의견${comment.resolved ? ", 해결됨" : ""}`);
+            pin.addEventListener("click", (event) => { event.stopPropagation(); selectTarget(comment.elementId); document.querySelector(`[data-comment-id="${CSS.escape(comment.id)}"]`)?.focus(); });
+            targetById[comment.elementId].append(pin);
+          });
+        }
+
+        function renderComments() {
+          const comments = selectedId ? state.comments.filter((comment) => comment.elementId === selectedId) : state.comments;
+          if (!comments.length) {
+            const empty = document.createElement("p");
+            empty.className = "empty-state";
+            empty.textContent = selectedId ? "이 요소에 등록된 의견이 없습니다." : "요소를 선택하면 연결된 의견을 볼 수 있습니다.";
+            commentList.replaceChildren(empty);
+            renderPins();
+            return;
+          }
+          commentList.replaceChildren(...comments.map((comment) => {
+            const article = document.createElement("article");
+            article.className = `comment-card${comment.resolved ? " resolved" : ""}`;
+            article.dataset.commentId = comment.id;
+            article.tabIndex = -1;
+            const meta = document.createElement("div");
+            meta.className = "comment-meta";
+            const association = document.createElement("span");
+            association.textContent = labelsById[comment.elementId];
+            const status = document.createElement("span");
+            status.textContent = comment.resolved ? "해결됨" : "검토 중";
+            meta.append(association, status);
+            const text = document.createElement("p");
+            text.textContent = comment.text;
+            const actions = document.createElement("div");
+            actions.className = "comment-actions";
+            const resolve = document.createElement("button");
+            resolve.type = "button";
+            resolve.textContent = comment.resolved ? "다시 열기" : "해결 표시";
+            resolve.addEventListener("click", () => { comment.resolved = !comment.resolved; save(); renderComments(); announce(comment.resolved ? "의견 해결 표시" : "의견 다시 열기"); });
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.textContent = "삭제";
+            remove.addEventListener("click", () => { state.comments = state.comments.filter((entry) => entry.id !== comment.id); save(); renderComments(); announce("의견 삭제"); });
+            actions.append(resolve, remove);
+            article.append(meta, text, actions);
+            return article;
+          }));
+          renderPins();
+        }
+
+        function addComment() {
+          const text = commentInput.value.trim();
+          if (!selectedId) { announce("의견을 연결할 요소를 먼저 선택합니다."); return; }
+          if (!text) { announce("의견 내용을 입력합니다."); commentInput.focus(); return; }
+          state.comments.push({ id: crypto.randomUUID ? crypto.randomUUID() : `comment-${Date.now()}-${Math.random().toString(16).slice(2)}`, elementId: selectedId, text, resolved: false, createdAt: new Date().toISOString() });
+          commentInput.value = "";
+          save();
+          renderComments();
+          announce(`${labelsById[selectedId]}에 의견 추가`);
+        }
+
+        function setReviewMode(mode) {
+          document.body.dataset.reviewMode = mode;
+          const edit = mode === "edit";
+          document.querySelector("#mode-button").textContent = edit ? "프레젠테이션 보기" : "편집 모드로 돌아가기";
+          targets.forEach((target) => {
+            target.tabIndex = edit && !state.layout[target.dataset.reviewId].hidden ? 0 : -1;
+            target.setAttribute("aria-label", edit ? `${target.dataset.reviewLabel}, 조정 가능 요소` : target.getAttribute("data-original-aria") || target.dataset.reviewLabel);
+          });
+          if (!edit) { targets.forEach((target) => target.classList.remove("is-selected")); }
+          else if (selectedId) targetById[selectedId].classList.add("is-selected");
+        }
+
+        targets.forEach((target) => {
+          target.dataset.originalAria = target.getAttribute("aria-label") || "";
+          target.addEventListener("keydown", (event) => {
+            if (document.body.dataset.reviewMode !== "edit") return;
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectTarget(target.dataset.reviewId); return; }
+            const moves = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] };
+            if (!moves[event.key]) return;
+            event.preventDefault();
+            const amount = event.shiftKey ? 10 : 1;
+            const [x, y] = moves[event.key];
+            selectTarget(target.dataset.reviewId);
+            updateSelected((layout) => { layout.x += x * amount; layout.y += y * amount; });
+          });
+        });
+
+        shell.addEventListener("pointerdown", (event) => {
+          if (document.body.dataset.reviewMode !== "edit" || event.target.closest(".comment-pin")) return;
+          const target = event.target.closest("[data-review-id]");
+          if (!target) return;
+          event.preventDefault();
+          const id = target.dataset.reviewId;
+          selectTarget(id);
+          drag = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: state.layout[id].x, originY: state.layout[id].y };
+          shell.setPointerCapture(event.pointerId);
+        });
+        shell.addEventListener("pointermove", (event) => {
+          if (!drag || event.pointerId !== drag.pointerId) return;
+          const zoom = shell.getBoundingClientRect().width / shell.offsetWidth || 1;
+          state.layout[drag.id].x = Math.round(drag.originX + (event.clientX - drag.startX) / zoom);
+          state.layout[drag.id].y = Math.round(drag.originY + (event.clientY - drag.startY) / zoom);
+          applyLayout();
+        });
+        shell.addEventListener("pointerup", (event) => {
+          if (!drag || event.pointerId !== drag.pointerId) return;
+          shell.releasePointerCapture(event.pointerId);
+          announce(`${labelsById[drag.id]} 위치 저장`);
+          drag = null;
+          save();
+        });
+
+        document.querySelectorAll("[data-scene-button]").forEach((button) => button.addEventListener("click", () => {
+          if (document.body.dataset.reviewMode === "edit") return;
+          setScene(button.dataset.sceneButton);
+          if (button.dataset.sceneButton === "crisis") addLog("복합 위기 발생. 장교들이 기존 규칙으로 먼저 대응합니다.");
+        }));
+        reviewScene.addEventListener("change", () => setScene(reviewScene.value));
+        document.querySelector("#mode-button").addEventListener("click", () => setReviewMode(document.body.dataset.reviewMode === "edit" ? "presentation" : "edit"));
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && document.body.dataset.reviewMode === "presentation") setReviewMode("edit");
+        });
+        scaleInput.addEventListener("input", () => updateSelected((layout) => { layout.scale = Number(scaleInput.value) / 100; }, `${labelsById[selectedId]} 크기 ${scaleInput.value}%`));
+        document.querySelectorAll("[data-nudge]").forEach((button) => button.addEventListener("click", () => { const [x,y] = button.dataset.nudge.split(",").map(Number); updateSelected((layout) => { layout.x += x; layout.y += y; }, `${labelsById[selectedId]} 위치 조정`); }));
+        document.querySelector("#hide-button").addEventListener("click", () => updateSelected((layout) => { layout.hidden = !layout.hidden; }, `${labelsById[selectedId]} ${state.layout[selectedId].hidden ? "복원" : "숨김"}`));
+        document.querySelector("#reset-element-button").addEventListener("click", () => { if (!selectedId) return; state.layout[selectedId] = { x:0, y:0, scale:1, hidden:false }; applyLayout(); save(); announce(`${labelsById[selectedId]} 초기화`); });
+        document.querySelector("#reset-all-button").addEventListener("click", () => { if (!confirm("모든 요소의 위치, 크기, 숨김 상태를 초기화할까요? 의견은 유지됩니다.")) return; state.layout = emptyLayout(); applyLayout(); save(); announce("전체 배치 초기화"); });
+        addCommentButton.addEventListener("click", addComment);
+        commentInput.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") addComment(); });
+
+        document.querySelector("#export-button").addEventListener("click", () => {
+          const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = `field-command-review-v${SCHEMA_VERSION}.json`;
+          link.click();
+          URL.revokeObjectURL(link.href);
+          announce("검토 상태 JSON 내보내기 완료");
+        });
+        document.querySelector("#import-button").addEventListener("click", () => document.querySelector("#import-file").click());
+        document.querySelector("#import-file").addEventListener("change", async (event) => {
+          const file = event.target.files[0];
+          event.target.value = "";
+          if (!file) return;
+          try {
+            const candidate = JSON.parse(await file.text());
+            const validated = validateReviewState(candidate);
+            state = validated;
+            selectedId = null;
+            setScene(state.scene, false);
+            applyLayout();
+            renderComments();
+            save();
+            announce("검증된 JSON 가져오기 완료");
+          } catch (error) {
+            announce(`가져오기 거부: ${error instanceof Error ? error.message : "JSON을 읽을 수 없습니다."}`);
+          }
+        });
+
+        const controls = [...document.querySelectorAll("[data-control]")];
+        const controlLabels = {
+          information:["직무 격리","요청 기반","선별 공유","광역 공유","정보 범람"], authority:["승인 필수","제한 위임","조건부 자율","현장 자율","권한 충돌"],
+          verification:["검증 생략","표본 확인","위험 시 강제","상호 확인","검증 마비"], feedback:["결과 요약","간헐 보고","사건 중심","실시간 보고","보고 과부하"]
+        };
+        const clamp = (value) => Math.max(0, Math.min(100, Math.round(value)));
+        function setMetric(name, value) { const score = clamp(value); document.querySelector(`[data-meter="${name}"]`).style.width = `${score}%`; document.querySelector(`[data-score="${name}"]`).textContent = score; }
+        function updateHarness() {
+          const v = Object.fromEntries(controls.map((control) => [control.dataset.control, Number(control.value)]));
+          controls.forEach((control) => { const value = Number(control.value); control.style.setProperty("--fill", `${value}%`); document.querySelector(`[data-value-for="${control.dataset.control}"]`).textContent = controlLabels[control.dataset.control][Math.min(4,Math.floor(value/21))]; });
+          const overload = Math.max(0,v.information-76)+Math.max(0,v.feedback-72);
+          const speed=72+v.authority*.32-v.verification*.28-overload*.35, clarity=32+v.information*.56+v.feedback*.18-overload*.55, safety=24+v.verification*.58+Math.min(v.information,72)*.22-Math.max(0,v.authority-82)*.8, fatigue=10+v.feedback*.48+v.information*.22+v.verification*.12, autonomy=38+v.authority*.5+Math.min(v.verification,75)*.17-Math.max(0,v.verification-82)*.65;
+          setMetric("speed",speed); setMetric("clarity",clarity); setMetric("safety",safety); setMetric("fatigue",fatigue);
+          document.querySelector("#autonomy-score").textContent=clamp(autonomy); document.querySelector("#survival-score").textContent=`${clamp((clarity+safety)/2+8)}%`; document.querySelector("#delay-score").textContent=`${Math.max(1.2,(110-speed)/8).toFixed(1).padStart(4,"0")}초`; document.querySelector("#trust-score").textContent=clamp((clarity+safety+autonomy)/3);
+          const summary=document.querySelector("#tradeoff-summary"), signal=document.querySelector("#field-signal"), network=document.querySelector("#network-state");
+          if(fatigue>75){summary.textContent="보고 과부하";signal.textContent="부엉이: 중요한 경고가 반복 보고에 묻힙니다";network.textContent="채널 혼잡";network.style.color="var(--red)";}else if(speed<48){summary.textContent="검증 마비";signal.textContent="검독수리: 확인 담당자의 확인을 기다립니다";network.textContent="승인 적체";network.style.color="var(--gold)";}else if(safety<48){summary.textContent="독단 위험";signal.textContent="부엉이: 서로 다른 두 부대가 동시에 출발했습니다";network.textContent="판단 충돌";network.style.color="var(--red)";}else{summary.textContent="균형 유지";signal.textContent="부엉이: 수위 자료와 경로 계획이 충돌합니다";network.textContent="통신 안정";network.style.color="var(--cyan)";}
+        }
+        controls.forEach((control) => control.addEventListener("input", updateHarness));
+        const logList = document.querySelector("#log-list");
+        let elapsed=18, paused=false, interventionCount=2;
+        function addLog(message){const line=document.createElement("div"),time=document.createElement("time"),copy=document.createElement("span");line.className="log-line";time.textContent=`00:${String(elapsed).padStart(2,"0")}`;copy.textContent=message;line.append(time,copy);logList.prepend(line);while(logList.children.length>3)logList.lastElementChild.remove();}
+        document.querySelector("#pause-button").addEventListener("click",(event)=>{paused=!paused;event.currentTarget.setAttribute("aria-pressed",String(paused));event.currentTarget.textContent=paused?"계속 진행":"일시정지";document.querySelectorAll(".unit,.scout").forEach((unit)=>unit.style.animationPlayState=paused?"paused":"running");});
+        document.querySelector("#intervene-button").addEventListener("click",()=>{if(interventionCount<=0)return;interventionCount-=1;document.querySelector("#interventions").textContent=interventionCount;addLog("지휘부: 예외 권한을 직접 승인했습니다. 즉시 해결되지만 자율 학습은 감소합니다.");document.querySelector("#mission-detail").textContent="직접 개입으로 위험은 줄었지만, 조직이 스스로 해결할 기회를 잃었습니다.";});
+        document.querySelector("#observe-button").addEventListener("click",()=>{addLog("지휘부: 개입 보류. 장교들이 교차검증 후 독자 재계획합니다.");document.querySelector("#mission-verdict").textContent="무개입 재계획 성공 가능";document.querySelector("#streak-score").textContent="3 ROUND";});
+        setInterval(()=>{if(paused||shell.dataset.scene==="graduation")return;elapsed=elapsed>=59?0:elapsed+1;document.querySelector("#operation-clock").textContent=`00:${String(elapsed).padStart(2,"0")}`;},1000);
+
+        load();
+        setScene(state.scene, false);
+        applyLayout();
+        renderComments();
+        setReviewMode("edit");
+        updateHarness();
+      })();
+    </script>
+  </body>
+</html>
