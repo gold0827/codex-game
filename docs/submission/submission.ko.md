@@ -7,6 +7,7 @@
 - 글자 수: `81자`
 - 플레이: [자율군단 지휘학교](https://gold0827.github.io/codex-game/)
 - 썸네일: [`docs/submission/thumbnail.png`](./thumbnail.png)
+- 제작·심사 증거: [Codex 협업과 다섯 심사 기준](./production-evidence.ko.md)
 - 크기: `1664×936 px`
 - 파일 크기: `2410854 bytes`
 
