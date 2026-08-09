@@ -174,6 +174,18 @@ function assertSceneAndRoster(
         );
       }
     });
+    beat.threats.forEach((threat) => {
+      if (
+        !Number.isSafeInteger(threat.telegraphDurationMs) ||
+        threat.telegraphDurationMs <= 0 ||
+        threat.telegraphDurationMs >
+          scene.encounterParameters.durationMs - beat.timeMs
+      ) {
+        throw new RangeError(
+          `Threat "${threat.id}" cannot complete its telegraph before the operation ends.`,
+        );
+      }
+    });
   });
 
   const retry = scene.transitions.some(({ outcomeId }) => outcomeId === "retry");
@@ -332,6 +344,7 @@ export function createOperationSimulation(
     beliefs: [],
     pendingDecision: null,
     authorized:
+      !compoundReplanRequired &&
       officer.disposition === "action" &&
       harness.authorityClarity >= 0.45 &&
       harness.authorityClarity <= 0.88,
@@ -554,10 +567,7 @@ export function createOperationSimulation(
 
   const telegraphThreat = (threat: CampaignThreat, timeMs: number): void => {
     const objective = objectives[threats.length % Math.max(1, objectives.length)];
-    const telegraphEndsAtMs = Math.min(
-      durationMs,
-      timeMs + threat.telegraphDurationMs,
-    );
+    const telegraphEndsAtMs = timeMs + threat.telegraphDurationMs;
     threats.push({
       id: threat.id,
       kind: threat.kind,
@@ -739,14 +749,19 @@ export function createOperationSimulation(
       const actionOfficer = officers.find(
         ({ disposition }) => disposition === "action",
       );
-      if (actionOfficer) {
+      if (actionOfficer && !actionOfficer.authorized) {
+        const previousAuthorized = actionOfficer.authorized;
         authorityReassigned = true;
         actionOfficer.authorized = true;
         appendReplay(
           "authority-reassigned",
           elapsedMs,
           `Authority reassigned to ${actionOfficer.id} for the verified local threat.`,
-          { officerId: actionOfficer.id },
+          {
+            officerId: actionOfficer.id,
+            previousAuthorized,
+            newAuthorized: actionOfficer.authorized,
+          },
         );
       }
     }

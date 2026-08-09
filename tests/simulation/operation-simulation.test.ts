@@ -362,6 +362,25 @@ describe("threats, intervention, and outcome", () => {
     expect(simulation.snapshot().metrics.civilianSafety).toBeLessThan(100);
   });
 
+  it.each([
+    ["near the duration boundary", 200],
+    ["at the duration boundary", 250],
+  ])("rejects a threat authored %s without a complete telegraph interval", (_case, timeMs) => {
+    const scene = structuredClone(playableScenes[0]) as CampaignScene;
+    const sourceBeat = scene.beats.find(({ threats }) => threats.length > 0);
+    expect(sourceBeat).toBeDefined();
+    (scene.encounterParameters as { durationMs: number }).durationMs = 250;
+    (sourceBeat as { timeMs: number }).timeMs = timeMs;
+    (sourceBeat?.threats[0] as { telegraphDurationMs: number }).telegraphDurationMs = 100;
+    (scene as unknown as { beats: CampaignScene["beats"] }).beats = [
+      sourceBeat as CampaignScene["beats"][number],
+    ];
+
+    expect(() =>
+      createOperationSimulation(scene, completeCampaign.officers, 61, poorHarness),
+    ).toThrow(/cannot complete its telegraph/);
+  });
+
   it("supports all three intervention commands and records their costs", () => {
     const scene = playableScenes[0] as CampaignScene;
     const simulation = createOperationSimulation(
@@ -399,7 +418,35 @@ describe("threats, intervention, and outcome", () => {
 
   it("runs the final compound crisis through cross-check, authority, and autonomous replan", () => {
     const scene = playableScenes.at(-1) as CampaignScene;
-    const simulation = runToEnd(scene, "final-autonomy");
+    const simulation = createOperationSimulation(
+      scene,
+      completeCampaign.officers,
+      "final-autonomy",
+      BALANCED_HARNESS,
+    );
+
+    simulation.advance(22_300);
+    expect(
+      simulation.snapshot().officers.find(({ id }) => id === "major-baek")?.authorized,
+    ).toBe(false);
+    expect(simulation.replay().some(({ kind }) => kind === "authority-reassigned")).toBe(
+      false,
+    );
+
+    simulation.advance(100);
+    expect(
+      simulation.snapshot().officers.find(({ id }) => id === "major-baek")?.authorized,
+    ).toBe(true);
+    expect(simulation.replay().find(({ kind }) => kind === "authority-reassigned")).toMatchObject({
+      timeMs: 22_400,
+      data: {
+        officerId: "major-baek",
+        previousAuthorized: false,
+        newAuthorized: true,
+      },
+    });
+
+    simulation.advance(scene.encounterParameters.durationMs);
     const replay = simulation.replay();
 
     expect(simulation.snapshot()).toMatchObject({
@@ -415,7 +462,6 @@ describe("threats, intervention, and outcome", () => {
         reportIds: ["orchard-han-contradiction", "orchard-kim-four-alerts"],
       },
     });
-    expect(replay.find(({ kind }) => kind === "authority-reassigned")?.timeMs).toBe(22_400);
     expect(replay.find(({ kind }) => kind === "autonomous-replan")?.timeMs).toBe(22_400);
     expect(replay.at(-1)).toMatchObject({
       kind: "outcome",
