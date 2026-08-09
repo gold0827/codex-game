@@ -19,15 +19,49 @@ function createScene(
     identity: { id, kind },
     copy: {
       title: `${id} title`,
+      subtitle: `${id} subtitle`,
       briefing: `${id} briefing`,
+      lesson: `${id} lesson`,
       success: `${id} success`,
       failure: `${id} failure`,
     },
     presentation: {
+      mapId: `${id}-map`,
       backdropId: `${id}-backdrop`,
       soundtrackId: `${id}-soundtrack`,
       accentColor: "#ffffff",
     },
+    guidance: [
+      {
+        id: `${id}-guidance`,
+        instruction: `${id} guidance`,
+      },
+    ],
+    beats: [
+      {
+        id: `${id}-beat`,
+        timeMs: 0,
+        headline: `${id} headline`,
+        description: `${id} description`,
+        reports: [
+          {
+            id: `${id}-report`,
+            officerId: "test-officer",
+            tone: "confident",
+            text: `${id} report`,
+          },
+        ],
+        threats: [
+          {
+            id: `${id}-threat`,
+            kind: "communications",
+            lane: "command",
+            severity: "low",
+            telegraphDurationMs: 1_000,
+          },
+        ],
+      },
+    ],
     objectives: [
       {
         id: `${id}-objective`,
@@ -52,8 +86,18 @@ function createScene(
 function createDefinition(): CampaignDefinition {
   return {
     id: "training-campaign",
+    title: "훈련 캠페인",
     version: 1,
     startSceneId: "tutorial",
+    officers: [
+      {
+        id: "test-officer",
+        name: "시험 장교",
+        rank: "대위",
+        role: "검증",
+        disposition: "verification",
+      },
+    ],
     scenes: [
       createScene("tutorial", "tutorial", [
         { outcomeId: "retry", targetSceneId: "tutorial" },
@@ -84,6 +128,8 @@ describe("campaign definition", () => {
       "identity",
       "copy",
       "presentation",
+      "guidance",
+      "beats",
       "objectives",
       "transitions",
       "encounterParameters",
@@ -115,6 +161,115 @@ describe("campaign definition", () => {
       field: "identity.id",
     });
   });
+
+  it("rejects duplicate officer identifiers", () => {
+    const definition = createDefinition();
+    (definition.officers as typeof definition.officers[number][]).push({
+      ...definition.officers[0],
+    });
+
+    expect(diagnosticFor(definition, "duplicate-officer-id")).toMatchObject({
+      sceneId: "training-campaign",
+      field: "officers[1].id",
+    });
+  });
+
+  it.each([
+    ["guidance", "duplicate-guidance-id", "guidance[1].id", () => {
+      const definition = createDefinition();
+      const guidance = definition.scenes[0].guidance as Array<
+        (typeof definition.scenes)[number]["guidance"][number]
+      >;
+      guidance.push({ ...guidance[0] });
+      return definition;
+    }],
+    ["beat", "duplicate-beat-id", "beats[1].id", () => {
+      const definition = createDefinition();
+      const beats = definition.scenes[0].beats as Array<
+        (typeof definition.scenes)[number]["beats"][number]
+      >;
+      beats.push({ ...beats[0], timeMs: 1 });
+      return definition;
+    }],
+    ["report", "duplicate-report-id", "beats[0].reports[1].id", () => {
+      const definition = createDefinition();
+      const reports = definition.scenes[0].beats[0].reports as Array<
+        (typeof definition.scenes)[number]["beats"][number]["reports"][number]
+      >;
+      reports.push({ ...reports[0] });
+      return definition;
+    }],
+    ["threat", "duplicate-threat-id", "beats[0].threats[1].id", () => {
+      const definition = createDefinition();
+      const threats = definition.scenes[0].beats[0].threats as Array<
+        (typeof definition.scenes)[number]["beats"][number]["threats"][number]
+      >;
+      threats.push({ ...threats[0] });
+      return definition;
+    }],
+  ] as const)("rejects duplicate %s identifiers", (_name, code, field, build) => {
+    expect(diagnosticFor(build(), code)).toMatchObject({
+      sceneId: "tutorial",
+      field,
+    });
+  });
+
+  it("rejects reports from officers outside the roster", () => {
+    const definition = createDefinition();
+    const report = definition.scenes[0].beats[0].reports[0] as {
+      officerId: string;
+    };
+    report.officerId = "unknown-officer";
+
+    expect(diagnosticFor(definition, "unknown-officer-reference")).toMatchObject({
+      sceneId: "tutorial",
+      field: "beats[0].reports[0].officerId",
+    });
+  });
+
+  it.each([Number.NaN, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects invalid beat time %s",
+    (timeMs) => {
+      const definition = createDefinition();
+      (definition.scenes[0].beats[0] as { timeMs: number }).timeMs = timeMs;
+
+      expect(diagnosticFor(definition, "invalid-beat-time")).toMatchObject({
+        sceneId: "tutorial",
+        field: "beats[0].timeMs",
+      });
+    },
+  );
+
+  it("rejects beat times that are not strictly increasing", () => {
+    const definition = createDefinition();
+    const beats = definition.scenes[0].beats as Array<
+      (typeof definition.scenes)[number]["beats"][number]
+    >;
+    beats.push({ ...structuredClone(beats[0]), id: "later-beat", timeMs: 0 });
+
+    expect(diagnosticFor(definition, "out-of-order-beat-time")).toMatchObject({
+      sceneId: "tutorial",
+      field: "beats[1].timeMs",
+    });
+  });
+
+  it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects invalid threat telegraph duration %s",
+    (telegraphDurationMs) => {
+      const definition = createDefinition();
+      const threat = definition.scenes[0].beats[0].threats[0] as {
+        telegraphDurationMs: number;
+      };
+      threat.telegraphDurationMs = telegraphDurationMs;
+
+      expect(
+        diagnosticFor(definition, "invalid-threat-telegraph-duration"),
+      ).toMatchObject({
+        sceneId: "tutorial",
+        field: "beats[0].threats[0].telegraphDurationMs",
+      });
+    },
+  );
 
   it("rejects missing transition targets", () => {
     const definition = createDefinition();
