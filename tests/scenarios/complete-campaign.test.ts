@@ -124,12 +124,32 @@ describe("complete campaign", () => {
     });
   });
 
-  it("teaches pause, inspect, route, and resume in authored order", () => {
-    expect(completeCampaign.scenes[0].guidance.map(({ id }) => id)).toEqual([
-      "tutorial-pause",
-      "tutorial-inspect",
-      "tutorial-route",
-      "tutorial-resume",
+  it("authors executable pause, inspect, route, and resume guidance", () => {
+    expect(completeCampaign.scenes[0].guidance).toMatchObject([
+      {
+        action: "pause",
+        target: { kind: "operation-clock" },
+        completionEvent: "operation-paused",
+      },
+      {
+        action: "inspect",
+        target: { kind: "officer", officerId: "major-baek" },
+        completionEvent: "officer-inspected",
+      },
+      {
+        action: "route",
+        target: {
+          kind: "report-recipient",
+          reportId: "school-han-address",
+          recipientOfficerId: "major-baek",
+        },
+        completionEvent: "report-routed",
+      },
+      {
+        action: "resume",
+        target: { kind: "operation-clock" },
+        completionEvent: "operation-resumed",
+      },
     ]);
   });
 

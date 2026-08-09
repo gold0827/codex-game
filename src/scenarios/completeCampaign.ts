@@ -51,16 +51,38 @@ export const completeCampaign = {
         accentColor: "#67c1a3",
       },
       guidance: [
-        { id: "tutorial-pause", instruction: "작전 시간을 멈춘다." },
+        {
+          id: "tutorial-pause",
+          instruction: "작전 시간을 멈춘다.",
+          action: "pause",
+          target: { kind: "operation-clock" },
+          completionEvent: "operation-paused",
+        },
         {
           id: "tutorial-inspect",
           instruction: "백돌격 소령의 이동 의도와 점멸하는 위험 신호를 살핀다.",
+          action: "inspect",
+          target: { kind: "officer", officerId: "major-baek" },
+          completionEvent: "officer-inspected",
         },
         {
           id: "tutorial-route",
           instruction: "천막 위치 보고를 백돌격 소령에게 직접 연결한다.",
+          action: "route",
+          target: {
+            kind: "report-recipient",
+            reportId: "school-han-address",
+            recipientOfficerId: "major-baek",
+          },
+          completionEvent: "report-routed",
         },
-        { id: "tutorial-resume", instruction: "시간을 다시 흐르게 한다." },
+        {
+          id: "tutorial-resume",
+          instruction: "시간을 다시 흐르게 한다.",
+          action: "resume",
+          target: { kind: "operation-clock" },
+          completionEvent: "operation-resumed",
+        },
       ],
       beats: [
         {

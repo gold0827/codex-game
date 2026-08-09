@@ -35,6 +35,9 @@ function createScene(
       {
         id: `${id}-guidance`,
         instruction: `${id} guidance`,
+        action: "pause",
+        target: { kind: "operation-clock" },
+        completionEvent: "operation-paused",
       },
     ],
     beats: [
@@ -224,6 +227,62 @@ describe("campaign definition", () => {
     expect(diagnosticFor(definition, "unknown-officer-reference")).toMatchObject({
       sceneId: "tutorial",
       field: "beats[0].reports[0].officerId",
+    });
+  });
+
+  it("rejects an inspect guidance target outside the officer roster", () => {
+    const definition = createDefinition();
+    (definition.scenes[0].guidance as CampaignScene["guidance"][number][])[0] = {
+      id: "inspect-officer",
+      instruction: "inspect officer",
+      action: "inspect",
+      target: { kind: "officer", officerId: "unknown-officer" },
+      completionEvent: "officer-inspected",
+    };
+
+    expect(diagnosticFor(definition, "unknown-officer-reference")).toMatchObject({
+      sceneId: "tutorial",
+      field: "guidance[0].target.officerId",
+    });
+  });
+
+  it("rejects a route guidance report outside its scene", () => {
+    const definition = createDefinition();
+    (definition.scenes[0].guidance as CampaignScene["guidance"][number][])[0] = {
+      id: "route-report",
+      instruction: "route report",
+      action: "route",
+      target: {
+        kind: "report-recipient",
+        reportId: "unknown-report",
+        recipientOfficerId: "test-officer",
+      },
+      completionEvent: "report-routed",
+    };
+
+    expect(diagnosticFor(definition, "unknown-report-reference")).toMatchObject({
+      sceneId: "tutorial",
+      field: "guidance[0].target.reportId",
+    });
+  });
+
+  it("rejects a route guidance recipient outside the officer roster", () => {
+    const definition = createDefinition();
+    (definition.scenes[0].guidance as CampaignScene["guidance"][number][])[0] = {
+      id: "route-report",
+      instruction: "route report",
+      action: "route",
+      target: {
+        kind: "report-recipient",
+        reportId: "tutorial-report",
+        recipientOfficerId: "unknown-officer",
+      },
+      completionEvent: "report-routed",
+    };
+
+    expect(diagnosticFor(definition, "unknown-officer-reference")).toMatchObject({
+      sceneId: "tutorial",
+      field: "guidance[0].target.recipientOfficerId",
     });
   });
 

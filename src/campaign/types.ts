@@ -45,10 +45,39 @@ export interface CampaignScenePresentation {
   readonly accentColor: string;
 }
 
-export interface CampaignGuidanceStep {
-  readonly id: string;
-  readonly instruction: string;
-}
+export type CampaignGuidanceStep =
+  | Readonly<{
+      id: string;
+      instruction: string;
+      action: "pause";
+      target: Readonly<{ kind: "operation-clock" }>;
+      completionEvent: "operation-paused";
+    }>
+  | Readonly<{
+      id: string;
+      instruction: string;
+      action: "inspect";
+      target: Readonly<{ kind: "officer"; officerId: string }>;
+      completionEvent: "officer-inspected";
+    }>
+  | Readonly<{
+      id: string;
+      instruction: string;
+      action: "route";
+      target: Readonly<{
+        kind: "report-recipient";
+        reportId: string;
+        recipientOfficerId: string;
+      }>;
+      completionEvent: "report-routed";
+    }>
+  | Readonly<{
+      id: string;
+      instruction: string;
+      action: "resume";
+      target: Readonly<{ kind: "operation-clock" }>;
+      completionEvent: "operation-resumed";
+    }>;
 
 export interface CampaignOfficerReport {
   readonly id: string;

@@ -9,6 +9,7 @@ export type CampaignDiagnosticCode =
   | "duplicate-report-id"
   | "duplicate-threat-id"
   | "unknown-officer-reference"
+  | "unknown-report-reference"
   | "invalid-beat-time"
   | "out-of-order-beat-time"
   | "invalid-threat-telegraph-duration"
@@ -96,6 +97,9 @@ export function validateCampaignDefinition(
 
   definition.scenes.forEach((scene) => {
     const seenOutcomeIds = new Set<string>();
+    const sceneReportIds = new Set(
+      scene.beats.flatMap((beat) => beat.reports.map((report) => report.id)),
+    );
 
     scene.guidance.forEach((guidance, guidanceIndex) => {
       if (guidanceIds.has(guidance.id)) {
@@ -107,6 +111,38 @@ export function validateCampaignDefinition(
         });
       }
       guidanceIds.add(guidance.id);
+
+      if (
+        guidance.action === "inspect" &&
+        !officerIds.has(guidance.target.officerId)
+      ) {
+        diagnostics.push({
+          code: "unknown-officer-reference",
+          sceneId: scene.identity.id,
+          field: `guidance[${guidanceIndex}].target.officerId`,
+          message: `Officer "${guidance.target.officerId}" is not declared in the campaign roster.`,
+        });
+      }
+
+      if (guidance.action === "route") {
+        if (!sceneReportIds.has(guidance.target.reportId)) {
+          diagnostics.push({
+            code: "unknown-report-reference",
+            sceneId: scene.identity.id,
+            field: `guidance[${guidanceIndex}].target.reportId`,
+            message: `Report "${guidance.target.reportId}" is not declared in this scene.`,
+          });
+        }
+
+        if (!officerIds.has(guidance.target.recipientOfficerId)) {
+          diagnostics.push({
+            code: "unknown-officer-reference",
+            sceneId: scene.identity.id,
+            field: `guidance[${guidanceIndex}].target.recipientOfficerId`,
+            message: `Officer "${guidance.target.recipientOfficerId}" is not declared in the campaign roster.`,
+          });
+        }
+      }
     });
 
     scene.beats.forEach((beat, beatIndex) => {
