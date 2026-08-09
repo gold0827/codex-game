@@ -6,15 +6,25 @@ export {
 } from "./progress";
 export type {
   CampaignDefinition,
+  CampaignEncounterBeat,
   CampaignEncounterParameters,
   CampaignGameplayTuning,
+  CampaignGuidanceStep,
   CampaignObjective,
+  CampaignOfficer,
+  CampaignOfficerReport,
   CampaignScene,
   CampaignSceneCopy,
   CampaignSceneIdentity,
   CampaignScenePresentation,
   CampaignTransition,
+  CampaignThreat,
+  OfficerDisposition,
+  OfficerReportTone,
   SceneKind,
+  ThreatKind,
+  ThreatLane,
+  ThreatSeverity,
 } from "./types";
 export {
   CampaignValidationError,

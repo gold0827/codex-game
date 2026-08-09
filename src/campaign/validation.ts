@@ -1,8 +1,18 @@
 import type { CampaignDefinition } from "./types";
 
 export type CampaignDiagnosticCode =
+  | "duplicate-officer-id"
   | "duplicate-scene-id"
   | "duplicate-outcome-id"
+  | "duplicate-guidance-id"
+  | "duplicate-beat-id"
+  | "duplicate-report-id"
+  | "duplicate-threat-id"
+  | "unknown-officer-reference"
+  | "unknown-report-reference"
+  | "invalid-beat-time"
+  | "out-of-order-beat-time"
+  | "invalid-threat-telegraph-duration"
   | "missing-transition-target"
   | "unreachable-scene"
   | "invalid-start-scene"
@@ -41,6 +51,23 @@ export function validateCampaignDefinition(
   const diagnostics: CampaignDiagnostic[] = [];
   const scenesById = new Map<string, (typeof definition.scenes)[number]>();
   const duplicateSceneIds = new Set<string>();
+  const officerIds = new Set<string>();
+  const guidanceIds = new Set<string>();
+  const beatIds = new Set<string>();
+  const reportIds = new Set<string>();
+  const threatIds = new Set<string>();
+
+  definition.officers.forEach((officer, officerIndex) => {
+    if (officerIds.has(officer.id)) {
+      diagnostics.push({
+        code: "duplicate-officer-id",
+        sceneId: definition.id,
+        field: `officers[${officerIndex}].id`,
+        message: `Officer identifier "${officer.id}" is duplicated.`,
+      });
+    }
+    officerIds.add(officer.id);
+  });
 
   definition.scenes.forEach((scene) => {
     const sceneId = scene.identity.id;
@@ -70,6 +97,128 @@ export function validateCampaignDefinition(
 
   definition.scenes.forEach((scene) => {
     const seenOutcomeIds = new Set<string>();
+    const sceneReportIds = new Set(
+      scene.beats.flatMap((beat) => beat.reports.map((report) => report.id)),
+    );
+
+    scene.guidance.forEach((guidance, guidanceIndex) => {
+      if (guidanceIds.has(guidance.id)) {
+        diagnostics.push({
+          code: "duplicate-guidance-id",
+          sceneId: scene.identity.id,
+          field: `guidance[${guidanceIndex}].id`,
+          message: `Guidance identifier "${guidance.id}" is duplicated.`,
+        });
+      }
+      guidanceIds.add(guidance.id);
+
+      if (
+        guidance.action === "inspect" &&
+        !officerIds.has(guidance.target.officerId)
+      ) {
+        diagnostics.push({
+          code: "unknown-officer-reference",
+          sceneId: scene.identity.id,
+          field: `guidance[${guidanceIndex}].target.officerId`,
+          message: `Officer "${guidance.target.officerId}" is not declared in the campaign roster.`,
+        });
+      }
+
+      if (guidance.action === "route") {
+        if (!sceneReportIds.has(guidance.target.reportId)) {
+          diagnostics.push({
+            code: "unknown-report-reference",
+            sceneId: scene.identity.id,
+            field: `guidance[${guidanceIndex}].target.reportId`,
+            message: `Report "${guidance.target.reportId}" is not declared in this scene.`,
+          });
+        }
+
+        if (!officerIds.has(guidance.target.recipientOfficerId)) {
+          diagnostics.push({
+            code: "unknown-officer-reference",
+            sceneId: scene.identity.id,
+            field: `guidance[${guidanceIndex}].target.recipientOfficerId`,
+            message: `Officer "${guidance.target.recipientOfficerId}" is not declared in the campaign roster.`,
+          });
+        }
+      }
+    });
+
+    scene.beats.forEach((beat, beatIndex) => {
+      if (beatIds.has(beat.id)) {
+        diagnostics.push({
+          code: "duplicate-beat-id",
+          sceneId: scene.identity.id,
+          field: `beats[${beatIndex}].id`,
+          message: `Beat identifier "${beat.id}" is duplicated.`,
+        });
+      }
+      beatIds.add(beat.id);
+
+      if (!Number.isSafeInteger(beat.timeMs) || beat.timeMs < 0) {
+        diagnostics.push({
+          code: "invalid-beat-time",
+          sceneId: scene.identity.id,
+          field: `beats[${beatIndex}].timeMs`,
+          message: `Beat time must be a non-negative safe integer, received ${beat.timeMs}.`,
+        });
+      }
+
+      if (beatIndex > 0 && beat.timeMs <= scene.beats[beatIndex - 1].timeMs) {
+        diagnostics.push({
+          code: "out-of-order-beat-time",
+          sceneId: scene.identity.id,
+          field: `beats[${beatIndex}].timeMs`,
+          message: "Beat times must be strictly increasing.",
+        });
+      }
+
+      beat.reports.forEach((report, reportIndex) => {
+        if (reportIds.has(report.id)) {
+          diagnostics.push({
+            code: "duplicate-report-id",
+            sceneId: scene.identity.id,
+            field: `beats[${beatIndex}].reports[${reportIndex}].id`,
+            message: `Report identifier "${report.id}" is duplicated.`,
+          });
+        }
+        reportIds.add(report.id);
+
+        if (!officerIds.has(report.officerId)) {
+          diagnostics.push({
+            code: "unknown-officer-reference",
+            sceneId: scene.identity.id,
+            field: `beats[${beatIndex}].reports[${reportIndex}].officerId`,
+            message: `Officer "${report.officerId}" is not declared in the campaign roster.`,
+          });
+        }
+      });
+
+      beat.threats.forEach((threat, threatIndex) => {
+        if (threatIds.has(threat.id)) {
+          diagnostics.push({
+            code: "duplicate-threat-id",
+            sceneId: scene.identity.id,
+            field: `beats[${beatIndex}].threats[${threatIndex}].id`,
+            message: `Threat identifier "${threat.id}" is duplicated.`,
+          });
+        }
+        threatIds.add(threat.id);
+
+        if (
+          !Number.isSafeInteger(threat.telegraphDurationMs) ||
+          threat.telegraphDurationMs <= 0
+        ) {
+          diagnostics.push({
+            code: "invalid-threat-telegraph-duration",
+            sceneId: scene.identity.id,
+            field: `beats[${beatIndex}].threats[${threatIndex}].telegraphDurationMs`,
+            message: "Threat telegraph duration must be a positive safe integer.",
+          });
+        }
+      });
+    });
 
     scene.transitions.forEach((transition, transitionIndex) => {
       if (seenOutcomeIds.has(transition.outcomeId)) {
