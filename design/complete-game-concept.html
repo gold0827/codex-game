@@ -91,9 +91,8 @@
       .empty-state { margin: 0; color: var(--dim); font-size: 11px; }
       .selected-name { display: block; margin-bottom: 10px; color: var(--gold); font-size: 12px; }
       .field-label { display: block; margin: 10px 0 5px; color: var(--muted); font-size: 10px; font-weight: 800; }
-      .scale-row { display: grid; grid-template-columns: 1fr 44px; align-items: center; gap: 8px; }
-      .scale-row input { width: 100%; accent-color: var(--mint); }
-      .scale-value { color: var(--mint); font: 11px ui-monospace, monospace; text-align: right; }
+      .dimension-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .dimension-value { display: block; padding: 8px; border: 1px solid var(--line); background: #07100e; color: var(--mint); font: 11px ui-monospace, monospace; text-align: right; }
       .nudge-grid { width: 112px; display: grid; grid-template-columns: repeat(3, 34px); gap: 5px; margin: 8px auto; }
       .nudge-grid .icon-button { width: 34px; min-height: 32px; padding: 4px; }
       .nudge-grid .up { grid-column: 2; }
@@ -144,16 +143,17 @@
         background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,.05) 4px);
       }
       .topbar {
-        height: 11.4%; display: grid; grid-template-columns: 1.2fr 1fr auto; align-items: center; gap: 1.2%; padding: 0 1.4%;
+        height: 11.4%; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: center; gap: 1.2%; padding: 0 1.4%;
         border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(125,225,173,.05), transparent 40%), #0a1512;
       }
+      .topbar > div, .operation-copy { min-width: 0; }
       .brand-kicker, .eyebrow { margin: 0; color: var(--mint); font-size: clamp(6px, .62vw, 11px); font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
-      h1 { margin: .3% 0 0; font-size: clamp(14px, 1.5vw, 27px); line-height: 1; letter-spacing: -.045em; }
+      h1 { margin: .3% 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(14px, 1.5vw, 27px); line-height: 1; letter-spacing: -.045em; }
       .operation-id { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4%; padding-left: 4%; border-left: 1px solid var(--line); }
       .round-badge { display: grid; place-items: center; width: clamp(34px, 3.3vw, 58px); aspect-ratio: 1; border: 1px solid #6f5f33; background: #211d10; color: var(--gold); font-size: clamp(8px,.7vw,12px); font-weight: 900; }
       .operation-copy strong, .operation-copy span { display: block; }
-      .operation-copy strong { font-size: clamp(9px,.82vw,14px); }
-      .operation-copy span { margin-top: 3px; color: var(--muted); font-size: clamp(6px,.58vw,10px); }
+      .operation-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(9px,.82vw,14px); }
+      .operation-copy span { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: clamp(6px,.58vw,10px); }
       .scene-switch { display: flex; gap: 4px; }
       .scene-button, .tiny-button, .decision-button {
         border: 1px solid var(--line); background: #0d1c18; color: var(--muted); font-weight: 800; transition: 120ms ease;
@@ -281,15 +281,27 @@
       .graduation-note { position:absolute; right:5%; bottom:5%; padding:7px 10px; background:rgba(236,228,183,.86); color:#465b48; font-size:clamp(5px,.52vw,9px); font-weight:800; }
 
       /* Adjustable elements and pins */
-      [data-review-id] { position:relative; --review-x:0px; --review-y:0px; --review-scale:1; transform:translate(var(--review-x),var(--review-y)) scale(var(--review-scale)); transform-origin:center; }
+      [data-review-id] { position:relative; min-width:0; min-height:0; --review-x:0px; --review-y:0px; transform:translate(var(--review-x),var(--review-y)); }
       body[data-review-mode="edit"] [data-review-id] { cursor:grab; outline:1px dashed rgba(125,225,173,.28); outline-offset:-2px; }
       body[data-review-mode="edit"] [data-review-id]:hover { outline-color:rgba(125,225,173,.8); }
       body[data-review-mode="edit"] [data-review-id].is-selected { z-index:55; outline:2px solid var(--gold); box-shadow:0 0 0 4px rgba(234,197,107,.18); }
       body[data-review-mode="edit"] [data-review-id]:focus-visible { outline:3px solid var(--cyan); }
       [data-review-id].is-hidden { display:none !important; }
+      .resize-handle { position:absolute; z-index:80; display:none; width:12px; height:12px; min-height:0; padding:0; border:1px solid #fff2b1; background:var(--gold); box-shadow:0 2px 8px rgba(0,0,0,.55); touch-action:none; }
+      body[data-review-mode="edit"] [data-review-id].is-selected > .resize-handle { display:block; }
+      .resize-handle[data-resize-direction="n"] { top:0; left:50%; width:24px; height:8px; transform:translateX(-50%); cursor:ns-resize; }
+      .resize-handle[data-resize-direction="s"] { bottom:0; left:50%; width:24px; height:8px; transform:translateX(-50%); cursor:ns-resize; }
+      .resize-handle[data-resize-direction="e"] { top:50%; right:0; width:8px; height:24px; transform:translateY(-50%); cursor:ew-resize; }
+      .resize-handle[data-resize-direction="w"] { top:50%; left:0; width:8px; height:24px; transform:translateY(-50%); cursor:ew-resize; }
+      .resize-handle[data-resize-direction="ne"] { top:0; right:0; cursor:nesw-resize; }
+      .resize-handle[data-resize-direction="nw"] { top:0; left:0; cursor:nwse-resize; }
+      .resize-handle[data-resize-direction="se"] { right:0; bottom:0; cursor:nwse-resize; }
+      .resize-handle[data-resize-direction="sw"] { bottom:0; left:0; cursor:nesw-resize; }
+      .resize-handle:focus-visible { outline:3px solid var(--cyan); outline-offset:2px; }
       .comment-pin { position:absolute; z-index:75; top:8px; right:8px; width:22px; height:22px; display:grid; place-items:center; border:1px solid #fff2b1; border-radius:50%; background:var(--gold); color:#181305; font:900 10px ui-monospace,monospace; box-shadow:0 3px 10px rgba(0,0,0,.45); }
       .comment-pin.resolved { background:#607168; color:#dce7df; border-color:#aabbb1; }
-      body[data-review-mode="presentation"] .comment-pin { display:none; }
+      body[data-review-mode="presentation"] .comment-pin,
+      body[data-review-mode="presentation"] .resize-handle { display:none; }
 
       @keyframes blink { 50% { opacity:.35; } }
       @keyframes danger-pulse { 50% { opacity:.5; } }
@@ -409,8 +421,8 @@
           <p class="empty-state" id="selection-empty">조정할 요소를 선택합니다.</p>
           <div id="inspector-controls" hidden>
             <strong class="selected-name" id="selected-name"></strong>
-            <label class="field-label" for="scale-input">크기</label>
-            <div class="scale-row"><input id="scale-input" type="range" min="50" max="160" step="1" value="100" /><output class="scale-value" id="scale-value" for="scale-input">100%</output></div>
+            <span class="field-label">실제 크기</span>
+            <div class="dimension-row"><div><span class="field-label">너비</span><output class="dimension-value" id="width-value">0px</output></div><div><span class="field-label">높이</span><output class="dimension-value" id="height-value">0px</output></div></div>
             <span class="field-label">위치 미세 조정</span>
             <div class="nudge-grid" aria-label="위치 미세 조정"><button class="icon-button up" type="button" data-nudge="0,-1" aria-label="위로 1픽셀 이동">↑</button><button class="icon-button left" type="button" data-nudge="-1,0" aria-label="왼쪽으로 1픽셀 이동">←</button><button class="icon-button down" type="button" data-nudge="0,1" aria-label="아래로 1픽셀 이동">↓</button><button class="icon-button right" type="button" data-nudge="1,0" aria-label="오른쪽으로 1픽셀 이동">→</button></div>
             <div class="button-row"><button class="review-button" id="hide-button" type="button">요소 숨기기</button><button class="review-button" id="reset-element-button" type="button">요소 초기화</button></div>
@@ -436,25 +448,38 @@
     <script>
       (() => {
         "use strict";
-        const STORAGE_KEY = "field-command-design-review-v1";
-        const SCHEMA_VERSION = 1;
+        const STORAGE_KEY = "field-command-design-review-v2";
+        const LEGACY_STORAGE_KEY = "field-command-design-review-v1";
+        const SCHEMA_VERSION = 2;
+        const MIN_WIDTH = 80;
+        const MIN_HEIGHT = 48;
+        const MAX_DIMENSION = 2000;
         const scenes = ["operation", "crisis", "graduation"];
         const shell = document.querySelector("#game-shell");
         const targets = [...document.querySelectorAll("[data-review-id]")];
         const targetIds = new Set(targets.map((target) => target.dataset.reviewId));
         const targetById = Object.fromEntries(targets.map((target) => [target.dataset.reviewId, target]));
         const labelsById = Object.fromEntries(targets.map((target) => [target.dataset.reviewId, target.dataset.reviewLabel]));
-        const emptyLayout = () => Object.fromEntries(targets.map((target) => [target.dataset.reviewId, { x: 0, y: 0, scale: 1, hidden: false }]));
+        const initialSizeById = Object.fromEntries(targets.map((target) => [target.dataset.reviewId, {
+          width: Math.round(target.offsetWidth || target.getBoundingClientRect().width || MIN_WIDTH),
+          height: Math.round(target.offsetHeight || target.getBoundingClientRect().height || MIN_HEIGHT)
+        }]));
+        const minimumSizeById = Object.fromEntries(targets.map((target) => [target.dataset.reviewId, {
+          width: target.dataset.reviewId === "mission-header" ? Math.max(MIN_WIDTH, Math.round(initialSizeById[target.dataset.reviewId].width * .5)) : MIN_WIDTH,
+          height: MIN_HEIGHT
+        }]));
+        const emptyLayout = () => Object.fromEntries(targets.map((target) => [target.dataset.reviewId, { x: 0, y: 0, width: initialSizeById[target.dataset.reviewId].width, height: initialSizeById[target.dataset.reviewId].height, hidden: false }]));
         let state = { version: SCHEMA_VERSION, scene: "operation", layout: emptyLayout(), comments: [] };
         let selectedId = null;
         let drag = null;
+        let resizeDrag = null;
 
         const elementList = document.querySelector("#element-list");
         const inspectorControls = document.querySelector("#inspector-controls");
         const selectionEmpty = document.querySelector("#selection-empty");
         const selectedName = document.querySelector("#selected-name");
-        const scaleInput = document.querySelector("#scale-input");
-        const scaleValue = document.querySelector("#scale-value");
+        const widthValue = document.querySelector("#width-value");
+        const heightValue = document.querySelector("#height-value");
         const commentInput = document.querySelector("#comment-input");
         const addCommentButton = document.querySelector("#add-comment-button");
         const commentList = document.querySelector("#comment-list");
@@ -471,7 +496,7 @@
 
         function validateReviewState(candidate) {
           if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("JSON 최상위 값은 객체여야 합니다.");
-          if (candidate.version !== SCHEMA_VERSION) throw new Error(`지원하지 않는 버전입니다. version ${SCHEMA_VERSION}이 필요합니다.`);
+          if (candidate.version !== 1 && candidate.version !== SCHEMA_VERSION) throw new Error(`지원하지 않는 버전입니다. version 1 또는 ${SCHEMA_VERSION}가 필요합니다.`);
           if (!scenes.includes(candidate.scene)) throw new Error("장면 값이 올바르지 않습니다.");
           if (!candidate.layout || typeof candidate.layout !== "object" || Array.isArray(candidate.layout)) throw new Error("layout 객체가 필요합니다.");
           const normalizedLayout = emptyLayout();
@@ -479,9 +504,20 @@
             if (!targetIds.has(id)) throw new Error(`알 수 없는 요소 식별자입니다: ${id}`);
             if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${id} 배치 값이 올바르지 않습니다.`);
             if (!finiteNumber(value.x, -2000, 2000) || !finiteNumber(value.y, -2000, 2000)) throw new Error(`${id} 위치 값이 범위를 벗어났습니다.`);
-            if (!finiteNumber(value.scale, .5, 1.6)) throw new Error(`${id} 크기 값이 범위를 벗어났습니다.`);
             if (typeof value.hidden !== "boolean") throw new Error(`${id} 숨김 값이 올바르지 않습니다.`);
-            normalizedLayout[id] = { x: value.x, y: value.y, scale: value.scale, hidden: value.hidden };
+            if (candidate.version === 1) {
+              if (!finiteNumber(value.scale, .5, 1.6)) throw new Error(`${id} 크기 값이 범위를 벗어났습니다.`);
+              normalizedLayout[id] = {
+                x: value.x,
+                y: value.y,
+                width: Math.round(initialSizeById[id].width * value.scale),
+                height: Math.round(initialSizeById[id].height * value.scale),
+                hidden: value.hidden
+              };
+            } else {
+              if (!finiteNumber(value.width, MIN_WIDTH, MAX_DIMENSION) || !finiteNumber(value.height, MIN_HEIGHT, MAX_DIMENSION)) throw new Error(`${id} 너비 또는 높이 값이 범위를 벗어났습니다.`);
+              normalizedLayout[id] = { x: value.x, y: value.y, width: value.width, height: value.height, hidden: value.hidden };
+            }
           }
           if (!Array.isArray(candidate.comments)) throw new Error("comments 배열이 필요합니다.");
           const ids = new Set();
@@ -513,23 +549,37 @@
         }
 
         function commitState(nextState, successMessage) {
-          if (!save(nextState)) {
+          const previousState = state;
+          state = nextState;
+          applyLayout();
+          constrainAllLayouts();
+          applyLayout();
+          if (!save(state)) {
+            state = previousState;
             applyLayout();
             renderComments();
             return false;
           }
-          state = nextState;
-          applyLayout();
           renderComments();
           if (successMessage) announce(successMessage);
           return true;
         }
 
         function load() {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return;
-          try { state = validateReviewState(JSON.parse(raw)); }
-          catch { localStorage.removeItem(STORAGE_KEY); announce("손상된 로컬 검토 상태를 제외하고 기본 배치를 열었습니다."); }
+          const stored = localStorage.getItem(STORAGE_KEY)
+            ? { key: STORAGE_KEY, raw: localStorage.getItem(STORAGE_KEY) }
+            : localStorage.getItem(LEGACY_STORAGE_KEY)
+              ? { key: LEGACY_STORAGE_KEY, raw: localStorage.getItem(LEGACY_STORAGE_KEY) }
+              : null;
+          if (!stored) return;
+          try {
+            const candidate = JSON.parse(stored.raw);
+            state = validateReviewState(candidate);
+            if ((candidate.version === 1 || stored.key === LEGACY_STORAGE_KEY) && save(state)) localStorage.removeItem(LEGACY_STORAGE_KEY);
+          } catch {
+            localStorage.removeItem(stored.key);
+            announce("손상된 로컬 검토 상태를 제외하고 기본 배치를 열었습니다.");
+          }
         }
 
         function setScene(scene, persist = true) {
@@ -555,11 +605,57 @@
             const target = targetById[id];
             target.style.setProperty("--review-x", `${layout.x}px`);
             target.style.setProperty("--review-y", `${layout.y}px`);
-            target.style.setProperty("--review-scale", String(layout.scale));
+            target.style.width = `${layout.width}px`;
+            target.style.height = `${layout.height}px`;
             target.classList.toggle("is-hidden", layout.hidden);
           }
           renderElementList();
           renderInspector();
+        }
+
+        function applyTargetLayout(id) {
+          const target = targetById[id];
+          const layout = state.layout[id];
+          target.style.setProperty("--review-x", `${layout.x}px`);
+          target.style.setProperty("--review-y", `${layout.y}px`);
+          target.style.width = `${layout.width}px`;
+          target.style.height = `${layout.height}px`;
+          target.classList.toggle("is-hidden", layout.hidden);
+        }
+
+        function frameGeometry(id) {
+          const target = targetById[id];
+          const layout = state.layout[id];
+          const shellRect = shell.getBoundingClientRect();
+          const targetRect = target.getBoundingClientRect();
+          const zoom = shellRect.width / shell.offsetWidth || 1;
+          return {
+            baseLeft: (targetRect.left - shellRect.left) / zoom - layout.x,
+            baseTop: (targetRect.top - shellRect.top) / zoom - layout.y,
+            frameWidth: shell.offsetWidth,
+            frameHeight: shell.offsetHeight,
+            zoom
+          };
+        }
+
+        function clampValue(value, min, max) {
+          return Math.max(min, Math.min(max, value));
+        }
+
+        function constrainLayout(id, layout) {
+          const target = targetById[id];
+          if (target.classList.contains("is-hidden") || !target.getClientRects().length) return;
+          const geometry = frameGeometry(id);
+          const minimumWidth = Math.min(minimumSizeById[id].width, geometry.frameWidth);
+          const minimumHeight = Math.min(minimumSizeById[id].height, geometry.frameHeight);
+          layout.width = Math.round(clampValue(layout.width, minimumWidth, geometry.frameWidth));
+          layout.height = Math.round(clampValue(layout.height, minimumHeight, geometry.frameHeight));
+          layout.x = Math.round(clampValue(layout.x, -geometry.baseLeft, geometry.frameWidth - geometry.baseLeft - layout.width));
+          layout.y = Math.round(clampValue(layout.y, -geometry.baseTop, geometry.frameHeight - geometry.baseTop - layout.height));
+        }
+
+        function constrainAllLayouts() {
+          targets.forEach((target) => constrainLayout(target.dataset.reviewId, state.layout[target.dataset.reviewId]));
         }
 
         function selectTarget(id, focus = false) {
@@ -569,6 +665,7 @@
           renderElementList();
           renderInspector();
           renderComments();
+          syncHandleTabStops();
           if (focus && !state.layout[id].hidden) targetById[id].focus();
         }
 
@@ -603,8 +700,8 @@
           if (!hasSelection) return;
           const layout = state.layout[selectedId];
           selectedName.textContent = labelsById[selectedId];
-          scaleInput.value = String(Math.round(layout.scale * 100));
-          scaleValue.textContent = `${Math.round(layout.scale * 100)}%`;
+          widthValue.textContent = `${Math.round(layout.width)}px`;
+          heightValue.textContent = `${Math.round(layout.height)}px`;
           document.querySelector("#hide-button").textContent = layout.hidden ? "요소 복원" : "요소 숨기기";
         }
 
@@ -612,6 +709,7 @@
           if (!selectedId) return;
           const nextState = cloneState();
           mutator(nextState.layout[selectedId]);
+          constrainLayout(selectedId, nextState.layout[selectedId]);
           commitState(nextState, message);
         }
 
@@ -691,6 +789,149 @@
           if (commitState(nextState, `${labelsById[selectedId]}에 의견 추가`)) commentInput.value = "";
         }
 
+        const resizeDirections = {
+          n: "위쪽 변",
+          ne: "오른쪽 위 모서리",
+          e: "오른쪽 변",
+          se: "오른쪽 아래 모서리",
+          s: "아래쪽 변",
+          sw: "왼쪽 아래 모서리",
+          w: "왼쪽 변",
+          nw: "왼쪽 위 모서리"
+        };
+
+        function makeResizeSession(id, direction) {
+          const layout = state.layout[id];
+          const geometry = frameGeometry(id);
+          const left = geometry.baseLeft + layout.x;
+          const top = geometry.baseTop + layout.y;
+          return {
+            id,
+            direction,
+            baseLeft: geometry.baseLeft,
+            baseTop: geometry.baseTop,
+            frameWidth: geometry.frameWidth,
+            frameHeight: geometry.frameHeight,
+            zoom: geometry.zoom,
+            left,
+            top,
+            right: left + layout.width,
+            bottom: top + layout.height
+          };
+        }
+
+        function resizedBox(session, deltaX, deltaY) {
+          const minimumWidth = Math.min(minimumSizeById[session.id].width, session.frameWidth);
+          const minimumHeight = Math.min(minimumSizeById[session.id].height, session.frameHeight);
+          let { left, top, right, bottom } = session;
+          if (session.direction.includes("w")) left = clampValue(session.left + deltaX, 0, session.right - minimumWidth);
+          if (session.direction.includes("e")) right = clampValue(session.right + deltaX, session.left + minimumWidth, session.frameWidth);
+          if (session.direction.includes("n")) top = clampValue(session.top + deltaY, 0, session.bottom - minimumHeight);
+          if (session.direction.includes("s")) bottom = clampValue(session.bottom + deltaY, session.top + minimumHeight, session.frameHeight);
+          return {
+            x: Math.round(left - session.baseLeft),
+            y: Math.round(top - session.baseTop),
+            width: Math.round(right - left),
+            height: Math.round(bottom - top)
+          };
+        }
+
+        function beginResize(event) {
+          if (document.body.dataset.reviewMode !== "edit") return;
+          event.preventDefault();
+          event.stopPropagation();
+          const handle = event.currentTarget;
+          const target = handle.closest("[data-review-id]");
+          const id = target.dataset.reviewId;
+          selectTarget(id);
+          resizeDrag = {
+            ...makeResizeSession(id, handle.dataset.resizeDirection),
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            previousState: cloneState(),
+            handle
+          };
+          handle.setPointerCapture(event.pointerId);
+        }
+
+        function moveResize(event) {
+          if (!resizeDrag || event.pointerId !== resizeDrag.pointerId) return;
+          event.preventDefault();
+          const box = resizedBox(resizeDrag, (event.clientX - resizeDrag.startX) / resizeDrag.zoom, (event.clientY - resizeDrag.startY) / resizeDrag.zoom);
+          Object.assign(state.layout[resizeDrag.id], box);
+          applyTargetLayout(resizeDrag.id);
+          renderInspector();
+        }
+
+        function finishResize(event, cancelled = false) {
+          if (!resizeDrag || event.pointerId !== resizeDrag.pointerId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const completed = resizeDrag;
+          resizeDrag = null;
+          if (completed.handle.hasPointerCapture(event.pointerId)) completed.handle.releasePointerCapture(event.pointerId);
+          if (cancelled) {
+            state = completed.previousState;
+            applyLayout();
+            renderComments();
+            announce(`${labelsById[completed.id]} 크기 조절 취소`);
+          } else if (save(state)) {
+            announce(`${labelsById[completed.id]} ${state.layout[completed.id].width}×${state.layout[completed.id].height}px 저장`);
+          } else {
+            state = completed.previousState;
+            applyLayout();
+            renderComments();
+          }
+        }
+
+        function resizeWithKeyboard(event) {
+          const direction = event.currentTarget.dataset.resizeDirection;
+          const horizontal = direction.includes("e") || direction.includes("w");
+          const vertical = direction.includes("n") || direction.includes("s");
+          const amount = event.shiftKey ? 10 : 1;
+          let deltaX = 0;
+          let deltaY = 0;
+          if (horizontal && event.key === "ArrowLeft") deltaX = -amount;
+          else if (horizontal && event.key === "ArrowRight") deltaX = amount;
+          else if (vertical && event.key === "ArrowUp") deltaY = -amount;
+          else if (vertical && event.key === "ArrowDown") deltaY = amount;
+          else return;
+          event.preventDefault();
+          event.stopPropagation();
+          const id = event.currentTarget.closest("[data-review-id]").dataset.reviewId;
+          const nextState = cloneState();
+          Object.assign(nextState.layout[id], resizedBox(makeResizeSession(id, direction), deltaX, deltaY));
+          if (commitState(nextState, `${labelsById[id]} ${nextState.layout[id].width}×${nextState.layout[id].height}px`)) selectTarget(id);
+        }
+
+        function createResizeHandles() {
+          targets.forEach((target) => {
+            Object.entries(resizeDirections).forEach(([direction, label]) => {
+              const handle = document.createElement("button");
+              handle.type = "button";
+              handle.className = "resize-handle";
+              handle.dataset.resizeDirection = direction;
+              handle.setAttribute("aria-label", `${target.dataset.reviewLabel} ${label} 크기 조절`);
+              handle.tabIndex = -1;
+              handle.addEventListener("pointerdown", beginResize);
+              handle.addEventListener("pointermove", moveResize);
+              handle.addEventListener("pointerup", (event) => finishResize(event));
+              handle.addEventListener("pointercancel", (event) => finishResize(event, true));
+              handle.addEventListener("keydown", resizeWithKeyboard);
+              target.append(handle);
+            });
+          });
+        }
+
+        function syncHandleTabStops() {
+          const edit = document.body.dataset.reviewMode === "edit";
+          targets.forEach((target) => {
+            const active = edit && target.dataset.reviewId === selectedId && !state.layout[target.dataset.reviewId].hidden;
+            target.querySelectorAll(":scope > .resize-handle").forEach((handle) => { handle.tabIndex = active ? 0 : -1; });
+          });
+        }
+
         function setReviewMode(mode) {
           document.body.dataset.reviewMode = mode;
           const edit = mode === "edit";
@@ -701,6 +942,7 @@
           });
           if (!edit) { targets.forEach((target) => target.classList.remove("is-selected")); }
           else if (selectedId) targetById[selectedId].classList.add("is-selected");
+          syncHandleTabStops();
         }
 
         targets.forEach((target) => {
@@ -715,32 +957,52 @@
             const amount = event.shiftKey ? 10 : 1;
             const [x, y] = moves[event.key];
             selectTarget(target.dataset.reviewId);
-            updateSelected((layout) => { layout.x += x * amount; layout.y += y * amount; });
+            updateSelected((layout) => { layout.x += x * amount; layout.y += y * amount; }, `${target.dataset.reviewLabel} 위치 조정`);
           });
         });
 
         shell.addEventListener("pointerdown", (event) => {
-          if (document.body.dataset.reviewMode !== "edit" || event.target.closest(".comment-pin")) return;
+          if (document.body.dataset.reviewMode !== "edit" || event.target.closest(".comment-pin, .resize-handle")) return;
           const target = event.target.closest("[data-review-id]");
           if (!target) return;
           event.preventDefault();
           const id = target.dataset.reviewId;
           selectTarget(id);
-          drag = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: state.layout[id].x, originY: state.layout[id].y, previousState: cloneState() };
-          shell.setPointerCapture(event.pointerId);
+          const geometry = frameGeometry(id);
+          const layout = state.layout[id];
+          drag = {
+            id,
+            target,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            startLeft: geometry.baseLeft + layout.x,
+            startTop: geometry.baseTop + layout.y,
+            baseLeft: geometry.baseLeft,
+            baseTop: geometry.baseTop,
+            frameWidth: geometry.frameWidth,
+            frameHeight: geometry.frameHeight,
+            zoom: geometry.zoom,
+            width: layout.width,
+            height: layout.height,
+            previousState: cloneState()
+          };
+          target.setPointerCapture(event.pointerId);
         });
         shell.addEventListener("pointermove", (event) => {
           if (!drag || event.pointerId !== drag.pointerId) return;
-          const zoom = shell.getBoundingClientRect().width / shell.offsetWidth || 1;
-          state.layout[drag.id].x = Math.round(drag.originX + (event.clientX - drag.startX) / zoom);
-          state.layout[drag.id].y = Math.round(drag.originY + (event.clientY - drag.startY) / zoom);
-          applyLayout();
+          const left = clampValue(drag.startLeft + (event.clientX - drag.startX) / drag.zoom, 0, drag.frameWidth - drag.width);
+          const top = clampValue(drag.startTop + (event.clientY - drag.startY) / drag.zoom, 0, drag.frameHeight - drag.height);
+          state.layout[drag.id].x = Math.round(left - drag.baseLeft);
+          state.layout[drag.id].y = Math.round(top - drag.baseTop);
+          applyTargetLayout(drag.id);
+          renderInspector();
         });
         shell.addEventListener("pointerup", (event) => {
           if (!drag || event.pointerId !== drag.pointerId) return;
-          shell.releasePointerCapture(event.pointerId);
           const completedDrag = drag;
           drag = null;
+          if (completedDrag.target.hasPointerCapture(event.pointerId)) completedDrag.target.releasePointerCapture(event.pointerId);
           if (save(state)) {
             announce(`${labelsById[completedDrag.id]} 위치 저장`);
           } else {
@@ -748,6 +1010,15 @@
             applyLayout();
             renderComments();
           }
+        });
+        shell.addEventListener("pointercancel", (event) => {
+          if (!drag || event.pointerId !== drag.pointerId) return;
+          const cancelledDrag = drag;
+          drag = null;
+          state = cancelledDrag.previousState;
+          applyLayout();
+          renderComments();
+          announce(`${labelsById[cancelledDrag.id]} 이동 취소`);
         });
 
         document.querySelectorAll("[data-scene-button]").forEach((button) => button.addEventListener("click", () => {
@@ -760,10 +1031,9 @@
         document.addEventListener("keydown", (event) => {
           if (event.key === "Escape" && document.body.dataset.reviewMode === "presentation") setReviewMode("edit");
         });
-        scaleInput.addEventListener("input", () => updateSelected((layout) => { layout.scale = Number(scaleInput.value) / 100; }, `${labelsById[selectedId]} 크기 ${scaleInput.value}%`));
         document.querySelectorAll("[data-nudge]").forEach((button) => button.addEventListener("click", () => { const [x,y] = button.dataset.nudge.split(",").map(Number); updateSelected((layout) => { layout.x += x; layout.y += y; }, `${labelsById[selectedId]} 위치 조정`); }));
         document.querySelector("#hide-button").addEventListener("click", () => updateSelected((layout) => { layout.hidden = !layout.hidden; }, `${labelsById[selectedId]} ${state.layout[selectedId].hidden ? "복원" : "숨김"}`));
-        document.querySelector("#reset-element-button").addEventListener("click", () => { if (!selectedId) return; const nextState = cloneState(); nextState.layout[selectedId] = { x:0, y:0, scale:1, hidden:false }; commitState(nextState, `${labelsById[selectedId]} 초기화`); });
+        document.querySelector("#reset-element-button").addEventListener("click", () => { if (!selectedId) return; const nextState = cloneState(); nextState.layout[selectedId] = { x:0, y:0, width:initialSizeById[selectedId].width, height:initialSizeById[selectedId].height, hidden:false }; commitState(nextState, `${labelsById[selectedId]} 초기화`); });
         document.querySelector("#reset-all-button").addEventListener("click", () => { if (!confirm("모든 요소의 위치, 크기, 숨김 상태를 초기화할까요? 의견은 유지됩니다.")) return; const nextState = cloneState(); nextState.layout = emptyLayout(); commitState(nextState, "전체 배치 초기화"); });
         addCommentButton.addEventListener("click", addComment);
         commentInput.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") addComment(); });
@@ -785,12 +1055,14 @@
           try {
             const candidate = JSON.parse(await file.text());
             const validated = validateReviewState(candidate);
-            if (!save(validated)) return;
-            state = validated;
+            const previousSelection = selectedId;
             selectedId = null;
+            if (!commitState(validated)) {
+              selectedId = previousSelection;
+              if (selectedId) selectTarget(selectedId);
+              return;
+            }
             setScene(state.scene, false);
-            applyLayout();
-            renderComments();
             announce("검증된 JSON 가져오기 완료");
           } catch (error) {
             announce(`가져오기 거부: ${error instanceof Error ? error.message : "JSON을 읽을 수 없습니다."}`);
@@ -823,12 +1095,26 @@
         document.querySelector("#observe-button").addEventListener("click",()=>{addLog("지휘부: 개입 보류. 장교들이 교차검증 후 독자 재계획합니다.");document.querySelector("#mission-verdict").textContent="무개입 재계획 성공 가능";document.querySelector("#streak-score").textContent="3 ROUND";});
         setInterval(()=>{if(paused||shell.dataset.scene==="graduation")return;elapsed=elapsed>=59?0:elapsed+1;document.querySelector("#operation-clock").textContent=`00:${String(elapsed).padStart(2,"0")}`;},1000);
 
+        createResizeHandles();
         load();
         setScene(state.scene, false);
         applyLayout();
+        constrainAllLayouts();
+        applyLayout();
+        save(state);
         renderComments();
         setReviewMode("edit");
         updateHarness();
+        let layoutResizeFrame = null;
+        window.addEventListener("resize", () => {
+          if (layoutResizeFrame) cancelAnimationFrame(layoutResizeFrame);
+          layoutResizeFrame = requestAnimationFrame(() => {
+            constrainAllLayouts();
+            applyLayout();
+            save(state);
+            layoutResizeFrame = null;
+          });
+        });
       })();
     </script>
   </body>
