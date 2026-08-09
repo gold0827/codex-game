@@ -4,6 +4,8 @@ A fixed-desktop browser game about designing command conditions for autonomous o
 
 [Play the deployed game](https://gold0827.github.io/codex-game/)
 
+[Submission sheet](docs/submission/submission.ko.md) · [Thumbnail](docs/submission/thumbnail.png)
+
 ## How to play
 
 - Set information reach, authority clarity, verification depth, and feedback compression within the briefing budget.
