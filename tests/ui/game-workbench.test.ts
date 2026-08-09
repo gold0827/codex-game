@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { CampaignStorage } from "../../src/editor";
+import type { GameController } from "../../src/game";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import type { GameAudio } from "../../src/ui/GameAudio";
 import type { GameFrameScheduler } from "../../src/ui/GameApp";
@@ -31,6 +32,45 @@ class DeterministicScheduler implements GameFrameScheduler {
     this.cancelled.push(handle);
     this.callbacks.delete(handle);
   }
+}
+
+function advanceToOperationTime(
+  controller: GameController,
+  operationElapsedMs: number,
+): void {
+  const simulationSpeed = controller.snapshot().scene.gameplayTuning.simulationSpeed;
+  controller.tick(operationElapsedMs / simulationSpeed);
+}
+
+function finishSuccessfulAttempt(controller: GameController): void {
+  const routeStep = controller
+    .snapshot()
+    .scene.guidance.find((step) => step.action === "route");
+  if (routeStep?.action === "route") {
+    const reportBeat = controller.snapshot().scene.beats.find((beat) =>
+      beat.reports.some(({ id }) => id === routeStep.target.reportId),
+    );
+    advanceToOperationTime(controller, reportBeat?.timeMs ?? 0);
+    if (controller.snapshot().tutorial.currentStep?.action === "pause") {
+      controller.pause();
+    }
+    const inspectStep = controller.snapshot().tutorial.currentStep;
+    if (inspectStep?.action === "inspect") {
+      controller.inspectOfficer(inspectStep.target.officerId);
+    }
+    controller.routeReport(
+      routeStep.target.reportId,
+      routeStep.target.recipientOfficerId,
+    );
+    if (controller.snapshot().tutorial.currentStep?.action === "resume") {
+      controller.resume();
+    }
+  }
+  const snapshot = controller.snapshot();
+  const remaining =
+    snapshot.scene.encounterParameters.durationMs -
+    (snapshot.operation?.elapsedMs ?? 0);
+  controller.tick(remaining / snapshot.scene.gameplayTuning.simulationSpeed + 1);
 }
 
 describe("game workbench", () => {
@@ -65,6 +105,88 @@ describe("game workbench", () => {
       audioFactory,
       seed: "workbench-test",
     });
+  });
+
+  afterEach(() => {
+    workbench.destroy();
+  });
+
+  it("keeps the field manual available in every game phase", () => {
+    const expectManualOpens = (): void => {
+      expect(action("open-manual").hidden).toBe(false);
+      action("open-manual").click();
+      expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(false);
+      action("close-manual").click();
+    };
+
+    expect(workbench.controller().snapshot().phase).toBe("briefing");
+    expectManualOpens();
+    workbench.controller().startAttempt();
+    expect(workbench.controller().snapshot().phase).toBe("operation");
+    expectManualOpens();
+    finishSuccessfulAttempt(workbench.controller());
+    expect(workbench.controller().snapshot().phase).toBe("debrief");
+    expectManualOpens();
+
+    while (workbench.controller().snapshot().phase !== "epilogue") {
+      workbench.controller().continueCampaign();
+      if (workbench.controller().snapshot().phase === "epilogue") break;
+      workbench.controller().startAttempt();
+      finishSuccessfulAttempt(workbench.controller());
+    }
+    expect(workbench.controller().snapshot().phase).toBe("epilogue");
+    expectManualOpens();
+  });
+
+  it("explains the complete campaign and keeps scrolling inside the overlay", () => {
+    action("open-manual").click();
+    const overlay = root.querySelector<HTMLElement>(".workbench-manual")!;
+    const content = root.querySelector<HTMLElement>(".field-manual-content")!;
+
+    expect(overlay.textContent).toContain("브리핑에서 지휘 조건 설정");
+    expect(overlay.textContent).toContain("자율 작전 관찰");
+    expect(overlay.textContent).toContain("0.5배속, 1배속, 2배속");
+    expect(overlay.textContent).toContain("제한된 직접 개입");
+    expect(overlay.textContent).toContain("여섯 작전과 졸업");
+    expect(overlay.textContent).toContain("별도 도구 · 장면 편집");
+    expect(overlay.contains(content)).toBe(true);
+    document.documentElement.scrollTop = 0;
+    content.scrollTop = 160;
+    expect(content.scrollTop).toBe(160);
+    expect(document.documentElement.scrollTop).toBe(0);
+    action("close-manual").click();
+    action("open-manual").click();
+    expect(content.scrollTop).toBe(0);
+  });
+
+  it("pauses only an operation that the field manual found running", () => {
+    action("start-attempt").click();
+    action("open-manual").click();
+    expect(workbench.controller().snapshot().paused).toBe(true);
+    action("close-manual").click();
+    expect(workbench.controller().snapshot().paused).toBe(false);
+
+    workbench.controller().pause();
+    action("open-manual").click();
+    action("close-manual").click();
+    expect(workbench.controller().snapshot().paused).toBe(true);
+  });
+
+  it("keeps the field manual and scene editor mutually exclusive", () => {
+    action("start-attempt").click();
+    workbench.openManual();
+    expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(false);
+
+    workbench.openEditor();
+    expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".workbench-editor")?.hidden).toBe(false);
+    expect(workbench.controller().snapshot().paused).toBe(true);
+
+    workbench.openManual();
+    expect(root.querySelector<HTMLElement>(".workbench-editor")?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(false);
+    workbench.closeManual();
+    expect(workbench.controller().snapshot().paused).toBe(false);
   });
 
   it("pauses an active operation while the editor is open and resumes on close", () => {

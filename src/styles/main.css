@@ -79,11 +79,20 @@ textarea:focus-visible {
   position: relative;
 }
 
-.workbench-editor-toggle {
+.workbench-tools {
   position: fixed;
   z-index: 40;
   right: 18px;
   bottom: 18px;
+  display: flex;
+  gap: 8px;
+}
+
+.workbench-tools[hidden] {
+  display: none;
+}
+
+.workbench-tool-toggle {
   min-height: 36px;
   padding: 8px 13px;
   border: 1px solid var(--mint);
@@ -95,6 +104,12 @@ textarea:focus-visible {
   box-shadow: 0 10px 32px #000;
 }
 
+.workbench-manual-toggle {
+  border-color: var(--gold);
+  background: #2d2510;
+}
+
+.workbench-manual,
 .workbench-editor {
   position: fixed;
   z-index: 50;
@@ -103,8 +118,76 @@ textarea:focus-visible {
   background: rgba(2, 7, 5, 0.9);
 }
 
+.workbench-manual[hidden],
 .workbench-editor[hidden] {
   display: none;
+}
+
+.field-manual {
+  width: min(860px, calc(100vw - 48px));
+  height: calc(100vh - 32px);
+  margin: 16px auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--gold);
+  background: #07100e;
+  box-shadow: 0 30px 100px #000;
+}
+
+.field-manual-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 20px;
+  border-bottom: 1px solid #5e5228;
+  background: #171609;
+}
+
+.field-manual-header h1 {
+  margin: 2px 0 0;
+  font-size: 22px;
+}
+
+.field-manual-eyebrow {
+  margin: 0;
+  color: var(--gold);
+  font: 800 8px ui-monospace, monospace;
+  letter-spacing: 0.16em;
+}
+
+.field-manual-content {
+  min-height: 0;
+  padding: 18px 20px 42px;
+  overflow-y: auto;
+  scrollbar-color: #5e5228 #07100e;
+  scrollbar-width: thin;
+}
+
+.field-manual-content section {
+  margin-top: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  background: #0b1915;
+}
+
+.field-manual-content h2 {
+  margin: 0 0 7px;
+  color: var(--gold);
+  font-size: 12px;
+}
+
+.field-manual-content p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.field-manual-content .field-manual-lead {
+  color: var(--ink);
+  font-size: 13px;
 }
 
 .workbench-notice {
