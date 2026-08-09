@@ -1,4 +1,11 @@
 export {
+  parseCampaignJson,
+  parseCampaignValue,
+  type CampaignParseDiagnostic,
+  type CampaignParseDiagnosticKind,
+  type CampaignParseResult,
+} from "./parsing";
+export {
   CampaignProgressError,
   createCampaignProgress,
   type CampaignProgress,
