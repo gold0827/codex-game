@@ -12,6 +12,7 @@ export type TacticalMapState =
 export type CommandProtocolId = "independent" | "cross-check";
 
 export interface CommandRoomSimulation {
+  transitionScheduleMs: number[];
   tacticalMap: {
     regionLabel: string;
     accessibleName: string;
@@ -96,6 +97,7 @@ const independentCommandRoomScenario: Omit<
   CommandRoomScenario,
   "protocolSimulations"
 > = {
+  transitionScheduleMs: [8_000, 18_000, 30_000, 42_000],
   identity: {
     eyebrow: "자율 작전 통제망 / 알파 구역",
     title: "야전 자동화 사령부",
@@ -345,6 +347,7 @@ const independentCommandRoomScenario: Omit<
 };
 
 const crossCheckSimulation: CommandRoomSimulation = {
+  transitionScheduleMs: [8_000, 16_000, 28_000, 44_000],
   tacticalMap: {
     ...independentCommandRoomScenario.tacticalMap,
     phases: [
