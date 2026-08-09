@@ -498,9 +498,31 @@
           return { version: SCHEMA_VERSION, scene: candidate.scene, layout: normalizedLayout, comments: normalizedComments };
         }
 
-        function save() {
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-          catch { announce("브라우저 저장소에 저장하지 못했습니다."); }
+        function save(nextState = state) {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+            return true;
+          } catch {
+            announce("브라우저 저장소에 저장하지 못했습니다.");
+            return false;
+          }
+        }
+
+        function cloneState() {
+          return JSON.parse(JSON.stringify(state));
+        }
+
+        function commitState(nextState, successMessage) {
+          if (!save(nextState)) {
+            applyLayout();
+            renderComments();
+            return false;
+          }
+          state = nextState;
+          applyLayout();
+          renderComments();
+          if (successMessage) announce(successMessage);
+          return true;
         }
 
         function load() {
@@ -512,11 +534,20 @@
 
         function setScene(scene, persist = true) {
           if (!scenes.includes(scene)) return;
-          state.scene = scene;
+          if (persist) {
+            const nextState = cloneState();
+            nextState.scene = scene;
+            if (!save(nextState)) {
+              reviewScene.value = state.scene;
+              return;
+            }
+            state = nextState;
+          } else {
+            state.scene = scene;
+          }
           shell.dataset.scene = scene;
           reviewScene.value = scene;
           document.querySelectorAll("[data-scene-button]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.sceneButton === scene)));
-          if (persist) save();
         }
 
         function applyLayout() {
@@ -552,7 +583,11 @@
             button.dataset.hidden = String(state.layout[id].hidden);
             button.setAttribute("aria-pressed", String(id === selectedId));
             button.addEventListener("click", () => {
-              if (state.layout[id].hidden) { state.layout[id].hidden = false; applyLayout(); save(); announce(`${labelsById[id]} 복원`); }
+              if (state.layout[id].hidden) {
+                const nextState = cloneState();
+                nextState.layout[id].hidden = false;
+                if (!commitState(nextState, `${labelsById[id]} 복원`)) return;
+              }
               selectTarget(id, true);
             });
             return button;
@@ -575,10 +610,9 @@
 
         function updateSelected(mutator, message) {
           if (!selectedId) return;
-          mutator(state.layout[selectedId]);
-          applyLayout();
-          save();
-          if (message) announce(message);
+          const nextState = cloneState();
+          mutator(nextState.layout[selectedId]);
+          commitState(nextState, message);
         }
 
         function renderPins() {
@@ -627,11 +661,20 @@
             const resolve = document.createElement("button");
             resolve.type = "button";
             resolve.textContent = comment.resolved ? "다시 열기" : "해결 표시";
-            resolve.addEventListener("click", () => { comment.resolved = !comment.resolved; save(); renderComments(); announce(comment.resolved ? "의견 해결 표시" : "의견 다시 열기"); });
+            resolve.addEventListener("click", () => {
+              const nextState = cloneState();
+              const nextComment = nextState.comments.find((entry) => entry.id === comment.id);
+              nextComment.resolved = !nextComment.resolved;
+              commitState(nextState, nextComment.resolved ? "의견 해결 표시" : "의견 다시 열기");
+            });
             const remove = document.createElement("button");
             remove.type = "button";
             remove.textContent = "삭제";
-            remove.addEventListener("click", () => { state.comments = state.comments.filter((entry) => entry.id !== comment.id); save(); renderComments(); announce("의견 삭제"); });
+            remove.addEventListener("click", () => {
+              const nextState = cloneState();
+              nextState.comments = nextState.comments.filter((entry) => entry.id !== comment.id);
+              commitState(nextState, "의견 삭제");
+            });
             actions.append(resolve, remove);
             article.append(meta, text, actions);
             return article;
@@ -643,11 +686,9 @@
           const text = commentInput.value.trim();
           if (!selectedId) { announce("의견을 연결할 요소를 먼저 선택합니다."); return; }
           if (!text) { announce("의견 내용을 입력합니다."); commentInput.focus(); return; }
-          state.comments.push({ id: crypto.randomUUID ? crypto.randomUUID() : `comment-${Date.now()}-${Math.random().toString(16).slice(2)}`, elementId: selectedId, text, resolved: false, createdAt: new Date().toISOString() });
-          commentInput.value = "";
-          save();
-          renderComments();
-          announce(`${labelsById[selectedId]}에 의견 추가`);
+          const nextState = cloneState();
+          nextState.comments.push({ id: crypto.randomUUID ? crypto.randomUUID() : `comment-${Date.now()}-${Math.random().toString(16).slice(2)}`, elementId: selectedId, text, resolved: false, createdAt: new Date().toISOString() });
+          if (commitState(nextState, `${labelsById[selectedId]}에 의견 추가`)) commentInput.value = "";
         }
 
         function setReviewMode(mode) {
@@ -666,6 +707,7 @@
           target.dataset.originalAria = target.getAttribute("aria-label") || "";
           target.addEventListener("keydown", (event) => {
             if (document.body.dataset.reviewMode !== "edit") return;
+            if (event.target !== target) return;
             if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectTarget(target.dataset.reviewId); return; }
             const moves = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] };
             if (!moves[event.key]) return;
@@ -684,7 +726,7 @@
           event.preventDefault();
           const id = target.dataset.reviewId;
           selectTarget(id);
-          drag = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: state.layout[id].x, originY: state.layout[id].y };
+          drag = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: state.layout[id].x, originY: state.layout[id].y, previousState: cloneState() };
           shell.setPointerCapture(event.pointerId);
         });
         shell.addEventListener("pointermove", (event) => {
@@ -697,9 +739,15 @@
         shell.addEventListener("pointerup", (event) => {
           if (!drag || event.pointerId !== drag.pointerId) return;
           shell.releasePointerCapture(event.pointerId);
-          announce(`${labelsById[drag.id]} 위치 저장`);
+          const completedDrag = drag;
           drag = null;
-          save();
+          if (save(state)) {
+            announce(`${labelsById[completedDrag.id]} 위치 저장`);
+          } else {
+            state = completedDrag.previousState;
+            applyLayout();
+            renderComments();
+          }
         });
 
         document.querySelectorAll("[data-scene-button]").forEach((button) => button.addEventListener("click", () => {
@@ -715,8 +763,8 @@
         scaleInput.addEventListener("input", () => updateSelected((layout) => { layout.scale = Number(scaleInput.value) / 100; }, `${labelsById[selectedId]} 크기 ${scaleInput.value}%`));
         document.querySelectorAll("[data-nudge]").forEach((button) => button.addEventListener("click", () => { const [x,y] = button.dataset.nudge.split(",").map(Number); updateSelected((layout) => { layout.x += x; layout.y += y; }, `${labelsById[selectedId]} 위치 조정`); }));
         document.querySelector("#hide-button").addEventListener("click", () => updateSelected((layout) => { layout.hidden = !layout.hidden; }, `${labelsById[selectedId]} ${state.layout[selectedId].hidden ? "복원" : "숨김"}`));
-        document.querySelector("#reset-element-button").addEventListener("click", () => { if (!selectedId) return; state.layout[selectedId] = { x:0, y:0, scale:1, hidden:false }; applyLayout(); save(); announce(`${labelsById[selectedId]} 초기화`); });
-        document.querySelector("#reset-all-button").addEventListener("click", () => { if (!confirm("모든 요소의 위치, 크기, 숨김 상태를 초기화할까요? 의견은 유지됩니다.")) return; state.layout = emptyLayout(); applyLayout(); save(); announce("전체 배치 초기화"); });
+        document.querySelector("#reset-element-button").addEventListener("click", () => { if (!selectedId) return; const nextState = cloneState(); nextState.layout[selectedId] = { x:0, y:0, scale:1, hidden:false }; commitState(nextState, `${labelsById[selectedId]} 초기화`); });
+        document.querySelector("#reset-all-button").addEventListener("click", () => { if (!confirm("모든 요소의 위치, 크기, 숨김 상태를 초기화할까요? 의견은 유지됩니다.")) return; const nextState = cloneState(); nextState.layout = emptyLayout(); commitState(nextState, "전체 배치 초기화"); });
         addCommentButton.addEventListener("click", addComment);
         commentInput.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") addComment(); });
 
@@ -737,12 +785,12 @@
           try {
             const candidate = JSON.parse(await file.text());
             const validated = validateReviewState(candidate);
+            if (!save(validated)) return;
             state = validated;
             selectedId = null;
             setScene(state.scene, false);
             applyLayout();
             renderComments();
-            save();
             announce("검증된 JSON 가져오기 완료");
           } catch (error) {
             announce(`가져오기 거부: ${error instanceof Error ? error.message : "JSON을 읽을 수 없습니다."}`);
