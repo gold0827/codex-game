@@ -143,6 +143,27 @@ describe("game controller operation", () => {
     expect(segmented.snapshot()).toEqual(single.snapshot());
   });
 
+  it("does not manufacture a fixed step from just-below-integer segments", () => {
+    const single = createGameController(completeCampaign, "adversarial-timing");
+    const segmented = createGameController(
+      completeCampaign,
+      "adversarial-timing",
+    );
+    single.startAttempt();
+    segmented.startAttempt();
+
+    const simulationSpeed = single.snapshot().scene.gameplayTuning.simulationSpeed;
+    expect(simulationSpeed).toBe(0.75);
+    const scaledSegments = [0.9999999994, 0.9999999994, 97.9999999995];
+    const realSegments = scaledSegments.map((elapsed) => elapsed / simulationSpeed);
+
+    single.tick(realSegments.reduce((total, elapsed) => total + elapsed, 0));
+    realSegments.forEach((elapsed) => segmented.tick(elapsed));
+
+    expect(segmented.snapshot()).toEqual(single.snapshot());
+    expect(segmented.snapshot().operation?.elapsedMs).toBe(0);
+  });
+
   it("supports explicit pause and speed while paused ticks remain inert", () => {
     const controller = createGameController(completeCampaign, 8);
     controller.startAttempt();

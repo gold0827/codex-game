@@ -315,10 +315,9 @@ export function createGameController(
       );
     }
     const totalOperationMs = fractionalOperationMs + scaledElapsedMs;
-    const wholeOperationMs = Math.floor(totalOperationMs + 1e-9);
-    const nextFractionalOperationMs = totalOperationMs - wholeOperationMs;
+    const wholeOperationMs = Math.floor(totalOperationMs);
     simulation?.advance(wholeOperationMs);
-    fractionalOperationMs = Math.max(0, nextFractionalOperationMs);
+    fractionalOperationMs = totalOperationMs - wholeOperationMs;
     finishIfTerminal();
     return snapshot();
   };
