@@ -126,6 +126,26 @@ describe("battlefield state", () => {
     expect(battlefield.snapshot().state).toEqual(state("ready", 3));
   });
 
+  it("rejects shared-memory-backed snapshot and replay states", () => {
+    const sharedState: { bytes: Uint8Array<ArrayBufferLike> } = {
+      bytes: new Uint8Array(new SharedArrayBuffer(1)),
+    };
+
+    expect(() =>
+      createBattlefieldState(sharedState, [
+        { elapsedMs: 1, state: { bytes: new Uint8Array(1) } },
+      ]),
+    ).toThrowError("Initial state must not contain shared memory.");
+
+    expect(() =>
+      createBattlefieldState({ bytes: new Uint8Array(1) }, [
+        { elapsedMs: 1, state: sharedState },
+      ]),
+    ).toThrowError(
+      "Transition state at index 0 must not contain shared memory.",
+    );
+  });
+
   it("rejects invalid schedules explicitly", () => {
     const invalidSchedules = [
       [],

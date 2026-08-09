@@ -29,12 +29,71 @@ export type BattlefieldStateMachine<State> = Readonly<{
   reset: () => BattlefieldStateSnapshot<State>;
 }>;
 
+function isSharedArrayBuffer(value: object): value is SharedArrayBuffer {
+  return (
+    typeof SharedArrayBuffer !== "undefined" &&
+    (value instanceof SharedArrayBuffer ||
+      Object.prototype.toString.call(value) === "[object SharedArrayBuffer]")
+  );
+}
+
+function assertNoSharedMemory(value: unknown, description: string): void {
+  const visited = new Set<object>();
+
+  const visit = (candidate: unknown): void => {
+    if (typeof candidate !== "object" || candidate === null) {
+      return;
+    }
+
+    if (isSharedArrayBuffer(candidate)) {
+      throw new TypeError(`${description} must not contain shared memory.`);
+    }
+
+    if (visited.has(candidate)) {
+      return;
+    }
+    visited.add(candidate);
+
+    if (ArrayBuffer.isView(candidate)) {
+      visit(candidate.buffer);
+      return;
+    }
+
+    if (candidate instanceof Map) {
+      candidate.forEach((mapValue, key) => {
+        visit(key);
+        visit(mapValue);
+      });
+      return;
+    }
+
+    if (candidate instanceof Set) {
+      candidate.forEach(visit);
+      return;
+    }
+
+    Reflect.ownKeys(candidate).forEach((key) => {
+      const descriptor = Object.getOwnPropertyDescriptor(candidate, key);
+      if (descriptor && "value" in descriptor) {
+        visit(descriptor.value);
+      }
+    });
+  };
+
+  visit(value);
+}
+
 function cloneState<State>(state: State, description: string): State {
+  let clonedState: State;
+
   try {
-    return structuredClone(state);
+    clonedState = structuredClone(state);
   } catch {
     throw new TypeError(`${description} must be structured-cloneable.`);
   }
+
+  assertNoSharedMemory(clonedState, description);
+  return clonedState;
 }
 
 function readSchedule<State>(
