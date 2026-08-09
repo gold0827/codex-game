@@ -646,8 +646,10 @@
           const target = targetById[id];
           if (target.classList.contains("is-hidden") || !target.getClientRects().length) return;
           const geometry = frameGeometry(id);
-          layout.width = Math.round(clampValue(layout.width, minimumSizeById[id].width, geometry.frameWidth));
-          layout.height = Math.round(clampValue(layout.height, minimumSizeById[id].height, geometry.frameHeight));
+          const minimumWidth = Math.min(minimumSizeById[id].width, geometry.frameWidth);
+          const minimumHeight = Math.min(minimumSizeById[id].height, geometry.frameHeight);
+          layout.width = Math.round(clampValue(layout.width, minimumWidth, geometry.frameWidth));
+          layout.height = Math.round(clampValue(layout.height, minimumHeight, geometry.frameHeight));
           layout.x = Math.round(clampValue(layout.x, -geometry.baseLeft, geometry.frameWidth - geometry.baseLeft - layout.width));
           layout.y = Math.round(clampValue(layout.y, -geometry.baseTop, geometry.frameHeight - geometry.baseTop - layout.height));
         }
