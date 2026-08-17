@@ -50,6 +50,7 @@ function facing(from: WorldPosition, to: WorldPosition | undefined): Battlefield
 function action(unit: Unit, moving: boolean): BattlefieldAction {
   if (unit.health <= 0) return "down";
   if (unit.health < 30) return "hurt";
+  if (unit.panicReaction !== null) return "panic";
   const projected = actionByIntent[unit.intent];
   return projected === "walk" && !moving ? "idle" : projected;
 }

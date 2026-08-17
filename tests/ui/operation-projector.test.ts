@@ -4,10 +4,12 @@ import {
   createGameSession,
   type GameSnapshot,
 } from "../../src/application/game-session";
+import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 import { projectGameViewModel } from "../../src/presentation/gameViewModel";
 import { projectBattlefieldFrame } from "../../src/presentation/operation/battlefieldProjector";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import { bridgeDefenseCampaign } from "../../src/scenarios/bridgeDefenseOperation";
+import type { HarnessConfiguration } from "../../src/simulation/simulationTypes";
 
 const campaignView = {
   title: completeCampaign.title,
@@ -19,6 +21,42 @@ function operationSnapshot(): GameSnapshot {
   const session = createGameSession(completeCampaign, "operation-projector");
   session.dispatch({ type: "start-attempt" });
   return session.read();
+}
+
+function artilleryPanicFixture(): Readonly<{
+  snapshot: GameSnapshot;
+  simulation: ReturnType<typeof createOperationSimulation>;
+}> {
+  const scene = completeCampaign.scenes.find(
+    ({ identity }) => identity.id === "misaddressed-artillery",
+  );
+  if (!scene) throw new Error("Missing artillery panic fixture.");
+  const poorHarness: HarnessConfiguration = {
+    informationReach: 0,
+    authorityClarity: 0,
+    verificationDepth: 0,
+    feedbackCompression: 0,
+  };
+  const simulation = createOperationSimulation(
+    scene,
+    completeCampaign.officers,
+    101,
+    poorHarness,
+  );
+  simulation.advance(20_000);
+  const shellSession = createGameSession(completeCampaign, "panic-projector-shell");
+  shellSession.dispatch({ type: "start-attempt" });
+  const shell = shellSession.read();
+  return {
+    simulation,
+    snapshot: {
+      ...shell,
+      scene,
+      operation: simulation.snapshot(),
+      operationEvents: simulation.events(),
+      replay: simulation.replay(),
+    },
+  };
 }
 
 describe("operation presentation projector", () => {
@@ -108,6 +146,59 @@ describe("operation presentation projector", () => {
       statusGlyph: "…",
     });
     expect(informational?.label).toContain("정보 위협 허위 정보");
+  });
+
+  it("projects the seed-101 surviving panic actor and restores its intent action after recovery", () => {
+    const fixture = artilleryPanicFixture();
+    const panicUnit = fixture.snapshot.operation?.units.find(
+      ({ officerId }) => officerId === "captain-han",
+    );
+    const panicActor = projectBattlefieldFrame(fixture.snapshot)?.actors.find(
+      ({ id }) => id === "captain-han",
+    );
+
+    expect(panicUnit).toMatchObject({
+      health: 81,
+      suppression: 0.9,
+      panicReaction: "retreat",
+      intent: "secure-objective",
+    });
+    expect(panicActor?.action).toBe("panic");
+    expect(projectBattlefieldFrame(fixture.snapshot, { reducedMotion: true })?.actors.find(
+      ({ id }) => id === "captain-han",
+    )?.action).toBe("panic");
+
+    fixture.simulation.advance(1_400);
+    const recoveredOperation = fixture.simulation.snapshot();
+    const recoveredSnapshot: GameSnapshot = {
+      ...fixture.snapshot,
+      operation: recoveredOperation,
+      operationEvents: fixture.simulation.events(),
+      replay: fixture.simulation.replay(),
+    };
+    expect(recoveredOperation.units.find(
+      ({ officerId }) => officerId === "captain-han",
+    )?.panicReaction).toBeNull();
+    expect(projectBattlefieldFrame(recoveredSnapshot)?.actors.find(
+      ({ id }) => id === "captain-han",
+    )?.action).toBe("idle");
+  });
+
+  it("keeps down and hurt ahead of panic in Canvas action priority", () => {
+    const { snapshot } = artilleryPanicFixture();
+    const projectHealth = (health: number) => projectBattlefieldFrame({
+      ...snapshot,
+      operation: {
+        ...snapshot.operation!,
+        units: snapshot.operation!.units.map((unit) => unit.officerId === "captain-han"
+          ? { ...unit, health, panicReaction: "retreat" }
+          : unit),
+      },
+    })?.actors.find(({ id }) => id === "captain-han")?.action;
+
+    expect(projectHealth(0)).toBe("down");
+    expect(projectHealth(29)).toBe("hurt");
+    expect(projectHealth(30)).toBe("panic");
   });
 
   it("does not consume legacy lane, normalized position, or route values", () => {
