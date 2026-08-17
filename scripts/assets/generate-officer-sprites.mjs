@@ -18,26 +18,17 @@ const outputDirectory = join(
   "officers",
 );
 
-const DIRECTION = {
-  north: [0, -1],
-  "north-east": [1, -1],
-  east: [1, 0],
-  "south-east": [1, 1],
-  south: [0, 1],
-  "south-west": [-1, 1],
-  west: [-1, 0],
-  "north-west": [-1, -1],
-};
+const CELL_SIZE = 48;
 
-const FACING_ANGLE = {
-  north: -90,
-  "north-east": -45,
-  east: 0,
-  "south-east": 45,
-  south: 90,
-  "south-west": 135,
-  west: 180,
-  "north-west": -135,
+const FACING_METADATA = {
+  north: { vector: [0, -1], angle: -90 },
+  "north-east": { vector: [1, -1], angle: -45 },
+  east: { vector: [1, 0], angle: 0 },
+  "south-east": { vector: [1, 1], angle: 45 },
+  south: { vector: [0, 1], angle: 90 },
+  "south-west": { vector: [-1, 1], angle: 135 },
+  west: { vector: [-1, 0], angle: 180 },
+  "north-west": { vector: [-1, -1], angle: -135 },
 };
 
 const PALETTE_KEYS = [
@@ -54,14 +45,22 @@ const PALETTE_KEYS = [
   "signal",
 ];
 
+function assertFacingMetadata() {
+  const metadataKeys = Object.keys(FACING_METADATA);
+  const missing = SPRITE_FACINGS.filter((facing) => !metadataKeys.includes(facing));
+  const unknown = metadataKeys.filter((facing) => !SPRITE_FACINGS.includes(facing));
+  if (missing.length > 0 || unknown.length > 0) {
+    throw new Error(
+      `facing metadata가 canonical 계약과 다릅니다. missing=${missing.join(",")} unknown=${unknown.join(",")}`,
+    );
+  }
+}
+
 function assertRecipe(recipe) {
   if (typeof recipe !== "object" || recipe === null || Array.isArray(recipe)) {
     throw new Error("recipe는 객체여야 합니다.");
   }
   if (recipe.version !== 1) throw new Error("recipe version은 1이어야 합니다.");
-  if (!Number.isInteger(recipe.cellSize) || recipe.cellSize < 32) {
-    throw new Error("cellSize는 32 이상의 정수여야 합니다.");
-  }
   if (!Number.isInteger(recipe.columns) || recipe.columns < 1) {
     throw new Error("columns는 양의 정수여야 합니다.");
   }
@@ -71,9 +70,9 @@ function assertRecipe(recipe) {
     !Number.isInteger(recipe.anchor.x) ||
     !Number.isInteger(recipe.anchor.y) ||
     recipe.anchor.x < 0 ||
-    recipe.anchor.x > recipe.cellSize ||
+    recipe.anchor.x > CELL_SIZE ||
     recipe.anchor.y < 0 ||
-    recipe.anchor.y > recipe.cellSize
+    recipe.anchor.y > CELL_SIZE
   ) {
     throw new Error("anchor x/y는 cell 안의 정수여야 합니다.");
   }
@@ -114,7 +113,7 @@ function line(x1, y1, x2, y2, color, width = 2) {
 }
 
 function standingSprite(action, facing, frameIndex, frameCount, palette) {
-  const [dx, dy] = DIRECTION[facing];
+  const [dx, dy] = FACING_METADATA[facing].vector;
   const phase = frameCount === 1 ? 0 : frameIndex / frameCount;
   const step = action === "walk" || action === "panic"
     ? Math.round(Math.sin(phase * Math.PI * 2) * 2)
@@ -211,7 +210,7 @@ function standingSprite(action, facing, frameIndex, frameCount, palette) {
 }
 
 function downSprite(facing, palette) {
-  const angle = FACING_ANGLE[facing];
+  const angle = FACING_METADATA[facing].angle;
   const parts = [
     rect(12, 38, 24, 3, palette.shadow, ' opacity=".6"'),
     `<g transform="rotate(${angle} 24 35)">`,
@@ -233,6 +232,7 @@ function sprite(action, facing, frameIndex, frameCount, palette) {
 }
 
 function generate(recipe) {
+  assertFacingMetadata();
   assertRecipe(recipe);
   const frames = [];
   const animations = {};
@@ -245,14 +245,14 @@ function generate(recipe) {
       animations[action][facing] = durations.map((durationMs, frameIndex) => {
         const column = frameNumber % recipe.columns;
         const row = Math.floor(frameNumber / recipe.columns);
-        const x = column * recipe.cellSize;
-        const y = row * recipe.cellSize;
+        const x = column * CELL_SIZE;
+        const y = row * CELL_SIZE;
         frames.push(
           `<g transform="translate(${x} ${y})">${sprite(action, facing, frameIndex, durations.length, recipe.palette)}</g>`,
         );
         frameNumber += 1;
         return {
-          rect: { x, y, width: recipe.cellSize, height: recipe.cellSize },
+          rect: { x, y, width: CELL_SIZE, height: CELL_SIZE },
           durationMs,
           anchor: recipe.anchor,
         };
@@ -262,8 +262,8 @@ function generate(recipe) {
 
   const rows = Math.ceil(frameNumber / recipe.columns);
   const size = {
-    width: recipe.columns * recipe.cellSize,
-    height: rows * recipe.cellSize,
+    width: recipe.columns * CELL_SIZE,
+    height: rows * CELL_SIZE,
   };
   const manifest = `${JSON.stringify({
     version: 1,
