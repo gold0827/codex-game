@@ -7,6 +7,7 @@ import {
 import { projectGameViewModel } from "../../src/presentation/gameViewModel";
 import { projectBattlefieldFrame } from "../../src/presentation/operation/battlefieldProjector";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { bridgeDefenseCampaign } from "../../src/scenarios/bridgeDefenseOperation";
 
 const campaignView = {
   title: completeCampaign.title,
@@ -41,6 +42,7 @@ describe("operation presentation projector", () => {
       (snapshot.scene.mapTopology?.destinations.length ?? 0),
     );
     expect(frame?.actors).toHaveLength(operation.spatial.actors.length);
+    expect(frame?.threats).toEqual([]);
     expect(frame?.effects.some(({ kind }) => kind === "movement")).toBe(true);
     frame?.actors.forEach((actor) => {
       const spatialActor = operation.spatial.actors.find(({ actorId }) => actorId === actor.id);
@@ -59,6 +61,53 @@ describe("operation presentation projector", () => {
       expect(actor).not.toHaveProperty("sprite");
       expect(actor).not.toHaveProperty("assetPath");
     });
+  });
+
+  it("projects physical and informational threats at their runtime tiles with non-color semantics", () => {
+    const session = createGameSession(bridgeDefenseCampaign, "hostile-projector");
+    session.dispatch({ type: "start-attempt" });
+    session.advance(10_000);
+
+    const telegraphedSnapshot = session.read();
+    const telegraphed = projectBattlefieldFrame(telegraphedSnapshot)?.threats[0];
+    expect(telegraphed).toMatchObject({
+      id: "bridge-east-bank-artillery",
+      position: telegraphedSnapshot.operation?.threats[0]?.tile,
+      category: "physical",
+      kind: "artillery",
+      severity: "medium",
+      state: "telegraphed",
+      result: null,
+      glyph: "✹",
+      severityGlyph: "Ⅱ",
+      statusGlyph: "…",
+    });
+    expect(telegraphed?.label).toContain("물리적 위협 포격. 심각도 중간. 예고 중");
+
+    session.advance(8_000);
+    const resolved = projectBattlefieldFrame(session.read())?.threats[0];
+    expect(resolved).toMatchObject({
+      id: "bridge-east-bank-artillery",
+      position: telegraphed?.position,
+      state: "resolved",
+      statusGlyph: resolved?.result === "blocked" ? "✓" : "!",
+    });
+    expect(resolved?.label).toContain(resolved?.result === "blocked" ? "차단됨" : "목표 피해");
+
+    session.advance(4_000);
+    const informational = projectBattlefieldFrame(session.read())?.threats.find(
+      ({ id }) => id === "bridge-north-bank-misinformation",
+    );
+    expect(informational).toMatchObject({
+      category: "informational",
+      kind: "misinformation",
+      severity: "high",
+      state: "telegraphed",
+      glyph: "?",
+      severityGlyph: "Ⅲ",
+      statusGlyph: "…",
+    });
+    expect(informational?.label).toContain("정보 위협 허위 정보");
   });
 
   it("does not consume legacy lane, normalized position, or route values", () => {

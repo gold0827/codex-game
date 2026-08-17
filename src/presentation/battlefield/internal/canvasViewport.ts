@@ -13,6 +13,7 @@ import {
   createBattlefieldMapDrawList,
   type BattlefieldMapDrawList,
 } from "./mapDrawList";
+import { drawBattlefieldThreatMarker } from "./threatMarker";
 
 export type BattlefieldViewportSize = Readonly<{
   width: number;
@@ -121,6 +122,7 @@ export function createCanvasBattlefieldViewport(
   let selectedTile: WorldPosition | null = null;
   let guidedTile: WorldPosition | null = null;
   let activeEffectLabels: readonly string[] = [];
+  let activeThreatLabels: readonly string[] = [];
   let mapDrawList: BattlefieldMapDrawList | null = null;
   let followingSelected = true;
   let panStart: Readonly<{ x: number; y: number }> | null = null;
@@ -132,6 +134,9 @@ export function createCanvasBattlefieldViewport(
     const details = [
       activeEffectLabels.length > 0
         ? `식별된 효과: ${activeEffectLabels.join(", ")}`
+        : null,
+      activeThreatLabels.length > 0
+        ? `식별된 위협: ${activeThreatLabels.join(", ")}`
         : null,
       selectedTile ? `선택 타일 ${selectedTile.x}, ${selectedTile.y}` : null,
       guidedTile ? `훈련 목표 타일 ${guidedTile.x}, ${guidedTile.y}` : null,
@@ -348,6 +353,12 @@ export function createCanvasBattlefieldViewport(
         kind: "actor" as const,
         position: { x: actor.x, y: actor.y },
       })),
+      ...drawList.threats.map((threat) => ({
+        id: threat.id,
+        kind: "threat" as const,
+        position: { x: threat.x, y: threat.y },
+        threat,
+      })),
       ...currentMapDrawList.props.map((prop) => ({
         ...prop,
         kind: "prop" as const,
@@ -374,6 +385,11 @@ export function createCanvasBattlefieldViewport(
       }
       if (renderable.kind === "prop") {
         drawMapAsset(renderable.assetKind, renderable.position, scale);
+        continue;
+      }
+      if (renderable.kind === "threat") {
+        const foot = camera.project(renderable.position);
+        drawBattlefieldThreatMarker(context, renderable.threat, foot, scale);
         continue;
       }
       const actor = renderable;
@@ -419,6 +435,7 @@ export function createCanvasBattlefieldViewport(
       context.fillStyle = actor.health < 30 ? "#ff8177" : "#7de1ad";
       context.fillRect(Math.round(x - 14 * scale), Math.round(y + 8 * scale), healthBarWidth * (actor.health / 100), healthBarHeight);
     }
+    canvas.dataset.drawnThreatMarkerCount = String(drawList.threats.length);
     context.restore();
     schedule();
   }
@@ -535,9 +552,14 @@ export function createCanvasBattlefieldViewport(
       selectedActorId = nextSelectedId;
       guidedTile = frame.guidedTile ? { ...frame.guidedTile } : null;
       activeEffectLabels = [...new Set(frame.effects.map(({ label }) => label))];
+      activeThreatLabels = frame.threats.map(({ label }) => label);
       mapDrawList = createBattlefieldMapDrawList(frame.map, mapAtlas.skin(frame.map.id));
       canvas.dataset.mapTileCount = String(mapDrawList.tiles.length);
       canvas.dataset.mapPropCount = String(mapDrawList.props.length);
+      canvas.dataset.threatMarkerCount = String(frame.threats.length);
+      canvas.dataset.threatMarkerCategories = [...new Set(
+        frame.threats.map(({ category }) => category),
+      )].join(",");
       if (guidedTile) canvas.dataset.guidanceTile = `${guidedTile.x},${guidedTile.y}`;
       else delete canvas.dataset.guidanceTile;
       updateCanvasDescription();

@@ -2,6 +2,7 @@ import type {
   BattlefieldAction,
   BattlefieldFacing,
   BattlefieldFrame,
+  BattlefieldThreatFrame,
 } from "../battlefieldFrame";
 
 export type BattlefieldDrawActor = Readonly<{
@@ -16,7 +17,12 @@ export type BattlefieldDrawActor = Readonly<{
 
 export type BattlefieldDrawList = Readonly<{
   actors: readonly BattlefieldDrawActor[];
+  threats: readonly BattlefieldDrawThreat[];
 }>;
+
+export type BattlefieldDrawThreat = Readonly<
+  Omit<BattlefieldThreatFrame, "position"> & { x: number; y: number }
+>;
 
 type TimedFrame = Readonly<{
   frame: BattlefieldFrame;
@@ -38,6 +44,7 @@ export function createBattlefieldDrawList(
     ? clamp((now - current.receivedAt) / SNAPSHOT_INTERVAL_MS, 0, 1)
     : 1;
   const previousById = new Map(previous?.frame.actors.map((actor) => [actor.id, actor]));
+  const previousThreatById = new Map(previous?.frame.threats.map((threat) => [threat.id, threat]));
 
   return {
     actors: current.frame.actors.map((actor) => {
@@ -50,6 +57,14 @@ export function createBattlefieldDrawList(
         facing: actor.facing,
         health: actor.health,
         selected: actor.selected,
+      };
+    }),
+    threats: current.frame.threats.map((threat) => {
+      const before = previousThreatById.get(threat.id) ?? threat;
+      return {
+        ...threat,
+        x: before.position.x + (threat.position.x - before.position.x) * progress,
+        y: before.position.y + (threat.position.y - before.position.y) * progress,
       };
     }),
   };
