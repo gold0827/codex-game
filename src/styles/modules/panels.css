@@ -280,13 +280,15 @@
 
 .event-flow-item,
 .event-flow-empty {
-  min-width: 170px;
+  min-width: 210px;
+  max-width: 280px;
   padding: 6px 8px;
   border-left: 2px solid var(--cyan);
   background: #0d1c18;
   color: var(--muted);
   font-size: 8px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .event-flow-item time {
@@ -294,6 +296,16 @@
   margin-bottom: 2px;
   color: var(--cyan);
   font: 800 8px ui-monospace, monospace;
+}
+
+.event-flow-label {
+  display: block;
+  color: var(--ink);
+  font-size: 9px;
+}
+
+.event-flow-description {
+  margin: 3px 0 0;
 }
 
 .event-threat-telegraphed,
@@ -447,6 +459,12 @@
 .tutorial-guidance small {
   color: #bbaa75;
   font-size: 8px;
+}
+
+.tutorial-guidance span,
+.tutorial-guidance small {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .guidance-target {

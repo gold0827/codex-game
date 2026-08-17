@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createGameSession } from "../../src/application/game-session";
 import type { CampaignDefinition } from "../../src/campaign";
 import { projectGameViewModel } from "../../src/presentation/gameViewModel";
+import { bridgeDefenseCampaign } from "../../src/scenarios/bridgeDefenseOperation";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 
 describe("game presentation view model", () => {
@@ -48,6 +49,104 @@ describe("game presentation view model", () => {
     expect(view.operation?.recipients[0]?.label).toContain(completeCampaign.officers[0]?.name);
     expect(view.operation?.events.length).toBeGreaterThan(0);
     expect(view.operation?.events.every(({ label }) => !/[A-Za-z]{4}/.test(label))).toBe(true);
+  });
+
+  it("joins authored beat copy and report tone by stable identifiers", () => {
+    const session = createGameSession(bridgeDefenseCampaign, "authored-operation-copy");
+    session.dispatch({ type: "start-attempt" });
+    const snapshot = session.read();
+    const beat = snapshot.scene.beats[0];
+    const authoredReport = beat?.reports[0];
+    const view = projectGameViewModel(snapshot, {
+      title: bridgeDefenseCampaign.title,
+      sceneCount: bridgeDefenseCampaign.scenes.length,
+      officers: bridgeDefenseCampaign.officers,
+    });
+    const beatEvent = view.operation?.events.find(({ kind }) => kind === "beat-activated");
+    const report = view.operation?.reports.find(
+      ({ authoredReportId }) => authoredReportId === authoredReport?.id,
+    );
+
+    expect(beatEvent).toMatchObject({
+      label: beat?.headline,
+      description: beat?.description,
+    });
+    expect(view.operation?.events.map(({ sequence }) => sequence)).toEqual(
+      [...(view.operation?.events ?? [])].map(({ sequence }) => sequence).sort((a, b) => b - a),
+    );
+    expect(report).toMatchObject({
+      authoredReportId: authoredReport?.id,
+      tone: "확신",
+    });
+  });
+
+  it("uses readable fallbacks when authored beat and report lookups are missing", () => {
+    const session = createGameSession(bridgeDefenseCampaign, "missing-authored-copy");
+    session.dispatch({ type: "start-attempt" });
+    const snapshot = structuredClone(session.read());
+    snapshot.replay.forEach((event) => {
+      if (event.kind === "beat-activated") {
+        Object.assign(event.data, { beatId: "missing-beat-id" });
+      }
+    });
+    Object.assign(snapshot.scene, { beats: [] });
+
+    const view = projectGameViewModel(snapshot, {
+      title: bridgeDefenseCampaign.title,
+      sceneCount: bridgeDefenseCampaign.scenes.length,
+      officers: bridgeDefenseCampaign.officers,
+    });
+    const beatEvent = view.operation?.events.find(({ kind }) => kind === "beat-activated");
+
+    expect(beatEvent).toMatchObject({
+      label: "새 작전 상황",
+      description: "상황 설명을 확인할 수 없습니다.",
+    });
+    expect(view.operation?.reports[0]?.tone).toBe("어조 정보 없음");
+    expect(`${beatEvent?.label} ${beatEvent?.description}`).not.toContain("missing-beat-id");
+  });
+
+  it("projects tutorial targets as authored report and roster copy with safe fallbacks", () => {
+    const session = createGameSession(completeCampaign, "readable-guidance-targets");
+    session.dispatch({ type: "start-attempt" });
+    const operation = session.read();
+    const routeStep = operation.scene.guidance.find(({ action }) => action === "route");
+    if (!routeStep || routeStep.action !== "route") throw new Error("Expected route guidance.");
+    const reportBeat = operation.scene.beats.find((beat) =>
+      beat.reports.some(({ id }) => id === routeStep.target.reportId),
+    );
+    session.advance(
+      (reportBeat?.timeMs ?? 0) / operation.scene.gameplayTuning.simulationSpeed,
+    );
+    session.dispatch({ type: "pause" });
+
+    const inspectView = projectGameViewModel(session.read(), campaignView);
+    expect(inspectView.tutorial?.target).toBe("소령 백돌격");
+    expect(inspectView.tutorial?.target).not.toContain("major-baek");
+
+    session.dispatch({ type: "inspect-officer", officerId: "major-baek" });
+    const routeSnapshot = session.read();
+    const routeView = projectGameViewModel(routeSnapshot, campaignView);
+    const reportCopy = routeView.operation?.reports.find(
+      ({ authoredReportId }) => authoredReportId === routeStep.target.reportId,
+    )?.text;
+    expect(routeView.tutorial?.target).toBe(`“${reportCopy}” → 소령 백돌격`);
+    expect(routeView.tutorial?.target).not.toMatch(/school-han-address|major-baek/);
+
+    const fallbackSnapshot = structuredClone(routeSnapshot);
+    const fallbackStep = fallbackSnapshot.tutorial.currentStep;
+    if (!fallbackStep || fallbackStep.action !== "route") {
+      throw new Error("Expected cloned route guidance.");
+    }
+    Object.assign(fallbackStep.target, {
+      reportId: "missing-report-id",
+      recipientOfficerId: "missing-officer-id",
+    });
+    const fallbackView = projectGameViewModel(fallbackSnapshot, campaignView);
+    expect(fallbackView.tutorial?.target).toBe(
+      "“보고 내용을 확인할 수 없음” → 수신 장교 정보 없음",
+    );
+    expect(fallbackView.tutorial?.target).not.toMatch(/missing-report-id|missing-officer-id/);
   });
 
   it("keeps runtime and authored report identities separate after routing", () => {

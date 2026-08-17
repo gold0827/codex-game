@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createGameSession, type GameSession } from "../../src/application/game-session";
 import type { CampaignDefinition } from "../../src/campaign";
+import { bridgeDefenseCampaign } from "../../src/scenarios/bridgeDefenseOperation";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import { flowCampaign } from "../fixtures/flow-campaign";
 import type { GameAudio } from "../../src/ui/GameAudio";
@@ -93,6 +94,11 @@ describe("production game app", () => {
     const report = root.querySelector<HTMLElement>('[data-report-id="school-han-address"]');
     expect(report?.classList.contains("guidance-target")).toBe(true);
     expect(report?.querySelector<HTMLSelectElement>("select")?.value).toBe("major-baek");
+    const routeGuidance = root.querySelector<HTMLElement>(".tutorial-guidance")?.textContent ?? "";
+    const displayedReportCopy = report?.querySelector("blockquote")?.textContent ?? "";
+    expect(routeGuidance).toContain(displayedReportCopy);
+    expect(routeGuidance).toContain("소령 백돌격");
+    expect(routeGuidance).not.toMatch(/school-han-address|major-baek/);
     report?.querySelector<HTMLButtonElement>('[data-action="route-report"]')?.click();
     action("resume").click();
     scheduler.frame(frameTime);
@@ -158,6 +164,14 @@ describe("production game app", () => {
     expect(action("pause").textContent).toBe("일시정지");
     expect(root.querySelectorAll("[data-action^='speed-']")).toHaveLength(3);
     expect(root.querySelector("[data-region='event-flow']")).not.toBeNull();
+    const firstBeat = completeCampaign.scenes[0]?.beats[0];
+    const beatEvent = root.querySelector<HTMLElement>(".event-beat-activated");
+    expect(beatEvent?.textContent).toContain(firstBeat?.headline);
+    expect(beatEvent?.textContent).toContain(firstBeat?.description);
+    expect(beatEvent?.textContent).not.toContain(firstBeat?.id);
+    const firstReport = root.querySelector<HTMLElement>(".report-card");
+    expect(firstReport?.querySelector(".report-tone")?.textContent).toBe("어조 · 확신");
+    expect(firstReport?.textContent).not.toContain(firstBeat?.reports[0]?.id);
     expect(root.querySelector("[data-region='interventions']")?.textContent).toContain("개입 자원");
     expect(root.querySelector(".operation-grid")?.children[1]?.getAttribute("data-region")).toBeNull();
     expect(root.querySelector(".operation-grid")?.children[1]?.querySelector("[data-region='battlefield']")).not.toBeNull();
@@ -182,6 +196,21 @@ describe("production game app", () => {
       reportId: "school-han-address",
       recipientOfficerId: "major-baek",
     });
+  });
+
+  it("renders the Haein bridge inspect target without its internal officer id", () => {
+    app.destroy();
+    session = createGameSession(bridgeDefenseCampaign, "bridge-guidance-copy");
+    app = mountGameApp(root, bridgeDefenseCampaign, session, {
+      frameScheduler: scheduler,
+      audio: silentAudio(),
+    });
+    startAttempt();
+    action("pause").click();
+
+    const guidance = root.querySelector<HTMLElement>(".tutorial-guidance");
+    expect(guidance?.textContent).toContain("대위 한확인");
+    expect(guidance?.textContent).not.toContain("captain-han");
   });
 
   it("targets routed report cards by their unique runtime message identity", () => {
