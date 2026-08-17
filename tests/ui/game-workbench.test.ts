@@ -225,19 +225,38 @@ describe("game workbench", () => {
 
   it("keeps the field manual and scene editor mutually exclusive", () => {
     action("start-attempt").click();
-    workbench.openManual();
+    workbench.openTool("manual");
     expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(false);
 
-    workbench.openEditor();
+    workbench.openTool("editor");
     expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(true);
     expect(root.querySelector<HTMLElement>(".workbench-editor")?.hidden).toBe(false);
     expect(workbench.session().read().paused).toBe(true);
 
-    workbench.openManual();
+    workbench.openTool("manual");
     expect(root.querySelector<HTMLElement>(".workbench-editor")?.hidden).toBe(true);
     expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(false);
-    workbench.closeManual();
+    workbench.closeTool("manual");
     expect(workbench.session().read().paused).toBe(false);
+  });
+
+  it("keeps one pause while switching across every workbench overlay", () => {
+    action("start-attempt").click();
+
+    workbench.openTool("manual");
+    workbench.openTool("settings");
+    expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".workbench-settings")?.hidden).toBe(false);
+    expect(workbench.session().read().paused).toBe(true);
+
+    workbench.openTool("editor");
+    expect(root.querySelector<HTMLElement>(".workbench-settings")?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".workbench-editor")?.hidden).toBe(false);
+    expect(workbench.session().read().paused).toBe(true);
+
+    workbench.closeTool("editor");
+    expect(workbench.session().read().paused).toBe(false);
+    expect(document.activeElement).toBe(action("open-editor"));
   });
 
   it("pauses an active operation while the editor is open and resumes on close", () => {
@@ -257,7 +276,7 @@ describe("game workbench", () => {
     const previousSession = workbench.session();
     action("start-attempt").click();
     expect(scheduler.callbacks.size).toBeGreaterThan(0);
-    workbench.openEditor();
+    workbench.openTool("editor");
     const title = root.querySelector<HTMLInputElement>('[data-field="copy.title"]')!;
     title.value = "재시작에 반영된 제목";
     action("apply-scene").click();
@@ -291,7 +310,7 @@ describe("game workbench", () => {
     });
     expect(workbench.session().read().scene.copy.title).toBe("저장된 시작 제목");
 
-    workbench.openEditor();
+    workbench.openTool("editor");
     action("restore-campaign").click();
     expect(workbench.document.snapshot()).toEqual(completeCampaign);
     expect(workbench.session().read().scene.copy.title).toBe(
@@ -437,6 +456,8 @@ describe("game workbench", () => {
     )?.hidden).toBe(false);
     action("confirm-new-game").click();
     expect(workbench.session().read().scene.identity.id).toBe(completeCampaign.startSceneId);
+    expect(root.querySelector<HTMLElement>(".workbench-settings")?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".workbench-game")?.inert).toBe(false);
   });
 
   it("recovers safely from a malformed progress checkpoint", () => {
@@ -460,6 +481,12 @@ describe("game workbench", () => {
   it("destroys frame and audio resources and clears the mount", () => {
     action("start-attempt").click();
     workbench.destroy();
+    workbench.openTool("manual");
+    workbench.openTool("settings");
+    workbench.openTool("editor");
+    workbench.closeTool("manual");
+    workbench.closeTool("settings");
+    workbench.closeTool("editor");
     expect(disposedAudio).toBe(1);
     expect(scheduler.cancelled.length).toBeGreaterThan(0);
     expect(root.childElementCount).toBe(0);
