@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
+    "evaluate:operations": "tsx scripts/evaluate-operations.ts",
     "check:dependencies": "node scripts/check-dependencies.mjs",
     "check": "npm run build && npm test && npm run check:dependencies"
   },
   "devDependencies": {
     "jsdom": "30.0.1",
+    "tsx": "^4.20.6",
     "typescript": "7.0.2",
     "vite": "8.2.1",
     "vitest": "4.1.10"
