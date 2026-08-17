@@ -1,6 +1,6 @@
 import { completeCampaign } from "./scenarios/completeCampaign";
 import "./styles/main.css";
-import { mountGameWorkbench } from "./ui/GameWorkbench";
+import { mountProductionGame } from "./app/createGameWorkbench";
 
 const root = document.querySelector<HTMLElement>("#app");
 
@@ -8,4 +8,4 @@ if (!root) {
   throw new Error("Application root not found");
 }
 
-mountGameWorkbench(root, completeCampaign);
+mountProductionGame(root, completeCampaign);
