@@ -20,6 +20,14 @@ npm run dev
 npm run check
 ```
 
+로컬 크롬에서 배포용 기본 주소의 훈련 안내부터 에필로그·초기화까지 실제
+시간으로 검증하려면 다음 명령을 실행합니다. 크롬을 기본 위치가 아닌 곳에
+설치했다면 `CHROME_PATH`를 지정합니다.
+
+```sh
+node tests/fixtures/run-bridge-defense-chrome.mjs
+```
+
 `npm run check`는 asset 산출물 일치, TypeScript build, 전체 test, module 의존
 방향 검사를 실행합니다. 고비용 몬테카를로 검증은 로컬 전체 검사에 포함되며,
 따로 반복하려면 다음 명령을 사용합니다.
