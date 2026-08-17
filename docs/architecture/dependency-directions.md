@@ -30,9 +30,10 @@
 ```
 
 브리핑, 디브리핑, 졸업은 같은 header와 shell 안에서 각 phase view만 교체한다.
-`작전 교범`, `설정`, 개발용 `장면 편집`은 workbench가 소유하며 동시에 열리지
-않는다. 진행 중인 작전에서 하나를 열면 작전을 멈추고, 닫으면 필요한 경우
-재개한다. 프로덕션 기본 화면에서는 교범과 설정만 표시한다.
+`작전 교범`, `설정`, 개발용 `장면 편집`은 workbench shell에 놓이며
+`WorkbenchOverlays`가 활성 overlay와 pause ownership을 단독 소유한다. 세 화면은
+동시에 열리지 않고, 진행 중인 작전에서 하나를 열면 작전을 멈추며 닫으면 필요한
+경우 재개한다. 프로덕션 기본 화면에서는 교범과 설정만 표시한다.
 
 ## 실행 배선
 
@@ -42,6 +43,8 @@ src/main.ts
    ├─ CC0 music catalog                        app asset composition
    ├─ browser frame/audio/localStorage adapter platform
    └─ mountGameWorkbench                       app
+      ├─ WorkbenchOverlays                     overlay 상호 배제 + pause ownership
+      │  └─ manual/settings/editor adapter     show/hide/focus
       ├─ PlayerSettingsPanel                   app settings interface
       │  ├─ PlayerSettingsStore                browser/in-memory adapter seam
       │  └─ GameAudio                          volume + mute interface
@@ -68,8 +71,9 @@ src/main.ts
 
 ```text
 설정 button
-  ─→ GameWorkbench: 작전 pause/resume + overlay 상호 배제
-  ─→ PlayerSettingsPanel
+  ─→ GameWorkbench: settings adapter 조립
+  ─→ WorkbenchOverlays: 상호 배제 + 작전 pause/resume
+  ─→ PlayerSettingsPanel: 실제 panel show/hide/focus
        ├─ read/open/close/connectAudio/setMuted/destroy
        ├─ 값 정규화 + control/focus/fullscreen + shell 적용
        └─ PlayerSettingsStore ─→ browser localStorage
