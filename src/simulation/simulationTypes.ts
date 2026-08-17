@@ -185,6 +185,56 @@ export type HarnessConsequence =
 
 export type OperationStatus = "running" | "success" | "retry";
 
+export type OperationObjectiveFactKind =
+  | "vehicle-arrival"
+  | "point-preservation"
+  | "civilian-survival"
+  | "threat-neutralization"
+  | "report-routing"
+  | "report-verification"
+  | "shared-belief"
+  | "command-channel"
+  | "autonomous-replan";
+
+export type OperationFailureCauseCode =
+  | "vehicle-not-arrived"
+  | "point-not-preserved"
+  | "civilian-survival-failed"
+  | "threat-not-neutralized"
+  | "report-not-routed"
+  | "report-not-verified"
+  | "shared-belief-not-aligned"
+  | "command-channel-congested"
+  | "autonomous-replan-not-achieved";
+
+export interface OperationObjectiveFact {
+  readonly id: string;
+  readonly objectiveId: string | null;
+  readonly kind: OperationObjectiveFactKind;
+  readonly passed: boolean;
+  readonly actorId: string | null;
+  readonly targetId: string;
+  readonly decisionId: string | null;
+  readonly observed: string | number | boolean;
+  readonly required: string | number | boolean;
+}
+
+export interface OperationFailureCause {
+  readonly code: OperationFailureCauseCode;
+  readonly factId: string;
+  readonly objectiveId: string | null;
+  readonly actorId: string | null;
+  readonly targetId: string;
+  readonly decisionId: string | null;
+}
+
+export interface OperationResult {
+  readonly status: Exclude<OperationStatus, "running">;
+  readonly outcomeId: string;
+  readonly objectiveFacts: readonly OperationObjectiveFact[];
+  readonly failureCauses: readonly OperationFailureCause[];
+}
+
 export interface OperationSnapshot {
   readonly sceneId: string;
   readonly elapsedMs: number;
@@ -192,6 +242,7 @@ export interface OperationSnapshot {
   readonly fixedStepMs: number;
   readonly status: OperationStatus;
   readonly outcomeId: string | null;
+  readonly result: OperationResult | null;
   readonly harness: HarnessConfiguration;
   readonly officers: readonly OfficerSimulationSnapshot[];
   readonly messages: readonly OperationMessageSnapshot[];

@@ -4,7 +4,7 @@ import {
   OPERATION_FIXED_STEP_MS,
   type HarnessConfiguration,
   type OfficerIntent,
-  type OperationEvent,
+  type OperationFailureCauseCode,
   type OperationIntervention,
   type OperationSnapshot,
 } from "./simulationTypes";
@@ -31,12 +31,7 @@ export type ScriptedPolicyStep = Readonly<{
   intervention: OperationIntervention;
 }>;
 
-export type OperationFailureReason =
-  | "civilian-safety-below-threshold"
-  | "logistics-below-threshold"
-  | "readiness-below-threshold"
-  | "required-autonomous-replan-missing"
-  | "threat-control-below-threshold";
+export type OperationFailureReason = OperationFailureCauseCode;
 
 export type DistributionEntry = Readonly<{
   value: string;
@@ -120,11 +115,15 @@ export type PairedOperationEvaluation = Readonly<{
 }>;
 
 const FAILURE_REASON_ORDER: readonly OperationFailureReason[] = [
-  "civilian-safety-below-threshold",
-  "logistics-below-threshold",
-  "readiness-below-threshold",
-  "required-autonomous-replan-missing",
-  "threat-control-below-threshold",
+  "vehicle-not-arrived",
+  "point-not-preserved",
+  "civilian-survival-failed",
+  "threat-not-neutralized",
+  "report-not-routed",
+  "report-not-verified",
+  "shared-belief-not-aligned",
+  "command-channel-congested",
+  "autonomous-replan-not-achieved",
 ];
 
 const PAIRED_OUTCOME_ORDER = [
@@ -219,68 +218,11 @@ function numericDistribution(
   };
 }
 
-function readNumber(event: OperationEvent | undefined, key: string): number | null {
-  const value = event?.data[key];
-  return typeof value === "number" ? value : null;
-}
-
-function readBoolean(
-  event: OperationEvent | undefined,
-  key: string,
-): boolean | null {
-  const value = event?.data[key];
-  return typeof value === "boolean" ? value : null;
-}
-
-function requiresAutonomousReplan(scene: CampaignScene): boolean {
-  const threatKinds = new Set(
-    scene.beats.flatMap((beat) => beat.threats.map(({ kind }) => kind)),
-  );
-  return (
-    threatKinds.size >= 3 &&
-    scene.beats.some((beat) =>
-      beat.threats.some(({ kind }) => kind === "misinformation"),
-    )
-  );
-}
-
 function failureReasons(
-  scene: CampaignScene,
   snapshot: OperationSnapshot,
-  outcomeEvent: OperationEvent | undefined,
 ): OperationFailureReason[] {
   if (snapshot.status === "success") return [];
-
-  const reasons = new Set<OperationFailureReason>();
-  const readiness = readNumber(outcomeEvent, "readiness");
-  const blockedThreats = readNumber(outcomeEvent, "blockedThreats");
-  const threatCount = readNumber(outcomeEvent, "threatCount");
-  const autonomousReplan = readBoolean(outcomeEvent, "autonomousReplan");
-  const interventionCount = readNumber(outcomeEvent, "interventionCount");
-
-  if (readiness !== null && readiness < 0.52) {
-    reasons.add("readiness-below-threshold");
-  }
-  if (
-    blockedThreats !== null &&
-    threatCount !== null &&
-    blockedThreats / Math.max(1, threatCount) < 0.6
-  ) {
-    reasons.add("threat-control-below-threshold");
-  }
-  if (snapshot.metrics.civilianSafety < 65) {
-    reasons.add("civilian-safety-below-threshold");
-  }
-  if (snapshot.metrics.logistics < 65) {
-    reasons.add("logistics-below-threshold");
-  }
-  if (
-    requiresAutonomousReplan(scene) &&
-    (autonomousReplan !== true || interventionCount !== 0)
-  ) {
-    reasons.add("required-autonomous-replan-missing");
-  }
-
+  const reasons = new Set(snapshot.result?.failureCauses.map(({ code }) => code) ?? []);
   return FAILURE_REASON_ORDER.filter((reason) => reasons.has(reason));
 }
 
@@ -312,7 +254,6 @@ function measureRun(
   }
 
   const events = simulation.events();
-  const outcomeEvent = events.find(({ kind }) => kind === "outcome");
   const intents = events
     .filter(({ kind }) => kind === "decision")
     .map(({ data }) => data.intent)
@@ -321,7 +262,7 @@ function measureRun(
   const routes = snapshot.units.map(({ route }) =>
     route.length === 0 ? "stationary" : route.join(">"),
   );
-  const reasons = failureReasons(scene, snapshot, outcomeEvent);
+  const reasons = failureReasons(snapshot);
 
   return {
     result: {

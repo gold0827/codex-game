@@ -623,47 +623,51 @@ describe("threats, intervention, and outcome", () => {
     });
   });
 
-  const matrix = playableScenes.flatMap((scene) => [
-    {
-      sceneId: scene.identity.id,
-      scene,
-      seed: 101,
-      harnessName: "balanced",
-      harness: BALANCED_HARNESS,
-      expected: "success",
-    },
-    {
-      sceneId: scene.identity.id,
-      scene,
-      seed: 907,
-      harnessName: "balanced",
-      harness: BALANCED_HARNESS,
-      expected: "success",
-    },
-    {
-      sceneId: scene.identity.id,
-      scene,
-      seed: 101,
-      harnessName: "poor",
-      harness: poorHarness,
-      expected: "retry",
-    },
+  const terminalCases = playableScenes.flatMap((scene) => [
+    { sceneId: scene.identity.id, scene, seed: 101, harnessName: "balanced", harness: BALANCED_HARNESS },
+    { sceneId: scene.identity.id, scene, seed: 907, harnessName: "balanced", harness: BALANCED_HARNESS },
+    { sceneId: scene.identity.id, scene, seed: 101, harnessName: "poor", harness: poorHarness },
   ]);
 
-  it.each(matrix)(
-    "$sceneId seed=$seed harness=$harnessName -> $expected",
-    ({ scene, seed, harness, expected }) => {
+  it.each(terminalCases)(
+    "$sceneId seed=$seed harness=$harnessName has an explainable terminal result",
+    ({ scene, seed, harness }) => {
       const simulation = runToEnd(scene, seed, harness);
       const snapshot = simulation.snapshot();
       const declaredOutcomeIds = scene.transitions.map(({ outcomeId }) => outcomeId);
+      const result = snapshot.result;
+      const outcome = simulation.replay().at(-1);
 
       expect(snapshot.elapsedMs).toBe(scene.encounterParameters.durationMs);
-      expect(snapshot.status).toBe(expected);
+      expect(snapshot.status).not.toBe("running");
       expect(declaredOutcomeIds).toContain(snapshot.outcomeId);
-      expect(simulation.replay().at(-1)).toMatchObject({
+      expect(result).toMatchObject({ status: snapshot.status, outcomeId: snapshot.outcomeId });
+      expect(result?.objectiveFacts.length).toBeGreaterThan(0);
+      expect(result?.objectiveFacts.every(({ targetId }) => targetId.length > 0)).toBe(true);
+      const requiredObjectiveIds = new Set(
+        scene.objectives.filter(({ required }) => required).map(({ id }) => id),
+      );
+      const failedFactIds = result?.objectiveFacts
+        .filter(({ passed, objectiveId }) =>
+          !passed && (objectiveId === null || requiredObjectiveIds.has(objectiveId)))
+        .map(({ id }) => id);
+      expect(result?.failureCauses.map(({ factId }) => factId)).toEqual(failedFactIds);
+      if (snapshot.status === "retry") {
+        expect(result?.failureCauses.length).toBeGreaterThan(0);
+      } else {
+        expect(result?.failureCauses).toEqual([]);
+      }
+      expect(outcome).toMatchObject({
         kind: "outcome",
         timeMs: scene.encounterParameters.durationMs,
+        data: {
+          objectiveFactIds: result?.objectiveFacts.map(({ id }) => id),
+          failureCauses: result?.failureCauses.map(({ code }) => code),
+        },
       });
+      expect(outcome?.data.causalActorIds).toBeInstanceOf(Array);
+      expect(outcome?.data.causalTargetIds).toBeInstanceOf(Array);
+      expect(outcome?.data.causalDecisionIds).toBeInstanceOf(Array);
     },
   );
 
