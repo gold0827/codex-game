@@ -108,7 +108,8 @@ export function createOutcome(context: OutcomeContext) {
       confidence: officer.confidence,
       currentBelief: perception.beliefs.at(-1) ?? null,
       beliefs: perception.beliefs,
-      pendingDecision: state.status === "running" ? officer.pendingDecision : null,
+      decisionCadenceMs: officer.decisionCadenceMs,
+      committedAction: state.status === "running" ? officer.committedAction : null,
       authorized: officer.authorized,
     };
   });

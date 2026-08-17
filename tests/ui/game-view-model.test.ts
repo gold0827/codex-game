@@ -38,7 +38,7 @@ describe("game presentation view model", () => {
       "자율도",
     ]);
     expect(view.operation?.officers[0]?.facts.flat()).not.toContain(
-      snapshot.operation?.officers[0]?.pendingDecision?.reason,
+      snapshot.operation?.officers[0]?.committedAction?.trace.topReason,
     );
     expect(view.operation?.battlefield.units[0]?.intentLabel).toBeTruthy();
     expect(view.operation?.recipients[0]?.label).toContain(completeCampaign.officers[0]?.name);

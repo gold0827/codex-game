@@ -16,7 +16,6 @@ import {
   BALANCED_HARNESS,
   OPERATION_FIXED_STEP_MS,
   type HarnessConfiguration,
-  type OfficerIntent,
   type OperationSimulation,
 } from "../../src/simulation/simulationTypes";
 
@@ -246,7 +245,7 @@ describe("operation simulation determinism", () => {
     );
   });
 
-  it("allows seeds to vary plausible intents without changing dispositions", () => {
+  it("allows seeded noise to vary plausible actions without changing dispositions", () => {
     const scene = playableScenes[0] as CampaignScene;
     const snapshots = Array.from({ length: 24 }, (_, seed) =>
       createOperationSimulation(
@@ -260,7 +259,9 @@ describe("operation simulation determinism", () => {
     expect(
       new Set(
         snapshots.map((snapshot) =>
-          snapshot.officers.map(({ intent }) => intent).join("|"),
+          snapshot.officers.map(({ committedAction }) =>
+            committedAction?.trace.selectedAction.kind,
+          ).join("|"),
         ),
       ).size,
     ).toBeGreaterThan(1);
@@ -275,40 +276,33 @@ describe("operation simulation determinism", () => {
 });
 
 describe("officer autonomy and limited information", () => {
-  it("keeps disposition-specific intent sets and favors each stable bias", () => {
-    const allowed: Readonly<Record<string, readonly OfficerIntent[]>> = {
-      action: ["advance-locally", "engage-threat", "secure-objective"],
-      verification: ["cross-check-report", "inspect-source", "hold-for-evidence"],
-      communication: ["route-report", "broadcast-update", "compress-feedback"],
-    };
-    const preferred: Readonly<Record<string, OfficerIntent>> = {
-      action: "advance-locally",
-      verification: "cross-check-report",
-      communication: "route-report",
-    };
+  it("produces meaningfully different personality distributions over 20 seeds", () => {
+    const preferred = {
+      action: "move",
+      verification: "verify",
+      communication: "broadcast",
+    } as const;
     const counts = new Map<string, number>();
 
-    Array.from({ length: 60 }, (_, seed) => seed).forEach((seed) => {
+    Array.from({ length: 20 }, (_, seed) => seed).forEach((seed) => {
       const snapshot = createOperationSimulation(
         playableScenes[0] as CampaignScene,
         completeCampaign.officers,
         seed,
         BALANCED_HARNESS,
       ).snapshot();
-      snapshot.officers.forEach(({ disposition, intent }) => {
-        expect(allowed[disposition]).toContain(intent);
-        const key = `${disposition}:${intent}`;
+      snapshot.officers.forEach(({ disposition, committedAction }) => {
+        const action = committedAction?.trace.selectedAction.kind;
+        expect(action).toBeTruthy();
+        const key = `${disposition}:${action}`;
         counts.set(key, (counts.get(key) ?? 0) + 1);
       });
     });
 
-    Object.entries(preferred).forEach(([disposition, intent]) => {
-      const preferredCount = counts.get(`${disposition}:${intent}`) ?? 0;
-      const alternateCounts = (allowed[disposition] as readonly OfficerIntent[])
-        .filter((candidate) => candidate !== intent)
-        .map((candidate) => counts.get(`${disposition}:${candidate}`) ?? 0);
-      expect(preferredCount).toBeGreaterThanOrEqual(Math.max(...alternateCounts));
+    Object.entries(preferred).forEach(([disposition, action]) => {
+      expect(counts.get(`${disposition}:${action}`) ?? 0).toBeGreaterThanOrEqual(18);
     });
+    expect(new Set(Object.values(preferred)).size).toBe(3);
   });
 
   it("does not give officers reports that information reach did not deliver", () => {
@@ -335,7 +329,7 @@ describe("officer autonomy and limited information", () => {
     expect(snapshot.messages[0]?.recipientOfficerIds).toEqual([]);
   });
 
-  it("exposes intent, confidence, current belief, and pending decision", () => {
+  it("exposes intent, confidence, current belief, and committed action", () => {
     const snapshot = createOperationSimulation(
       playableScenes[0] as CampaignScene,
       completeCampaign.officers,
@@ -347,7 +341,8 @@ describe("officer autonomy and limited information", () => {
       expect(officer.intent).toBeTruthy();
       expect(officer.confidence).toBeGreaterThan(0);
       expect(officer.confidence).toBeLessThanOrEqual(1);
-      expect(officer.pendingDecision?.intent).toBe(officer.intent);
+      expect(officer.committedAction?.trace.selectedAction.kind).toBeTruthy();
+      expect(officer.decisionCadenceMs).toBeGreaterThan(0);
     });
     expect(snapshot.officers.find(({ id }) => id === "major-baek")?.currentBelief).not.toBeNull();
   });

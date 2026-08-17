@@ -10,7 +10,7 @@ import type {
 } from "../../../simulation/simulationTypes";
 import { OPERATION_FIXED_STEP_MS } from "../../../simulation/simulationTypes";
 import { projectOperationReplay, type OperationEvent } from "../operationEvent";
-import { confidenceFor, createDecisions, intentAlternatives } from "./decisions";
+import { confidenceFor, createDecisions } from "./decisions";
 import { createOutcome } from "./outcome";
 import { createSignals } from "./signals";
 import { createThreats } from "./threats";
@@ -32,6 +32,7 @@ import {
 import { createSpatialWorld } from "./spatial";
 import { createBoundedMemory } from "./agent/memory";
 import { defaultAgentProfile } from "./agent/perception";
+import { DEFAULT_INTENT_BY_DISPOSITION } from "./agent/actions";
 
 function assertHarness(harness: HarnessConfiguration): void {
   const fields = ["informationReach", "authorityClarity", "verificationDepth", "feedbackCompression"] as const;
@@ -125,11 +126,12 @@ export function createOperationSimulation(
     return {
       id: officer.id,
       disposition: officer.disposition,
-      intent: intentAlternatives(officer.disposition)[0],
+      intent: DEFAULT_INTENT_BY_DISPOSITION[officer.disposition],
       confidence: confidenceFor(officer.disposition, harness),
       profile,
       memory: createBoundedMemory(profile.memoryCapacity),
-      pendingDecision: null,
+      decisionCadenceMs: 0,
+      committedAction: null,
       authorized: !compoundReplanRequired && officer.disposition === "action" &&
         harness.authorityClarity >= 0.45 && harness.authorityClarity <= 0.88,
     };
@@ -137,7 +139,7 @@ export function createOperationSimulation(
   const units: MutableUnit[] = roster.map((officer, index) => ({
     officerId: officer.id,
     lane: LANES[index % LANES.length] as ThreatLane,
-    intent: intentAlternatives(officer.disposition)[0],
+    intent: DEFAULT_INTENT_BY_DISPOSITION[officer.disposition],
     health: 100,
     objectiveId: objectives[index % Math.max(1, objectives.length)]?.id ?? null,
   }));
@@ -207,19 +209,6 @@ export function createOperationSimulation(
     appendReplay("random-choice", timeMs, `Random choice for ${reason}: ${selected}.`, { reason, selected, alternatives });
     return selected;
   };
-  const selectDecisionAlternative = <Value extends string>(
-    reason: string,
-    alternatives: readonly Value[],
-    timeMs: number,
-  ): Value => {
-    const officerId = roster.find(({ id }) => reason.startsWith(`${id} `))?.id;
-    return selectAlternative(
-      operationRandomStreamKey.officerDecision(officerId ?? reason),
-      reason,
-      alternatives,
-      timeMs,
-    );
-  };
   let activeSignalId: string | null = null;
   const selectSignalAlternative = <Value extends string>(
     reason: string,
@@ -260,7 +249,8 @@ export function createOperationSimulation(
   });
   const decisions = createDecisions({
     scene, roster, harness, durationMs, compoundReplanRequired, state, officers, messages, threats, units,
-    metrics, appendReplay, selectAlternative: selectDecisionAlternative,
+    objectives, metrics, appendReplay, spatialWorld,
+    decisionRandom: (officerId) => randomStreams.stream(operationRandomStreamKey.officerDecision(officerId)),
     updateBacklog: signals.updateBacklog, snapshot: outcome.snapshot,
   });
   const timeline = createTimeline({
