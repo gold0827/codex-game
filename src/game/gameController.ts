@@ -204,6 +204,7 @@ export function createGameController(
       harnessBudget: budget,
       briefing,
       operation,
+      operationEvents: simulation?.events() ?? [],
       replay: simulation?.replay() ?? [],
       paused,
       playerSpeed,

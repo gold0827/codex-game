@@ -6,6 +6,7 @@ import {
   type GameSession,
 } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { createOperationSimulation } from "../../src/simulation/operationSimulation";
 
 function advanceToOperationTime(session: GameSession, operationElapsedMs: number): void {
   session.advance(
@@ -24,6 +25,40 @@ describe("game session", () => {
     expect(session.read().phase).toBe("operation");
     session.advance(1_000);
     expect(session.read().operation?.elapsedMs).toBeGreaterThan(0);
+  });
+
+  it("projects the operation event log without losing IDs, order, time, or data", () => {
+    const session = createGameSession(completeCampaign, "session-events");
+    session.dispatch({ type: "start-attempt" });
+    const started = session.read();
+    const simulation = createOperationSimulation(
+      started.scene,
+      completeCampaign.officers,
+      started.attemptSeed,
+      started.harness,
+    );
+    const durationMs = started.operation?.durationMs ?? 0;
+
+    session.advance(durationMs / started.scene.gameplayTuning.simulationSpeed);
+    simulation.advance(durationMs);
+
+    const projected = session.read().operationEvents;
+    expect(projected).toEqual(simulation.events());
+    expect(projected.every((event, index) => event.sequence === index)).toBe(true);
+    expect(projected.some(({ kind }) => kind === "unit-hit")).toBe(true);
+    expect(projected.find(({ kind }) => kind === "unit-hit")).toMatchObject({
+      id: expect.stringContaining(":event-"),
+      timeMs: expect.any(Number),
+      data: {
+        actorId: expect.any(String),
+        targetId: expect.any(String),
+        damage: expect.any(Number),
+      },
+    });
+
+    const firstId = projected[0]?.id;
+    if (projected[0]) (projected[0] as { id: string }).id = "mutated";
+    expect(session.read().operationEvents[0]?.id).toBe(firstId);
   });
 
   it("preserves phase, target, budget, and time error codes", () => {
