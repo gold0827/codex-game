@@ -9,6 +9,14 @@ import { mountGameApp } from "../../src/ui/GameApp";
 const root = document.querySelector<HTMLElement>("#fixture-root");
 if (!root) throw new Error("Chrome fixture root is missing.");
 
+async function waitForFrameCondition(condition: () => boolean): Promise<boolean> {
+  for (let frame = 0; frame < 120; frame += 1) {
+    if (condition()) return true;
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+  return condition();
+}
+
 const session = createGameSession(bridgeDefenseCampaign, "chrome-fixture");
 const mapPreview = new URLSearchParams(window.location.search).has("map-preview");
 const app = mountGameApp(root, bridgeDefenseCampaign, session, {
@@ -21,14 +29,12 @@ const app = mountGameApp(root, bridgeDefenseCampaign, session, {
 root.querySelector<HTMLButtonElement>('[data-action="start-attempt"]')?.click();
 await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-if (mapPreview) {
-  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-}
-
 const grid = root.querySelector<HTMLElement>(".operation-grid");
 const battlefield = root.querySelector<HTMLElement>("[data-region='battlefield']");
 const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
+const mapImageReady = mapPreview && canvas
+  ? await waitForFrameCondition(() => canvas.dataset.mapImage === "ready")
+  : false;
 const gridWidth = grid?.getBoundingClientRect().width ?? 0;
 const battlefieldWidth = battlefield?.getBoundingClientRect().width ?? 0;
 const centralShare = gridWidth === 0 ? 0 : battlefieldWidth / gridWidth;
@@ -54,6 +60,9 @@ const result = {
   centralShare: Math.round(centralShare * 1_000) / 1_000,
   canvasWidth: canvas?.width ?? 0,
   canvasHeight: canvas?.height ?? 0,
+  mapImageReady,
+  mapTileCount: Number(canvas?.dataset.mapTileCount ?? 0),
+  mapPropCount: Number(canvas?.dataset.mapPropCount ?? 0),
   officerCount: session.read().operation?.officers.length ?? 0,
   tutorialCompleted,
   debriefStatus: session.read().debrief?.status ?? null,
@@ -68,7 +77,10 @@ const passed = result.sceneId === "haein-bridge-defense" &&
   result.canvasHeight > 0 &&
   result.officerCount === 4 &&
   (mapPreview
-    ? result.phase === "operation"
+    ? result.phase === "operation" &&
+      result.mapImageReady &&
+      result.mapTileCount > 24 * 16 &&
+      result.mapPropCount === bridgeDefenseMapSkin.landmarks.length
     : result.phase === "debrief" &&
       result.tutorialCompleted &&
       result.debriefStatus === "success" &&

@@ -56,12 +56,12 @@ function assertRecipe(recipe) {
   }
 }
 
-function polygon(points, fill, extra = "") {
-  return `<polygon points="${points}" fill="${fill}"${extra}/>`;
+function polygon(points, fill) {
+  return `<polygon points="${points}" fill="${fill}"/>`;
 }
 
-function rect(x, y, width, height, fill, extra = "") {
-  return `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${fill}"${extra}/>`;
+function rect(x, y, width, height, fill) {
+  return `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${fill}"/>`;
 }
 
 function path(d, stroke, width = 2, extra = "") {

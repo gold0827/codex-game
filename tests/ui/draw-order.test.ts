@@ -35,6 +35,18 @@ describe("battlefield draw order", () => {
     ]);
   });
 
+  it("draws a world effect beneath an actor and prop at the same foot depth", () => {
+    const effect = renderable("signal", "effect", 3, 2);
+    const actor = renderable("unit", "actor", 3, 2);
+    const prop = renderable("post", "prop", 3, 2);
+
+    expect(orderBattlefieldRenderables([prop, actor, effect]).map(({ id }) => id)).toEqual([
+      "signal",
+      "unit",
+      "post",
+    ]);
+  });
+
   it("uses depth offsets and stable ids to avoid order flicker across input frames", () => {
     const renderables = [
       renderable("bravo", "actor", 2, 2),

@@ -45,6 +45,11 @@ type TimedFrame = Readonly<{
   receivedAt: number;
 }>;
 
+type AtlasImageSlot = {
+  image: HTMLImageElement | null;
+  url: string;
+};
+
 function browserScheduler(): FrameScheduler {
   return {
     request: (callback) => window.requestAnimationFrame(callback),
@@ -110,10 +115,8 @@ export function createCanvasBattlefieldViewport(
   let destroyed = false;
   let spriteAtlas = fallbackSpriteRuntime();
   let mapAtlas = fallbackMapRuntime();
-  let spriteAtlasImage: HTMLImageElement | null = null;
-  let spriteAtlasImageUrl = "";
-  let mapAtlasImage: HTMLImageElement | null = null;
-  let mapAtlasImageUrl = "";
+  const spriteImageSlot: AtlasImageSlot = { image: null, url: "" };
+  const mapImageSlot: AtlasImageSlot = { image: null, url: "" };
   let selectedActorId: string | null = null;
   let selectedTile: WorldPosition | null = null;
   let activeEffectLabels: readonly string[] = [];
@@ -156,47 +159,34 @@ export function createCanvasBattlefieldViewport(
     if (!destroyed && frameHandle === null) frameHandle = scheduler.request(draw);
   };
 
-  const ensureSpriteAtlasImage = (imageUrl: string): HTMLImageElement | null => {
+  const ensureAtlasImage = (
+    slot: AtlasImageSlot,
+    assetName: "map" | "sprite",
+    imageUrl: string,
+    failureMessage: string,
+  ): HTMLImageElement | null => {
     if (!imageUrl) return null;
-    if (spriteAtlasImage && spriteAtlasImageUrl === imageUrl) return spriteAtlasImage;
-    if (spriteAtlasImage) {
-      spriteAtlasImage.onload = null;
-      spriteAtlasImage.onerror = null;
+    if (slot.image && slot.url === imageUrl) return slot.image;
+    if (slot.image) {
+      slot.image.onload = null;
+      slot.image.onerror = null;
     }
     const image = new Image();
-    spriteAtlasImage = image;
-    spriteAtlasImageUrl = imageUrl;
+    slot.image = image;
+    slot.url = imageUrl;
+    canvas.dataset[`${assetName}Image`] = "loading";
     image.onload = () => {
       if (!destroyed) {
+        canvas.dataset[`${assetName}Image`] = "ready";
         if (spriteAtlas.status === "ready" && mapAtlas.status === "ready") showAssetStatus(null);
         schedule();
       }
     };
     image.onerror = () => {
-      if (!destroyed) showAssetStatus("전장 sprite를 불러오지 못해 식별 가능한 대체 표식을 표시합니다.");
-    };
-    image.src = imageUrl;
-    return image;
-  };
-
-  const ensureMapAtlasImage = (imageUrl: string): HTMLImageElement | null => {
-    if (!imageUrl) return null;
-    if (mapAtlasImage && mapAtlasImageUrl === imageUrl) return mapAtlasImage;
-    if (mapAtlasImage) {
-      mapAtlasImage.onload = null;
-      mapAtlasImage.onerror = null;
-    }
-    const image = new Image();
-    mapAtlasImage = image;
-    mapAtlasImageUrl = imageUrl;
-    image.onload = () => {
       if (!destroyed) {
-        if (spriteAtlas.status === "ready" && mapAtlas.status === "ready") showAssetStatus(null);
-        schedule();
+        canvas.dataset[`${assetName}Image`] = "degraded";
+        showAssetStatus(failureMessage);
       }
-    };
-    image.onerror = () => {
-      if (!destroyed) showAssetStatus("전장 map을 불러오지 못해 식별 가능한 대체 표식을 표시합니다.");
     };
     image.src = imageUrl;
     return image;
@@ -251,7 +241,14 @@ export function createCanvasBattlefieldViewport(
   const drawMapAsset = (kind: MapAtlasKind, position: WorldPosition, scale: number): void => {
     if (!context) return;
     const frame = mapAtlas.frame(kind);
-    const image = frame ? ensureMapAtlasImage(mapAtlas.imageUrl) : null;
+    const image = frame
+      ? ensureAtlasImage(
+        mapImageSlot,
+        "map",
+        mapAtlas.imageUrl,
+        "전장 map을 불러오지 못해 식별 가능한 대체 표식을 표시합니다.",
+      )
+      : null;
     const drawable = image?.complete && image.naturalWidth > 0;
     if (!frame || !drawable || !image) {
       drawFallbackMapAsset(kind, position, scale);
@@ -311,24 +308,11 @@ export function createCanvasBattlefieldViewport(
       context.restore();
     }
 
-    for (const effect of current.frame.effects) {
-      const { x, y } = camera.project(effect.position);
-      const effectRadius = effect.radius * camera.read().zoom;
-      context.save();
-      context.globalAlpha = effect.opacity;
-      context.strokeStyle = effect.color;
-      context.fillStyle = effect.color;
-      context.lineWidth = 2;
-      context.beginPath();
-      context.arc(Math.round(x), Math.round(y), effectRadius, 0, Math.PI * 2);
-      context.stroke();
-      context.font = `${Math.max(9, Math.round(10 * camera.read().zoom))}px ui-monospace, monospace`;
-      context.textAlign = "center";
-      context.fillText(effect.glyph, Math.round(x), Math.round(y - effectRadius - 3));
-      context.restore();
-    }
-
     const renderables = orderBattlefieldRenderables([
+      ...current.frame.effects.map((effect) => ({
+        ...effect,
+        kind: "effect" as const,
+      })),
       ...drawList.actors.map((actor) => ({
         ...actor,
         kind: "actor" as const,
@@ -341,6 +325,23 @@ export function createCanvasBattlefieldViewport(
       })),
     ]);
     for (const renderable of renderables) {
+      if (renderable.kind === "effect") {
+        const { x, y } = camera.project(renderable.position);
+        const effectRadius = renderable.radius * scale;
+        context.save();
+        context.globalAlpha = renderable.opacity;
+        context.strokeStyle = renderable.color;
+        context.fillStyle = renderable.color;
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(Math.round(x), Math.round(y), effectRadius, 0, Math.PI * 2);
+        context.stroke();
+        context.font = `${Math.max(9, Math.round(10 * scale))}px ui-monospace, monospace`;
+        context.textAlign = "center";
+        context.fillText(renderable.glyph, Math.round(x), Math.round(y - effectRadius - 3));
+        context.restore();
+        continue;
+      }
       if (renderable.kind === "prop") {
         drawMapAsset(renderable.assetKind, renderable.position, scale);
         continue;
@@ -348,7 +349,14 @@ export function createCanvasBattlefieldViewport(
       const actor = renderable;
       const { x, y } = camera.project(actor.position);
       const sample = spriteAtlas.sample(actor.action, actor.facing, elapsed);
-      const image = sample.placeholder ? null : ensureSpriteAtlasImage(sample.imageUrl);
+      const image = sample.placeholder
+        ? null
+        : ensureAtlasImage(
+          spriteImageSlot,
+          "sprite",
+          sample.imageUrl,
+          "전장 sprite를 불러오지 못해 식별 가능한 대체 표식을 표시합니다.",
+        );
       const drawable = image?.complete && image.naturalWidth > 0;
       if (drawable && image) {
         const { rect, anchor } = sample.frame;
@@ -497,6 +505,8 @@ export function createCanvasBattlefieldViewport(
       selectedActorId = nextSelectedId;
       activeEffectLabels = [...new Set(frame.effects.map(({ label }) => label))];
       mapDrawList = createBattlefieldMapDrawList(frame.map, mapAtlas.skin(frame.map.id));
+      canvas.dataset.mapTileCount = String(mapDrawList.tiles.length);
+      canvas.dataset.mapPropCount = String(mapDrawList.props.length);
       updateCanvasDescription();
       if (followingSelected && nextSelected) camera.follow(nextSelected.position);
       previous = current;
@@ -539,14 +549,15 @@ export function createCanvasBattlefieldViewport(
       previous = null;
       current = null;
       mapDrawList = null;
-      for (const image of [spriteAtlasImage, mapAtlasImage]) {
+      for (const slot of [spriteImageSlot, mapImageSlot]) {
+        const image = slot.image;
         if (!image) continue;
         image.onload = null;
         image.onerror = null;
         image.src = "";
       }
-      spriteAtlasImage = null;
-      mapAtlasImage = null;
+      spriteImageSlot.image = null;
+      mapImageSlot.image = null;
       host.replaceChildren();
     },
   };
@@ -575,11 +586,15 @@ export function createCanvasBattlefieldViewport(
     if (destroyed) return;
     spriteAtlas = nextSpriteAtlas;
     mapAtlas = nextMapAtlas;
+    canvas.dataset.spriteAssets = nextSpriteAtlas.status;
+    canvas.dataset.mapAssets = nextMapAtlas.status;
     if (current) {
       mapDrawList = createBattlefieldMapDrawList(
         current.frame.map,
         mapAtlas.skin(current.frame.map.id),
       );
+      canvas.dataset.mapTileCount = String(mapDrawList.tiles.length);
+      canvas.dataset.mapPropCount = String(mapDrawList.props.length);
     }
     if (nextSpriteAtlas.status === "degraded" || nextMapAtlas.status === "degraded") {
       showAssetStatus("전장 map 또는 sprite를 불러오지 못해 식별 가능한 대체 표식을 표시합니다.");
