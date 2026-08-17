@@ -13,6 +13,7 @@ export type GameAudioCue =
   | "retreat";
 export type GameAudio = Readonly<{
   cue: (cue: GameAudioCue) => void;
+  setSoundtrack: (soundtrackId: string | null) => void;
   muted: () => boolean;
   setMuted: (muted: boolean) => void;
   dispose: () => void;

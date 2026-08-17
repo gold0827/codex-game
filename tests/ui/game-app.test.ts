@@ -35,10 +35,13 @@ class DeterministicFrameScheduler implements GameFrameScheduler {
   }
 }
 
-function silentAudio(cues: string[] = []): GameAudio {
+function silentAudio(cues: string[] = [], soundtracks: string[] = []): GameAudio {
   let muted = false;
   return {
     cue: (cue) => { cues.push(cue); },
+    setSoundtrack: (soundtrackId) => {
+      if (soundtrackId) soundtracks.push(soundtrackId);
+    },
     muted: () => muted,
     setMuted: (next) => {
       muted = next;
@@ -54,6 +57,7 @@ describe("production game app", () => {
   let app: GameApp;
   let frameTime: number;
   let audioCues: string[];
+  let soundtracks: string[];
 
   const action = (name: string): HTMLButtonElement => {
     const result = root.querySelector<HTMLButtonElement>(`[data-action="${name}"]`);
@@ -117,9 +121,10 @@ describe("production game app", () => {
     scheduler = new DeterministicFrameScheduler();
     frameTime = 0;
     audioCues = [];
+    soundtracks = [];
     app = mountGameApp(root, completeCampaign, session, {
       frameScheduler: scheduler,
-      audio: silentAudio(audioCues),
+      audio: silentAudio(audioCues, soundtracks),
     });
   });
 
@@ -129,6 +134,7 @@ describe("production game app", () => {
   });
 
   it("configures the authored briefing and starts the real session", () => {
+    expect(soundtracks).toEqual(["two-blinks-march"]);
     expect(root.querySelector("[data-phase='briefing']")).not.toBeNull();
     expect(root.textContent).toContain(completeCampaign.scenes[0]?.copy.briefing);
     expect(root.querySelectorAll("[data-harness-axis]")).toHaveLength(4);

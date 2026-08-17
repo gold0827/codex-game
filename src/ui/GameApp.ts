@@ -53,6 +53,7 @@ export function mountGameApp(
   const scheduler = options.frameScheduler ?? { request: () => 0, cancel: () => undefined };
   const audio = options.audio ?? {
     cue: () => undefined,
+    setSoundtrack: () => undefined,
     muted: () => true,
     setMuted: () => undefined,
     dispose: () => undefined,
