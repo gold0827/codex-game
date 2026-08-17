@@ -151,11 +151,12 @@ migration exception은 `0`이다.
 
 ```text
 npm run check
+npm run check:assets
 npm run check:dependencies
 node scripts/check-dependencies.mjs --source-root <격리된-src-경로>
 ```
 
-`npm run check`는 build, 전체 test, module 의존 검사를 차례로 실행한다. 의존
-검사는 TypeScript scanner로 정적 import, re-export, 동적 import와 `require`를
-읽는다. 특정 test 개수나 과거 기준선은 문서에 고정하지 않고 현재 명령 결과를
-판정 기준으로 사용한다.
+`npm run check`는 asset 산출물 일치, build, 전체 test, module 의존 검사를 차례로
+실행한다. 의존 검사는 TypeScript scanner로 정적 import, re-export, 동적 import와
+`require`를 읽는다. 특정 test 개수나 과거 기준선은 문서에 고정하지 않고 현재
+명령 결과를 판정 기준으로 사용한다.
