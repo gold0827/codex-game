@@ -1,5 +1,11 @@
 import { loadSpriteAtlas, type SpriteAtlasRuntime } from "../../spriteAtlas";
 import type { BattlefieldFrame } from "../battlefieldFrame";
+import { orderBattlefieldRenderables } from "../drawOrder";
+import {
+  configureCanvasViewport,
+  createIsometricCamera,
+  type IsometricCameraSnapshot,
+} from "../isometricCamera";
 import { createBattlefieldDrawList } from "./drawList";
 
 export type BattlefieldViewportSize = Readonly<{
@@ -11,6 +17,7 @@ export type BattlefieldViewportSize = Readonly<{
 export type CanvasBattlefieldViewport = Readonly<{
   update: (frame: BattlefieldFrame) => void;
   resize: (size: BattlefieldViewportSize) => void;
+  readCamera: () => IsometricCameraSnapshot;
   destroy: () => void;
 }>;
 
@@ -79,6 +86,10 @@ export function createCanvasBattlefieldViewport(
 
   const context = canvas.getContext("2d");
   let size = { width: 1, height: 1, pixelRatio: 1 };
+  const camera = createIsometricCamera({
+    bounds: { minX: 0, minY: 0, maxX: WORLD_WIDTH - 1, maxY: WORLD_HEIGHT - 1 },
+    viewport: size,
+  });
   let previous: TimedFrame | null = null;
   let current: TimedFrame | null = null;
   let frameHandle: number | null = null;
@@ -86,6 +97,9 @@ export function createCanvasBattlefieldViewport(
   let atlas = fallbackRuntime();
   let atlasImage: HTMLImageElement | null = null;
   let atlasImageUrl = "";
+  let selectedActorId: string | null = null;
+  let followingSelected = true;
+  let panStart: Readonly<{ x: number; y: number }> | null = null;
   const abortController = new AbortController();
 
   const showAssetStatus = (message: string | null): void => {
@@ -130,28 +144,38 @@ export function createCanvasBattlefieldViewport(
     context.clearRect(0, 0, width, height);
     context.fillStyle = "#10231c";
     context.fillRect(0, 0, width, height);
-    context.strokeStyle = "rgba(125, 225, 173, 0.12)";
+    const elapsed = Number.isFinite(timestamp) ? timestamp : now();
+    const drawList = createBattlefieldDrawList(previous, current, elapsed);
+    const selected = drawList.actors.find((actor) => actor.selected);
+    if (followingSelected && selected) camera.follow({ x: selected.x, y: selected.y });
+
+    context.strokeStyle = "rgba(125, 225, 173, 0.16)";
     context.lineWidth = 1;
-    for (let column = 1; column < 8; column += 1) {
-      const x = (width * column) / 8;
+    for (let worldX = 0; worldX < WORLD_WIDTH; worldX += 1) {
+      const start = camera.project({ x: worldX, y: 0 });
+      const end = camera.project({ x: worldX, y: WORLD_HEIGHT - 1 });
       context.beginPath();
-      context.moveTo(x, 0);
-      context.lineTo(x, height);
+      context.moveTo(Math.round(start.x), Math.round(start.y));
+      context.lineTo(Math.round(end.x), Math.round(end.y));
       context.stroke();
     }
-    for (let row = 1; row < 5; row += 1) {
-      const y = (height * row) / 5;
+    for (let worldY = 0; worldY < WORLD_HEIGHT; worldY += 1) {
+      const start = camera.project({ x: 0, y: worldY });
+      const end = camera.project({ x: WORLD_WIDTH - 1, y: worldY });
       context.beginPath();
-      context.moveTo(0, y);
-      context.lineTo(width, y);
+      context.moveTo(Math.round(start.x), Math.round(start.y));
+      context.lineTo(Math.round(end.x), Math.round(end.y));
       context.stroke();
     }
 
-    const elapsed = Number.isFinite(timestamp) ? timestamp : now();
-    const drawList = createBattlefieldDrawList(previous, current, elapsed);
-    for (const actor of drawList.actors) {
-      const x = 18 + (actor.x / Math.max(1, WORLD_WIDTH - 1)) * Math.max(1, width - 36);
-      const y = 18 + (actor.y / Math.max(1, WORLD_HEIGHT - 1)) * Math.max(1, height - 36);
+    const actors = orderBattlefieldRenderables(drawList.actors.map((actor) => ({
+      ...actor,
+      kind: "actor" as const,
+      position: { x: actor.x, y: actor.y },
+    })));
+    const scale = camera.read().zoom;
+    for (const actor of actors) {
+      const { x, y } = camera.project(actor.position);
       const sample = atlas.sample(actor.action, actor.facing, elapsed);
       const image = sample.placeholder ? null : ensureAtlasImage(sample.imageUrl);
       const drawable = image?.complete && image.naturalWidth > 0;
@@ -163,26 +187,28 @@ export function createCanvasBattlefieldViewport(
           rect.y,
           rect.width,
           rect.height,
-          Math.round(x - anchor.x),
-          Math.round(y - anchor.y),
-          rect.width,
-          rect.height,
+          Math.round(x - anchor.x * scale),
+          Math.round(y - anchor.y * scale),
+          Math.round(rect.width * scale),
+          Math.round(rect.height * scale),
         );
       } else {
         context.fillStyle = actor.health <= 0 ? "#756b67" : "#e6cf72";
-        context.fillRect(Math.round(x - 6), Math.round(y - 10), 12, 12);
+        context.fillRect(Math.round(x - 6 * scale), Math.round(y - 10 * scale), Math.round(12 * scale), Math.round(12 * scale));
         context.fillStyle = "#08110e";
-        context.fillRect(Math.round(x - 2), Math.round(y - 6), 4, 4);
+        context.fillRect(Math.round(x - 2 * scale), Math.round(y - 6 * scale), Math.max(1, Math.round(4 * scale)), Math.max(1, Math.round(4 * scale)));
       }
       if (actor.selected) {
         context.strokeStyle = "#7de1ad";
         context.lineWidth = 2;
-        context.strokeRect(Math.round(x - 10), Math.round(y - 14), 20, 20);
+        context.strokeRect(Math.round(x - 10 * scale), Math.round(y - 14 * scale), Math.round(20 * scale), Math.round(20 * scale));
       }
+      const healthBarWidth = Math.round(28 * scale);
+      const healthBarHeight = Math.max(2, Math.round(4 * scale));
       context.fillStyle = "rgba(4, 10, 8, 0.84)";
-      context.fillRect(Math.round(x - 14), Math.round(y + 8), 28, 4);
+      context.fillRect(Math.round(x - 14 * scale), Math.round(y + 8 * scale), healthBarWidth, healthBarHeight);
       context.fillStyle = actor.health < 30 ? "#ff8177" : "#7de1ad";
-      context.fillRect(Math.round(x - 14), Math.round(y + 8), 28 * (actor.health / 100), 4);
+      context.fillRect(Math.round(x - 14 * scale), Math.round(y + 8 * scale), healthBarWidth * (actor.health / 100), healthBarHeight);
     }
     context.restore();
     schedule();
@@ -196,25 +222,73 @@ export function createCanvasBattlefieldViewport(
     })
     : null;
 
+  const pointerPosition = (event: Readonly<{ clientX: number; clientY: number }>): Readonly<{ x: number; y: number }> => {
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+  const onPointerDown = (event: PointerEvent): void => {
+    if (destroyed || event.button !== 0) return;
+    panStart = pointerPosition(event);
+    canvas.setPointerCapture?.(event.pointerId);
+  };
+  const onPointerMove = (event: PointerEvent): void => {
+    if (destroyed || !panStart) return;
+    const next = pointerPosition(event);
+    camera.panBy({ x: next.x - panStart.x, y: next.y - panStart.y });
+    followingSelected = false;
+    panStart = next;
+    schedule();
+  };
+  const stopPan = (event: PointerEvent): void => {
+    panStart = null;
+    if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  };
+  const onWheel = (event: WheelEvent): void => {
+    if (destroyed) return;
+    event.preventDefault();
+    const anchor = pointerPosition(event);
+    const nextZoom = camera.read().zoom * Math.exp(-event.deltaY * 0.0015);
+    camera.setZoom(nextZoom, followingSelected ? undefined : anchor);
+    schedule();
+  };
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerup", stopPan);
+  canvas.addEventListener("pointercancel", stopPan);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
+
   const viewport: CanvasBattlefieldViewport = {
     update: (frame) => {
       if (destroyed) return;
+      const nextSelected = frame.actors.find((actor) => actor.selected);
+      const nextSelectedId = nextSelected?.id ?? null;
+      if (nextSelectedId !== selectedActorId) followingSelected = true;
+      selectedActorId = nextSelectedId;
+      if (followingSelected && nextSelected) camera.follow(nextSelected.position);
       previous = current;
       current = { frame, receivedAt: now() };
       schedule();
     },
     resize: (nextSize) => {
       if (destroyed) return;
-      const pixelRatio = Math.max(1, nextSize.pixelRatio ?? globalThis.devicePixelRatio ?? 1);
+      const requestedPixelRatio = nextSize.pixelRatio ?? globalThis.devicePixelRatio ?? 1;
+      const pixelRatio = Number.isFinite(requestedPixelRatio)
+        ? Math.max(1, Math.min(2, requestedPixelRatio))
+        : 1;
       size = {
         width: Math.max(1, nextSize.width),
         height: Math.max(1, nextSize.height),
         pixelRatio,
       };
-      canvas.width = Math.round(size.width * pixelRatio);
-      canvas.height = Math.round(size.height * pixelRatio);
+      camera.resize(size);
+      if (context) configureCanvasViewport(canvas, context, size, size.pixelRatio);
+      else {
+        canvas.width = Math.round(size.width * size.pixelRatio);
+        canvas.height = Math.round(size.height * size.pixelRatio);
+      }
       schedule();
     },
+    readCamera: camera.read,
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
@@ -222,6 +296,11 @@ export function createCanvasBattlefieldViewport(
       if (frameHandle !== null) scheduler.cancel(frameHandle);
       frameHandle = null;
       observer?.disconnect();
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", stopPan);
+      canvas.removeEventListener("pointercancel", stopPan);
+      canvas.removeEventListener("wheel", onWheel);
       previous = null;
       current = null;
       if (atlasImage) {
