@@ -102,6 +102,55 @@ describe("persistent Canvas battlefield viewport", () => {
     expect(host.childElementCount).toBe(0);
   });
 
+  it("follows the selected actor, then accepts bounded pointer pan and wheel zoom", () => {
+    const host = document.createElement("section");
+    const viewport = createCanvasBattlefieldViewport(host, {
+      scheduler: new TestScheduler(),
+      resizeObserver: TestResizeObserver as unknown as typeof ResizeObserver,
+      fetchManifest: async () => { throw new Error("offline"); },
+    });
+    const canvas = host.querySelector<HTMLCanvasElement>("canvas");
+    if (!canvas) throw new Error("canvas must be mounted");
+
+    viewport.update(frame(6));
+    expect(viewport.readCamera().center).toEqual({ x: 6, y: 7 });
+
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 100, clientY: 100 }));
+    canvas.dispatchEvent(new MouseEvent("pointermove", { clientX: 500, clientY: 100 }));
+    canvas.dispatchEvent(new MouseEvent("pointerup", { clientX: 500, clientY: 100 }));
+    expect(viewport.readCamera().center).toEqual({ x: 0, y: 13.25 });
+
+    canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: -10_000, cancelable: true }));
+    expect(viewport.readCamera().zoom).toBe(2);
+    canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: 10_000, cancelable: true }));
+    expect(viewport.readCamera().zoom).toBe(0.5);
+    viewport.destroy();
+  });
+
+  it("caps the backing store DPR and leaves bitmap smoothing disabled", () => {
+    const context = {
+      setTransform: vi.fn(),
+      imageSmoothingEnabled: true,
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      context as unknown as CanvasRenderingContext2D,
+    );
+    const host = document.createElement("section");
+    const viewport = createCanvasBattlefieldViewport(host, {
+      scheduler: new TestScheduler(),
+      resizeObserver: TestResizeObserver as unknown as typeof ResizeObserver,
+      fetchManifest: async () => { throw new Error("offline"); },
+    });
+    const canvas = host.querySelector<HTMLCanvasElement>("canvas");
+
+    viewport.resize({ width: 320, height: 180, pixelRatio: 4 });
+
+    expect(canvas).toMatchObject({ width: 640, height: 360 });
+    expect(context.imageSmoothingEnabled).toBe(false);
+    expect(context.setTransform).toHaveBeenLastCalledWith(2, 0, 0, 2, 0, 0);
+    viewport.destroy();
+  });
+
   it("announces an accessible placeholder when sprite assets fail", async () => {
     const host = document.createElement("section");
     const viewport = createCanvasBattlefieldViewport(host, {
