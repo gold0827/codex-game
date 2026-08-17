@@ -1,5 +1,5 @@
 import type { CampaignOfficer, CampaignScene } from "../campaign/types";
-import { createOperationSimulation } from "./operationSimulation";
+import { createOperationSimulation } from "../domain/operation/operationEngine";
 import {
   OPERATION_FIXED_STEP_MS,
   type HarnessConfiguration,

@@ -6,7 +6,7 @@ import {
   type GameSession,
 } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
-import { createOperationSimulation } from "../../src/simulation/operationSimulation";
+import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 
 function advanceToOperationTime(session: GameSession, operationElapsedMs: number): void {
   session.advance(

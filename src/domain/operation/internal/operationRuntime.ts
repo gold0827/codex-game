@@ -128,7 +128,6 @@ function applyExperience(profile: AgentProfile, level: number): AgentProfile {
     memoryCapacity: profile.memoryCapacity + level,
   };
 }
-
 function detectConsequences(harness: HarnessConfiguration): HarnessConsequence[] {
   const consequences: HarnessConsequence[] = [];
   if (harness.informationReach > 0.82) consequences.push("information-saturation");
@@ -456,4 +455,3 @@ export function createOperationSimulation(
   };
 }
 
-export const createOperationEngine = createOperationSimulation;

@@ -14,7 +14,7 @@ import {
   type PerceptionMemoryEntry,
 } from "../../../../src/domain/operation/internal/agent/perception";
 import { completeCampaign } from "../../../../src/scenarios/completeCampaign";
-import { createOperationSimulation } from "../../../../src/simulation/operationSimulation";
+import { createOperationSimulation } from "../../../../src/domain/operation/operationEngine";
 import { BALANCED_HARNESS } from "../../../../src/simulation/simulationTypes";
 
 const profile = (overrides: Partial<AgentProfile> = {}): AgentProfile => ({
