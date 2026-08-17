@@ -167,7 +167,7 @@
 .operation-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: 236px minmax(560px, 1fr) 322px;
+  grid-template-columns: minmax(176px, 13.5%) minmax(560px, 1fr) minmax(176px, 13.5%);
   overflow: hidden;
 }
 

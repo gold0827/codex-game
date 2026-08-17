@@ -45,7 +45,7 @@ describe("bridge-defense vertical slice content", () => {
     expect(threats.filter(({ kind }) => kind === "misinformation")).toHaveLength(1);
     expect(bridgeDefenseOperation.objectives.map(({ id }) => id)).toEqual([
       "preserve-haein-bridge",
-      "preserve-civilian-column",
+      "protect-civilian-column",
     ]);
     expect(bridgeDefenseOperation.gameplayTuning.interventionBudget).toBe(6);
   });
@@ -60,7 +60,7 @@ describe("bridge-defense vertical slice content", () => {
     const snapshot = simulation.snapshot();
 
     expect(new Set(snapshot.units.map(({ objectiveId }) => objectiveId))).toEqual(
-      new Set(["preserve-haein-bridge", "preserve-civilian-column"]),
+      new Set(["preserve-haein-bridge", "protect-civilian-column"]),
     );
     expect(new Set(snapshot.spatial.actors.map(({ destination }) => JSON.stringify(destination))).size)
       .toBe(4);
@@ -88,6 +88,20 @@ describe("bridge-defense vertical slice content", () => {
     expect(balanced.snapshot()).toMatchObject({
       status: "success",
       metrics: { civilianSafety: 100, objectiveProgress: 1 },
+      result: {
+        failureCauses: [],
+        objectiveFacts: expect.arrayContaining([
+          expect.objectContaining({
+            id: "point-preservation:preserve-haein-bridge",
+            passed: true,
+          }),
+          expect.objectContaining({
+            id: "civilian-survival:operation",
+            objectiveId: "protect-civilian-column",
+            passed: true,
+          }),
+        ]),
+      },
       threats: [
         expect.objectContaining({ result: "blocked" }),
         expect.objectContaining({ result: "blocked" }),
@@ -95,6 +109,18 @@ describe("bridge-defense vertical slice content", () => {
     });
     expect(poor.snapshot()).toMatchObject({
       status: "retry",
+      result: {
+        failureCauses: expect.arrayContaining([
+          expect.objectContaining({
+            code: "point-not-preserved",
+            objectiveId: "preserve-haein-bridge",
+          }),
+          expect.objectContaining({
+            code: "point-not-preserved",
+            objectiveId: "protect-civilian-column",
+          }),
+        ]),
+      },
       threats: [
         expect.objectContaining({ result: "damaged-objective" }),
         expect.objectContaining({ result: "damaged-objective" }),

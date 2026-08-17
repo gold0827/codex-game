@@ -19,11 +19,6 @@ export const bridgeDefenseMap = {
     { position: { x: 10, y: 3 }, movementCost: 3 },
     { position: { x: 12, y: 3 }, movementCost: 3 },
     { position: { x: 13, y: 3 }, movementCost: 3 },
-    { position: { x: 8, y: 13 }, movementCost: 4 },
-    { position: { x: 9, y: 13 }, movementCost: 4 },
-    { position: { x: 10, y: 13 }, movementCost: 4 },
-    { position: { x: 12, y: 13 }, movementCost: 4 },
-    { position: { x: 13, y: 13 }, movementCost: 4 },
   ],
   spawns: [
     { id: "command-post", position: { x: 1, y: 2 } },
@@ -34,8 +29,8 @@ export const bridgeDefenseMap = {
   destinations: [
     { id: "north-observation", position: { x: 22, y: 3 } },
     { id: "bridge-east-bank", position: { x: 22, y: 7 } },
-    { id: "civilian-shelter", position: { x: 22, y: 11 } },
-    { id: "south-relay", position: { x: 22, y: 13 } },
+    { id: "civilian-shelter", position: { x: 22, y: 13 } },
+    { id: "south-relay", position: { x: 22, y: 15 } },
   ],
 } as const satisfies CampaignMapTopology;
 
@@ -64,7 +59,7 @@ export const bridgeDefenseMapSkin = {
   ],
   landmarks: [
     { id: "west-command-post", kind: "command-post", position: { x: 2, y: 2 } },
-    { id: "east-civilian-shelter", kind: "civilian-shelter", position: { x: 21, y: 11 } },
+    { id: "east-civilian-shelter", kind: "civilian-shelter", position: { x: 21, y: 13 } },
   ],
 } as const satisfies BridgeDefenseMapSkin;
 
@@ -226,7 +221,7 @@ export const bridgeDefenseOperation = {
       required: true,
     },
     {
-      id: "preserve-civilian-column",
+      id: "protect-civilian-column",
       description: "민간인 대피대와 동쪽 대피소를 보존한다.",
       required: true,
     },

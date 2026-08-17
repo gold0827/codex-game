@@ -201,6 +201,7 @@ export function renderOperationView(
   const left = node("aside", "operation-sidebar operation-sidebar-left");
   left.append(status, renderHarnessControls(view, dispatch));
   const center = node("section", "battlefield-column");
+  battlefield.dataset.mapId = operation.battlefield.mapId;
   center.append(battlefield);
   const right = node("aside", "operation-sidebar operation-sidebar-right");
   right.append(officers, reports);

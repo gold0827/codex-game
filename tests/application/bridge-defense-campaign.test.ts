@@ -69,7 +69,7 @@ describe("bridge-defense tutorial and debrief integration", () => {
     });
     expect(session.read().operation?.objectives).toEqual([
       expect.objectContaining({ id: "preserve-haein-bridge", completed: true }),
-      expect.objectContaining({ id: "preserve-civilian-column", completed: true }),
+      expect.objectContaining({ id: "protect-civilian-column", completed: true }),
     ]);
   });
 
