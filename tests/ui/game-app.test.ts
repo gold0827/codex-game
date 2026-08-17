@@ -183,6 +183,73 @@ describe("production game app", () => {
     });
   });
 
+  it("targets routed report cards by their unique runtime message identity", () => {
+    app.destroy();
+    const campaign = structuredClone(completeCampaign) as CampaignDefinition;
+    const scene = campaign.scenes[0];
+    if (!scene || scene.identity.kind === "epilogue") {
+      throw new Error("Expected a playable report scene.");
+    }
+    (scene as { guidance: CampaignDefinition["scenes"][number]["guidance"] }).guidance = [];
+    Object.assign(scene, {
+      gameplayTuning: { ...scene.gameplayTuning, interventionBudget: 4 },
+    });
+    session = createGameSession(campaign, "runtime-report-ui");
+    session.dispatch({
+      type: "set-harness",
+      harness: {
+        informationReach: 0,
+        authorityClarity: 0,
+        verificationDepth: 0,
+        feedbackCompression: 0,
+      },
+    });
+    app = mountGameApp(root, campaign, session, {
+      frameScheduler: scheduler,
+      audio: silentAudio(),
+    });
+    startAttempt();
+    const original = session.read().operation?.messages[0];
+    if (!original) throw new Error("Expected an authored report message.");
+    session.dispatch({
+      type: "route-report",
+      reportId: original.id,
+      recipientOfficerId: "captain-han",
+    });
+    app.render();
+    const routed = session.read().operation?.messages.find(({ id }) => id !== original.id);
+    if (!routed) throw new Error("Expected a routed runtime report message.");
+
+    const originalCard = root.querySelector<HTMLElement>(`[data-report-id="${original.id}"]`);
+    const routedCard = root.querySelector<HTMLElement>(`[data-report-id="${routed.id}"]`);
+    expect(originalCard).not.toBeNull();
+    expect(routedCard).not.toBeNull();
+    expect(routedCard?.textContent).not.toContain(routed.id);
+
+    routedCard?.querySelector<HTMLButtonElement>('[data-action="route-report"]')?.click();
+    expect(session.read().lastIntervention?.command).toEqual({
+      kind: "route-report",
+      reportId: routed.id,
+      recipientOfficerId: "major-baek",
+    });
+
+    const refreshedRoutedCard = root.querySelector<HTMLElement>(`[data-report-id="${routed.id}"]`);
+    const prioritizeRouted = refreshedRoutedCard
+      ?.querySelector<HTMLButtonElement>('[data-action="prioritize-verification"]');
+    expect(prioritizeRouted).not.toBeNull();
+    expect(prioritizeRouted?.disabled).toBe(false);
+    prioritizeRouted?.click();
+
+    expect(session.read().lastIntervention?.command).toEqual({
+      kind: "prioritize-verification",
+      reportId: routed.id,
+    });
+    expect(session.read().operation?.messages.find(({ id }) => id === routed.id)?.prioritized)
+      .toBe(true);
+    expect(session.read().operation?.messages.find(({ id }) => id === original.id)?.prioritized)
+      .toBe(false);
+  });
+
   it("keeps operation controls mounted between visual projection intervals", () => {
     startAttempt();
     const pause = action("pause");
