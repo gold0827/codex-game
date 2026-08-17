@@ -124,7 +124,8 @@ function collectModuleSpecifiers(filePath) {
   }
 
   function addStringLiteralAt(index) {
-    if (tokens[index]?.kind === SyntaxKind.StringLiteral) {
+    if (tokens[index]?.kind === SyntaxKind.StringLiteral
+      || tokens[index]?.kind === SyntaxKind.NoSubstitutionTemplateLiteral) {
       specifiers.push(tokens[index].value);
       return true;
     }

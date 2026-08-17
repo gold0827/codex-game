@@ -55,4 +55,25 @@ describe("dependency direction checker", () => {
       "Rule: presentation may depend only on presentation, application.",
     );
   });
+
+  it("rejects a dynamic import written as a no-substitution template literal", () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), "codex-game-dependencies-"));
+    temporaryRoots.push(fixtureRoot);
+    const sourceRoot = join(fixtureRoot, "src");
+    const importerPath = join(sourceRoot, "ui", "NewView.ts");
+    const importedPath = join(sourceRoot, "campaign", "model.ts");
+    mkdirSync(dirname(importerPath), { recursive: true });
+    mkdirSync(dirname(importedPath), { recursive: true });
+    writeFileSync(importerPath, "void import(`../campaign/model`);\n");
+    writeFileSync(importedPath, "export type Model = Readonly<{ id: string }>;\n");
+
+    const result = runChecker(["--source-root", sourceRoot]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("ui/NewView.ts [presentation]");
+    expect(result.stderr).toContain("campaign/model.ts [domain/campaign]");
+    expect(result.stderr).toContain(
+      "Rule: presentation may depend only on presentation, application.",
+    );
+  });
 });
