@@ -7,7 +7,7 @@ import type {
 export type PresentationCampaign = Readonly<{
   title: string;
   sceneCount: number;
-  officers: readonly Readonly<{ id: string; rank: string; name: string }>[];
+  officers: readonly Readonly<{ id: string; rank: string; name: string; role: string }>[];
 }>;
 
 type OperationResult = NonNullable<NonNullable<GameSnapshot["operation"]>["result"]>;
@@ -403,18 +403,20 @@ export function projectGameViewModel(
             const commitment = officer.committedAction;
             return {
               id: officer.id,
-              name: `${authored?.rank ?? ""} ${authored?.name ?? officer.id}`.trim(),
+              name: authored ? `${authored.rank} ${authored.name}` : "소속 미상 장교",
+              role: authored?.role ?? "역할 정보 없음",
               selected: snapshot.selectedOfficerId === officer.id,
               guided: isGuidanceTarget("inspect", officer.id),
               authorized: officer.authorized,
               canAuthorize: remainingAttention > 0 && !officer.authorized,
               facts: [
                 ["성향", dispositionLabels[officer.disposition]],
+                ["역할", authored?.role ?? "역할 정보 없음"],
                 ["의도", intentLabels[officer.intent]],
                 ["확신", percentage(officer.confidence)],
                 ["현재 믿음", officer.currentBelief?.assertion ?? "관측 없음"],
                 ["검증", officer.currentBelief ? verificationLabels[officer.currentBelief.verificationState] : "해당 없음"],
-                ["실행 행동", commitment
+                ["상태", commitment
                   ? `유지 중 · ${actionLabels[commitment.trace.selectedAction.kind]}`
                   : "대기 중"],
                 ["체력", unit ? `${Math.round(unit.health)}%` : "배치 없음"],

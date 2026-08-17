@@ -243,6 +243,25 @@ const interventionFeedback = {
 action("resume").click();
 await nextFrame();
 const tutorialCompleted = root.querySelector(".tutorial-guidance") === null;
+const officerRoleDetails = bridgeDefenseCampaign.officers.map((officer) => {
+  root.querySelector<HTMLElement>(`[data-officer-id="${officer.id}"]`)
+    ?.querySelector<HTMLButtonElement>('[data-action="inspect-officer"]')
+    ?.click();
+  const detail = root.querySelector<HTMLElement>(".selected-officer-detail");
+  const role = detail?.querySelector<HTMLElement>(".officer-role");
+  const factLabels = [...detail?.querySelectorAll<HTMLElement>(".officer-facts dt") ?? []]
+    .map(({ textContent }) => textContent);
+  return {
+    officer: officer.name,
+    roleVisible: role?.textContent === officer.role,
+    requiredFacts: ["역할", "의도", "상태"].every((label) => factLabels.includes(label)),
+    internalIdHidden: !(detail?.textContent ?? "").includes(officer.id),
+    roleWraps: role ? getComputedStyle(role).whiteSpace === "normal" : false,
+    detailOverflow: detail
+      ? detail.scrollWidth > detail.clientWidth || detail.scrollHeight > detail.clientHeight
+      : true,
+  };
+});
 
 let completedFlow = {
   debriefStatus: null as string | null,
@@ -333,6 +352,7 @@ const result = {
   threatMarkers,
   authoredOperationCopy,
   interventionFeedback,
+  officerRoleDetails,
   completedFlow,
   errors,
 };
@@ -399,6 +419,14 @@ const passed = result.productionEntrypoint &&
   result.interventionFeedback.internalIdsHidden &&
   !result.interventionFeedback.overlapsBattlefield &&
   !result.interventionFeedback.overflowsTray &&
+  result.officerRoleDetails.length === bridgeDefenseCampaign.officers.length &&
+  result.officerRoleDetails.every((detail) =>
+    detail.roleVisible &&
+    detail.requiredFacts &&
+    detail.internalIdHidden &&
+    detail.roleWraps &&
+    !detail.detailOverflow
+  ) &&
   errors.length === 0 &&
   (mapPreview || (
     result.completedFlow.debriefStatus === "success" &&

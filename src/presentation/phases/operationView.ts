@@ -110,7 +110,10 @@ export function renderOperationView(
   if (selectedOfficer) {
     const detail = node("article", "selected-officer-detail");
     const facts = node("dl", "officer-facts");
-    selectedOfficer.facts.forEach(([term, value]) => facts.append(node("dt", undefined, term), node("dd", undefined, value)));
+    selectedOfficer.facts.forEach(([term, value]) => {
+      const detailValue = node("dd", term === "역할" ? "officer-role" : undefined, value);
+      facts.append(node("dt", undefined, term), detailValue);
+    });
     detail.append(node("strong", "selected-officer-name", selectedOfficer.name), facts);
     if (selectedOfficer.decision) {
       const feedback = node("section", "decision-feedback");
