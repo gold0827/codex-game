@@ -9,30 +9,13 @@ import {
   bridgeDefenseCampaign,
   bridgeDefenseOperation,
 } from "../../src/scenarios/bridgeDefenseOperation";
+import { completeBridgeTutorial } from "../fixtures/bridge-tutorial";
 
 const campaignView = {
   title: bridgeDefenseCampaign.title,
   sceneCount: bridgeDefenseCampaign.scenes.length,
   officers: bridgeDefenseCampaign.officers,
 };
-
-function completeBridgeTutorial(session: GameSession): void {
-  session.dispatch({ type: "start-attempt" });
-  expect(session.read().tutorial.currentStep?.action).toBe("pause");
-  session.dispatch({ type: "pause" });
-  expect(session.read().tutorial.currentStep?.action).toBe("inspect");
-  session.dispatch({ type: "inspect-officer", officerId: "captain-han" });
-  expect(session.read().tutorial.currentStep?.action).toBe("signal");
-  session.dispatch({
-    type: "issue-spatial-signal",
-    signal: "defend",
-    strength: 2,
-    position: { x: 11, y: 7 },
-  });
-  expect(session.read().tutorial.currentStep?.action).toBe("resume");
-  session.dispatch({ type: "resume" });
-  expect(session.read().tutorial.currentStep).toBeNull();
-}
 
 function finishOperation(session: GameSession): void {
   const remaining = bridgeDefenseOperation.encounterParameters.durationMs -
