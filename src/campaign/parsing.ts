@@ -134,6 +134,25 @@ function checkOfficer(
   if (!officer) return;
   expectStrings(officer, ["id", "name", "rank", "role"], path, diagnostics);
   expectMember(officer, "disposition", officerDispositions, path, diagnostics);
+  if (officer.profile !== undefined) {
+    const profilePath = propertyPath(path, "profile");
+    const profile = recordAt(officer.profile, profilePath, diagnostics);
+    if (!profile) return;
+    [
+      "initiative",
+      "caution",
+      "discipline",
+      "cooperation",
+      "stressTolerance",
+      "memoryCapacity",
+    ].forEach((key) => expectType(profile, key, "number", profilePath, diagnostics));
+    checkArray(profile, "sourceTrust", profilePath, diagnostics, (entry, entryPath, entryDiagnostics) => {
+      const trust = recordAt(entry, entryPath, entryDiagnostics);
+      if (!trust) return;
+      expectType(trust, "officerId", "string", entryPath, entryDiagnostics);
+      expectType(trust, "trust", "number", entryPath, entryDiagnostics);
+    });
+  }
 }
 
 function checkGuidance(

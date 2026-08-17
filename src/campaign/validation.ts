@@ -10,6 +10,8 @@ export type CampaignDiagnosticCode =
   | "duplicate-threat-id"
   | "unknown-officer-reference"
   | "unknown-report-reference"
+  | "invalid-officer-profile"
+  | "duplicate-source-trust"
   | "invalid-beat-time"
   | "out-of-order-beat-time"
   | "invalid-threat-telegraph-duration"
@@ -72,6 +74,67 @@ export function validateCampaignDefinition(
       });
     }
     officerIds.add(officer.id);
+    if (officer.profile) {
+      const traitFields = [
+        "initiative",
+        "caution",
+        "discipline",
+        "cooperation",
+        "stressTolerance",
+      ] as const;
+      traitFields.forEach((field) => {
+        const value = officer.profile?.[field];
+        if (!Number.isFinite(value) || value === undefined || value < 0 || value > 1) {
+          diagnostics.push({
+            code: "invalid-officer-profile",
+            sceneId: definition.id,
+            field: `officers[${officerIndex}].profile.${field}`,
+            message: `Officer profile ${field} must be between zero and one.`,
+          });
+        }
+      });
+      if (!Number.isSafeInteger(officer.profile.memoryCapacity) || officer.profile.memoryCapacity < 1) {
+        diagnostics.push({
+          code: "invalid-officer-profile",
+          sceneId: definition.id,
+          field: `officers[${officerIndex}].profile.memoryCapacity`,
+          message: "Officer memory capacity must be a positive safe integer.",
+        });
+      }
+      const trustedOfficerIds = new Set<string>();
+      officer.profile.sourceTrust.forEach((entry, trustIndex) => {
+        if (trustedOfficerIds.has(entry.officerId)) {
+          diagnostics.push({
+            code: "duplicate-source-trust",
+            sceneId: definition.id,
+            field: `officers[${officerIndex}].profile.sourceTrust[${trustIndex}].officerId`,
+            message: `Source trust for officer "${entry.officerId}" is duplicated.`,
+          });
+        }
+        trustedOfficerIds.add(entry.officerId);
+        if (!Number.isFinite(entry.trust) || entry.trust < 0 || entry.trust > 1) {
+          diagnostics.push({
+            code: "invalid-officer-profile",
+            sceneId: definition.id,
+            field: `officers[${officerIndex}].profile.sourceTrust[${trustIndex}].trust`,
+            message: "Officer source trust must be between zero and one.",
+          });
+        }
+      });
+    }
+  });
+
+  definition.officers.forEach((officer, officerIndex) => {
+    officer.profile?.sourceTrust.forEach((entry, trustIndex) => {
+      if (!officerIds.has(entry.officerId)) {
+        diagnostics.push({
+          code: "unknown-officer-reference",
+          sceneId: definition.id,
+          field: `officers[${officerIndex}].profile.sourceTrust[${trustIndex}].officerId`,
+          message: `Trusted officer "${entry.officerId}" is not declared in the campaign roster.`,
+        });
+      }
+    });
   });
 
   definition.scenes.forEach((scene) => {

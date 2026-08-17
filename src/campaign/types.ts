@@ -16,6 +16,21 @@ export type ThreatKind =
 export type ThreatLane = "north" | "center" | "south" | "command";
 export type ThreatSeverity = "low" | "medium" | "high" | "critical";
 
+export interface OfficerSourceTrust {
+  readonly officerId: string;
+  readonly trust: number;
+}
+
+export interface AgentProfile {
+  readonly initiative: number;
+  readonly caution: number;
+  readonly discipline: number;
+  readonly cooperation: number;
+  readonly stressTolerance: number;
+  readonly memoryCapacity: number;
+  readonly sourceTrust: readonly OfficerSourceTrust[];
+}
+
 export interface CampaignTilePosition {
   readonly x: number;
   readonly y: number;
@@ -46,6 +61,7 @@ export interface CampaignOfficer {
   readonly rank: string;
   readonly role: string;
   readonly disposition: OfficerDisposition;
+  readonly profile?: AgentProfile;
 }
 
 export interface CampaignSceneIdentity {

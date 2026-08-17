@@ -28,6 +28,8 @@ export type {
   CampaignScenePresentation,
   CampaignTransition,
   CampaignThreat,
+  AgentProfile,
+  OfficerSourceTrust,
   CampaignTerrainTile,
   CampaignTilePosition,
   OfficerDisposition,

@@ -55,9 +55,11 @@ export function createThreats(context: ThreatContext) {
           subjectId: threat.id,
           category: "threat",
           assertion: `${threat.kind} telegraphed in ${threat.lane}`,
+          origin: "direct",
           sourceOfficerId: null,
           receivedAtMs: timeMs,
           reliability: 1,
+          confidence: 1,
           verificationState: "verified",
         });
       }

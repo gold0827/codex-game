@@ -24,6 +24,7 @@ import type {
   OperationRuntimeState,
 } from "./operationTypes";
 import { clone, rounded } from "./operationTypes";
+import { perceive } from "./agent/perception";
 
 export function operationSucceeded(readiness: number, blockedRatio: number, civilianSafety: number, logistics: number, requiredReplanSatisfied: boolean): boolean {
   return readiness >= 0.52 && blockedRatio >= 0.6 && civilianSafety >= 65 && logistics >= 65 && requiredReplanSatisfied;
@@ -90,16 +91,27 @@ export function createOutcome(context: OutcomeContext) {
     });
   };
 
-  const officerSnapshots = (): OfficerSimulationSnapshot[] => officers.map((officer) => ({
-    id: officer.id,
-    disposition: officer.disposition,
-    intent: officer.intent,
-    confidence: officer.confidence,
-    currentBelief: officer.beliefs.at(-1) ?? null,
-    beliefs: officer.beliefs,
-    pendingDecision: state.status === "running" ? officer.pendingDecision : null,
-    authorized: officer.authorized,
-  }));
+  const officerSnapshots = (): OfficerSimulationSnapshot[] => officers.map((officer) => {
+    const perception = perceive({
+      observation: { observedAtMs: state.elapsedMs, facts: [] },
+      receivedReports: [],
+      profile: officer.profile,
+      memory: officer.memory,
+      nowMs: state.elapsedMs,
+    });
+    return {
+      id: officer.id,
+      profile: officer.profile,
+      memorySize: perception.memory.entries.length,
+      disposition: officer.disposition,
+      intent: officer.intent,
+      confidence: officer.confidence,
+      currentBelief: perception.beliefs.at(-1) ?? null,
+      beliefs: perception.beliefs,
+      pendingDecision: state.status === "running" ? officer.pendingDecision : null,
+      authorized: officer.authorized,
+    };
+  });
   const messageSnapshots = (): OperationMessageSnapshot[] =>
     messages.map(({ verificationDueAtMs: _verificationDueAtMs, ...message }) => clone(message));
   const objectiveSnapshots = (): OperationObjectiveSnapshot[] => objectives.map((objective) => ({ ...objective }));

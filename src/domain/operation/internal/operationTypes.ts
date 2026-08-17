@@ -1,7 +1,8 @@
-import type { OfficerDisposition, ThreatLane } from "../../../campaign/types";
+import type { AgentProfile, OfficerDisposition, ThreatLane } from "../../../campaign/types";
+import type { BoundedMemory } from "./agent/memory";
+import type { PerceptionMemoryEntry } from "./agent/perception";
 import type {
   OfficerIntent,
-  OfficerBeliefSnapshot,
   OperationThreatSnapshot,
   OperationMessageSnapshot,
   OperationReplayKind,
@@ -14,7 +15,8 @@ export type MutableOfficer = {
   disposition: OfficerDisposition;
   intent: OfficerIntent;
   confidence: number;
-  beliefs: OfficerBeliefSnapshot[];
+  profile: AgentProfile;
+  memory: BoundedMemory<PerceptionMemoryEntry>;
   pendingDecision: { intent: OfficerIntent; reason: string; dueAtMs: number } | null;
   authorized: boolean;
 };
