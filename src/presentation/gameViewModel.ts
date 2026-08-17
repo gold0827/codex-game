@@ -80,6 +80,32 @@ function percentage(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+function replayLabel(
+  replay: GameSnapshot["replay"][number],
+  roster: ReadonlyMap<string, Readonly<{ id: string; rank: string; name: string }>>,
+): string {
+  const value = (key: string): string => String(replay.data[key] ?? "");
+  const officer = (id: string): string => roster.get(id)?.name ?? id;
+  const labels = {
+    "operation-started": "작전이 시작됐다.",
+    "beat-activated": "새 작전 상황이 발생했다.",
+    "random-choice": "현장 변수가 새로운 경로를 만들었다.",
+    "report-queued": "새 보고가 통신망에 들어왔다.",
+    "report-delivered": "보고가 수신 장교에게 전달됐다.",
+    "report-verified": "보고 검증 결과가 갱신됐다.",
+    "threat-telegraphed": "전장에 위협 예고가 포착됐다.",
+    "threat-resolved": value("result") === "blocked" ? "위협을 차단했다." : "위협이 목표에 피해를 입혔다.",
+    decision: `${officer(value("officerId"))} 장교가 다음 행동을 결정했다.`,
+    "harness-consequence": "지휘 조건의 영향이 작전에 나타났다.",
+    "cross-check": "서로 다른 보고를 교차 검증했다.",
+    "authority-reassigned": `${officer(value("officerId"))} 장교에게 현장 권한이 재배정됐다.`,
+    "autonomous-replan": "장교들이 스스로 계획과 권한을 재조정했다.",
+    intervention: "지휘관이 직접 개입했다.",
+    outcome: "작전 결과가 확정됐다.",
+  } satisfies Record<GameSnapshot["replay"][number]["kind"], string>;
+  return labels[replay.kind];
+}
+
 function guidanceTargetLabel(step: NonNullable<GameSnapshot["tutorial"]["currentStep"]>): string {
   if (step.action === "pause") return "작전 일시정지";
   if (step.action === "resume") return "작전 재개";
@@ -203,6 +229,12 @@ export function projectGameViewModel(
                 : campaign.officers[0]?.id ?? "",
             canIntervene: remainingInterventions > 0,
             canVerify: remainingInterventions > 0 && !report.prioritized,
+          })),
+          events: snapshot.replay.slice(-6).reverse().map((event) => ({
+            sequence: event.sequence,
+            time: formatGameTime(event.timeMs),
+            kind: event.kind,
+            label: replayLabel(event, roster),
           })),
           recipients: campaign.officers.map((officer) => ({
             id: officer.id,

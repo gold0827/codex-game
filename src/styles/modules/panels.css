@@ -128,7 +128,7 @@
   position: relative;
   min-height: 0;
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr);
+  grid-template-rows: 44px minmax(0, 1fr) 76px 78px;
   overflow: hidden;
 }
 
@@ -167,16 +167,23 @@
 .operation-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: clamp(218px, 18vw, 270px) minmax(430px, 1fr) clamp(300px, 25vw, 370px);
+  grid-template-columns: 236px minmax(560px, 1fr) 322px;
   overflow: hidden;
 }
 
 .operation-sidebar {
   min-height: 0;
-  overflow-y: auto;
-  scrollbar-color: var(--line) #07100e;
-  scrollbar-width: thin;
+  display: grid;
+  overflow: hidden;
   background: #07100e;
+}
+
+.operation-sidebar-left {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.operation-sidebar-right {
+  grid-template-rows: minmax(0, 0.92fr) minmax(0, 1.08fr);
 }
 
 .operation-sidebar-left {
@@ -188,12 +195,13 @@
 }
 
 .operation-sidebar .panel-card {
+  overflow: hidden;
   padding: 12px;
   border-width: 0 0 1px;
 }
 
 .operation-sidebar .briefing-harness {
-  overflow: visible;
+  overflow-y: auto;
   box-shadow: none;
 }
 
@@ -204,6 +212,95 @@
 
 .operation-sidebar .harness-control {
   padding: 7px;
+}
+
+.operation-event-flow {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  padding: 8px 12px;
+  border-width: 1px 0 0;
+  overflow: hidden;
+}
+
+.operation-event-flow h2 {
+  grid-column: 1;
+  font-size: 14px;
+}
+
+.event-flow-list {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-width: 0;
+  display: flex;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.event-flow-item,
+.event-flow-empty {
+  min-width: 170px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--cyan);
+  background: #0d1c18;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.event-flow-item time {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--cyan);
+  font: 800 8px ui-monospace, monospace;
+}
+
+.event-threat-telegraphed,
+.event-threat-resolved {
+  border-left-color: var(--red);
+}
+
+.event-intervention {
+  border-left-color: var(--gold);
+}
+
+.intervention-tray {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-width: 1px 0 0;
+  background: #0c1713;
+}
+
+.intervention-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.intervention-heading strong {
+  color: var(--gold);
+  font: 850 10px ui-monospace, monospace;
+}
+
+.intervention-actions {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+}
+
+.intervention-actions .game-button {
+  min-width: 150px;
 }
 
 .metric-row {

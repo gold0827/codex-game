@@ -42,5 +42,7 @@ describe("game presentation view model", () => {
     );
     expect(view.operation?.battlefield.units[0]?.intentLabel).toBeTruthy();
     expect(view.operation?.recipients[0]?.label).toContain(completeCampaign.officers[0]?.name);
+    expect(view.operation?.events.length).toBeGreaterThan(0);
+    expect(view.operation?.events.every(({ label }) => !/[A-Za-z]{4}/.test(label))).toBe(true);
   });
 });
