@@ -218,6 +218,7 @@ export function mountCampaignWorkshop(
         soundtrackId: inputValue("presentation.soundtrackId"),
         accentColor: inputValue("presentation.accentColor"),
       },
+      mapTopology: scene.mapTopology,
       guidance: guidance as CampaignScene["guidance"],
       beats: beats as CampaignScene["beats"],
       objectives: objectives as CampaignScene["objectives"],

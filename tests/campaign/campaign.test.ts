@@ -10,6 +10,7 @@ import {
   type CampaignScene,
   type CampaignTransition,
 } from "../../src/campaign";
+import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 
 type SpatialSignalGuidance = Extract<CampaignGuidanceStep, { action: "signal" }>;
 
@@ -100,7 +101,7 @@ function createScene(
     ],
     transitions,
     encounterParameters: {
-      durationMs: kind === "operation" ? 60_000 : 0,
+      durationMs: kind !== "epilogue" ? 60_000 : 0,
       threatBudget: kind === "operation" ? 10 : 0,
       reinforcementIntervalMs: kind === "operation" ? 5_000 : 0,
     },
@@ -405,6 +406,114 @@ describe("campaign definition", () => {
       sceneId: "tutorial",
       field: "beats[1].timeMs",
     });
+  });
+
+  it("rejects a playable scene without authored map topology", () => {
+    const definition = createDefinition();
+    delete (definition.scenes[0] as { mapTopology?: unknown }).mapTopology;
+
+    expect(diagnosticFor(definition, "missing-playable-map")).toMatchObject({
+      sceneId: "tutorial",
+      field: "mapTopology",
+    });
+  });
+
+  it.each(["spawns", "destinations"] as const)(
+    "rejects playable scenes with fewer %s than campaign officers",
+    (collection) => {
+      const definition = createDefinition();
+      (definition.officers as Array<(typeof definition.officers)[number]>).push({
+        ...definition.officers[0],
+        id: "second-officer",
+        name: "두 번째 장교",
+      });
+      const topology = definition.scenes[0].mapTopology!;
+      const otherCollection = collection === "spawns" ? "destinations" : "spawns";
+      (topology[otherCollection] as Array<(typeof topology)[typeof otherCollection][number]>).push({
+        id: `second-${otherCollection}`,
+        position: otherCollection === "spawns" ? { x: 0, y: 1 } : { x: 3, y: 2 },
+      });
+
+      expect(diagnosticFor(definition, "insufficient-map-locations")).toMatchObject({
+        sceneId: "tutorial",
+        field: `mapTopology.${collection}`,
+      });
+    },
+  );
+
+  it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects invalid playable duration %s",
+    (durationMs) => {
+      const definition = createDefinition();
+      (definition.scenes[0].encounterParameters as { durationMs: number }).durationMs = durationMs;
+
+      expect(diagnosticFor(definition, "invalid-playable-duration")).toMatchObject({
+        sceneId: "tutorial",
+        field: "encounterParameters.durationMs",
+      });
+    },
+  );
+
+  it("rejects a beat outside the playable scene duration", () => {
+    const definition = createDefinition();
+    (definition.scenes[0].beats[0] as { timeMs: number }).timeMs = 60_001;
+
+    expect(diagnosticFor(definition, "invalid-beat-time")).toMatchObject({
+      sceneId: "tutorial",
+      field: "beats[0].timeMs",
+    });
+  });
+
+  it("rejects a threat that cannot finish before the operation ends", () => {
+    const definition = createDefinition();
+    (definition.scenes[0].beats[0] as { timeMs: number }).timeMs = 59_500;
+
+    expect(diagnosticFor(definition, "invalid-threat-telegraph-duration")).toMatchObject({
+      sceneId: "tutorial",
+      field: "beats[0].threats[0].telegraphDurationMs",
+    });
+  });
+
+  it.each([
+    ["retry", [{ outcomeId: "complete", targetSceneId: "operation" }]],
+    ["non-retry", [{ outcomeId: "retry", targetSceneId: "tutorial" }]],
+  ] as const)("rejects a playable scene without a %s transition", (_kind, transitions) => {
+    const definition = createDefinition();
+    (definition.scenes[0] as unknown as { transitions: CampaignTransition[] }).transitions = [...transitions];
+
+    expect(diagnosticFor(definition, "missing-playable-transition")).toMatchObject({
+      sceneId: "tutorial",
+      field: "transitions",
+    });
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects invalid simulation speed %s",
+    (simulationSpeed) => {
+      const definition = createDefinition();
+      (definition.scenes[0].gameplayTuning as { simulationSpeed: number }).simulationSpeed = simulationSpeed;
+
+      expect(diagnosticFor(definition, "invalid-simulation-speed")).toMatchObject({
+        sceneId: "tutorial",
+        field: "gameplayTuning.simulationSpeed",
+      });
+    },
+  );
+
+  it("launches every reachable playable scene that passes campaign validation", () => {
+    const definition = createDefinition();
+    expect(validateCampaignDefinition(definition).valid).toBe(true);
+
+    definition.scenes
+      .filter(({ identity }) => identity.kind !== "epilogue")
+      .forEach((scene) => {
+        expect(() => createOperationSimulation(scene, definition.officers, "campaign-contract", {
+          informationReach: 0.5,
+          authorityClarity: 0.5,
+          verificationDepth: 0.5,
+          feedbackCompression: 0.5,
+        })).not.toThrow();
+      });
   });
 
   it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(

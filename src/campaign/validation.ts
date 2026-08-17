@@ -2,6 +2,9 @@ import {
   CAMPAIGN_SPATIAL_SIGNAL_KINDS,
   CAMPAIGN_SPATIAL_SIGNAL_STRENGTHS,
   type CampaignDefinition,
+  type CampaignMapTopology,
+  type CampaignOfficer,
+  type CampaignScene,
 } from "./types";
 
 export type CampaignDiagnosticCode =
@@ -20,6 +23,11 @@ export type CampaignDiagnosticCode =
   | "invalid-beat-time"
   | "out-of-order-beat-time"
   | "invalid-threat-telegraph-duration"
+  | "missing-playable-map"
+  | "insufficient-map-locations"
+  | "invalid-playable-duration"
+  | "missing-playable-transition"
+  | "invalid-simulation-speed"
   | "invalid-map-dimensions"
   | "invalid-map-position"
   | "invalid-terrain-cost"
@@ -54,6 +62,112 @@ export class CampaignValidationError extends Error {
     );
     this.name = "CampaignValidationError";
     this.diagnostics = diagnostics.map((diagnostic) => ({ ...diagnostic }));
+  }
+}
+
+export type PlayableCampaignScene = CampaignScene & Readonly<{
+  mapTopology: CampaignMapTopology;
+}>;
+
+export function playableSceneDiagnostics(
+  scene: CampaignScene,
+  roster: readonly CampaignOfficer[],
+): readonly CampaignDiagnostic[] {
+  const diagnostics: CampaignDiagnostic[] = [];
+  const sceneId = scene.identity.id;
+  const add = (
+    code: CampaignDiagnosticCode,
+    field: string,
+    message: string,
+  ): void => {
+    diagnostics.push({ code, sceneId, field, message });
+  };
+
+  if (!scene.mapTopology) {
+    add(
+      "missing-playable-map",
+      "mapTopology",
+      "A playable scene requires authored map topology.",
+    );
+  } else {
+    (["spawns", "destinations"] as const).forEach((collection) => {
+      if (scene.mapTopology![collection].length < roster.length) {
+        add(
+          "insufficient-map-locations",
+          `mapTopology.${collection}`,
+          `A playable scene requires one unique ${collection} location per campaign officer.`,
+        );
+      }
+    });
+  }
+
+  const durationMs = scene.encounterParameters.durationMs;
+  const validDuration = Number.isSafeInteger(durationMs) && durationMs > 0;
+  if (!validDuration) {
+    add(
+      "invalid-playable-duration",
+      "encounterParameters.durationMs",
+      "A playable scene duration must be a positive safe integer.",
+    );
+  }
+
+  scene.beats.forEach((beat, beatIndex) => {
+    const validBeatTime = Number.isSafeInteger(beat.timeMs) && beat.timeMs >= 0 &&
+      validDuration && beat.timeMs <= durationMs;
+    if (!validBeatTime) {
+      add(
+        "invalid-beat-time",
+        `beats[${beatIndex}].timeMs`,
+        `Beat time must be a non-negative safe integer inside the playable duration, received ${beat.timeMs}.`,
+      );
+    }
+    beat.threats.forEach((threat, threatIndex) => {
+      const validTelegraph = Number.isSafeInteger(threat.telegraphDurationMs) &&
+        threat.telegraphDurationMs > 0 && validBeatTime &&
+        threat.telegraphDurationMs <= durationMs - beat.timeMs;
+      if (!validTelegraph) {
+        add(
+          "invalid-threat-telegraph-duration",
+          `beats[${beatIndex}].threats[${threatIndex}].telegraphDurationMs`,
+          "A threat cannot complete its telegraph before the operation ends unless it has a positive safe duration inside the playable window.",
+        );
+      }
+    });
+  });
+
+  const hasRetry = scene.transitions.some(({ outcomeId }) => outcomeId === "retry");
+  const hasNonRetry = scene.transitions.some(({ outcomeId }) => outcomeId !== "retry");
+  if (!hasRetry || !hasNonRetry) {
+    add(
+      "missing-playable-transition",
+      "transitions",
+      "A playable scene must declare retry and non-retry outcomes.",
+    );
+  }
+
+  if (!Number.isFinite(scene.gameplayTuning.simulationSpeed) ||
+      scene.gameplayTuning.simulationSpeed <= 0) {
+    add(
+      "invalid-simulation-speed",
+      "gameplayTuning.simulationSpeed",
+      "A playable scene simulation speed must be a positive finite number.",
+    );
+  }
+
+  return diagnostics;
+}
+
+export function assertPlayableCampaignScene(
+  scene: CampaignScene,
+  roster: readonly CampaignOfficer[],
+): asserts scene is PlayableCampaignScene {
+  if (scene.identity.kind === "epilogue") {
+    throw new RangeError("Operation simulation requires a playable scene.");
+  }
+  const diagnostics = playableSceneDiagnostics(scene, roster);
+  if (diagnostics.length > 0) {
+    const first = diagnostics[0] as CampaignDiagnostic;
+    throw new RangeError(`${first.field}: ${first.message}`);
   }
 }
 
@@ -295,15 +409,10 @@ export function validateCampaignDefinition(
         occupiedLocationKeys.add(key);
       });
     });
-    if (scene.identity.kind !== "epilogue" &&
-        (mapTopology.spawns.length === 0 || mapTopology.destinations.length === 0)) {
-      diagnostics.push({
-        code: "invalid-map-position",
-        sceneId,
-        field: "mapTopology",
-        message: "A playable scene requires at least one spawn and destination.",
-      });
     }
+
+    if (scene.identity.kind !== "epilogue") {
+      diagnostics.push(...playableSceneDiagnostics(scene, definition.officers));
     }
 
     scene.guidance.forEach((guidance, guidanceIndex) => {
@@ -388,7 +497,8 @@ export function validateCampaignDefinition(
       }
       beatIds.add(beat.id);
 
-      if (!Number.isSafeInteger(beat.timeMs) || beat.timeMs < 0) {
+      if (scene.identity.kind === "epilogue" &&
+          (!Number.isSafeInteger(beat.timeMs) || beat.timeMs < 0)) {
         diagnostics.push({
           code: "invalid-beat-time",
           sceneId: scene.identity.id,
@@ -438,10 +548,10 @@ export function validateCampaignDefinition(
         }
         threatIds.add(threat.id);
 
-        if (
+        if (scene.identity.kind === "epilogue" && (
           !Number.isSafeInteger(threat.telegraphDurationMs) ||
           threat.telegraphDurationMs <= 0
-        ) {
+        )) {
           diagnostics.push({
             code: "invalid-threat-telegraph-duration",
             sceneId: scene.identity.id,
