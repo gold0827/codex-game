@@ -50,6 +50,42 @@ describe("bridge-defense vertical slice content", () => {
     expect(bridgeDefenseOperation.gameplayTuning.interventionBudget).toBe(6);
   });
 
+  it("tells the player what to change on retry using consistent Korean terms", () => {
+    expect(bridgeDefenseOperation.copy.failure).toContain("다음 시도");
+    expect(bridgeDefenseOperation.copy.failure).toContain("해인교");
+    expect(bridgeDefenseOperation.copy.failure).toContain("북쪽");
+    expect(bridgeDefenseOperation.copy.failure).toContain("남쪽");
+    expect(JSON.stringify(bridgeDefenseOperation.copy)).not.toContain("attention");
+  });
+
+  it("teaches one exact bridge defense signal before returning control", () => {
+    expect(bridgeDefenseOperation.guidance).toEqual([
+      expect.objectContaining({ action: "pause" }),
+      expect.objectContaining({
+        action: "inspect",
+        target: expect.objectContaining({ officerId: "captain-han" }),
+      }),
+      expect.objectContaining({
+        action: "signal",
+        target: {
+          kind: "spatial-signal",
+          signal: "defend",
+          strength: 2,
+          position: { x: 11, y: 7 },
+        },
+      }),
+      expect.objectContaining({ action: "resume" }),
+    ]);
+    expect(bridgeDefenseOperation.guidance.filter(({ action }) => action === "signal"))
+      .toHaveLength(1);
+    expect(bridgeDefenseMapSkin.crossings).toContainEqual(
+      expect.objectContaining({
+        id: "haein-bridge",
+        position: { x: 11, y: 7 },
+      }),
+    );
+  });
+
   it("starts no-input officers on different goals and spatial paths", () => {
     const simulation = createOperationSimulation(
       bridgeDefenseOperation,
@@ -112,18 +148,18 @@ describe("bridge-defense vertical slice content", () => {
       result: {
         failureCauses: expect.arrayContaining([
           expect.objectContaining({
-            code: "point-not-preserved",
-            objectiveId: "preserve-haein-bridge",
+            code: "threat-not-neutralized",
+            objectiveId: "protect-civilian-column",
           }),
         ]),
       },
       threats: [
-        expect.objectContaining({ result: "damaged-objective" }),
         expect.objectContaining({ result: "blocked" }),
+        expect.objectContaining({ result: "damaged-objective" }),
       ],
     });
-    expect(poor.snapshot().metrics.civilianSafety).toBeLessThan(
-      balanced.snapshot().metrics.civilianSafety,
+    expect(poor.snapshot().metrics.objectiveProgress).toBeLessThan(
+      balanced.snapshot().metrics.objectiveProgress,
     );
   });
 });

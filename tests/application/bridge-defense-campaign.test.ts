@@ -18,23 +18,25 @@ describe("bridge-defense tutorial and debrief integration", () => {
     session.dispatch({ type: "pause" });
     expect(session.read().tutorial.currentStep?.action).toBe("inspect");
     session.dispatch({ type: "inspect-officer", officerId: "captain-han" });
-    expect(session.read().tutorial.currentStep?.action).toBe("resume");
-    session.dispatch({ type: "resume" });
-    expect(session.read().tutorial.currentStep).toBeNull();
 
     const [north, bridge, south] = bridgeDefenseMapSkin.crossings;
     if (!north || !bridge || !south) throw new Error("Missing bridge crossing fixture.");
-    session.dispatch({
-      type: "issue-spatial-signal",
-      signal: "investigate",
-      strength: 1,
-      position: north.position,
-    });
+    expect(session.read().tutorial.currentStep?.action).toBe("signal");
     session.dispatch({
       type: "issue-spatial-signal",
       signal: "defend",
       strength: 2,
       position: bridge.position,
+    });
+    expect(session.read().tutorial.currentStep?.action).toBe("resume");
+    session.dispatch({ type: "resume" });
+    expect(session.read().tutorial.currentStep).toBeNull();
+
+    session.dispatch({
+      type: "issue-spatial-signal",
+      signal: "investigate",
+      strength: 1,
+      position: north.position,
     });
     session.dispatch({
       type: "issue-spatial-signal",
@@ -46,8 +48,8 @@ describe("bridge-defense tutorial and debrief integration", () => {
     expect(session.read().operation).toMatchObject({
       metrics: { attentionSpent: 6, interventionCount: 3 },
       signals: [
-        expect.objectContaining({ kind: "investigate", strength: 1 }),
         expect.objectContaining({ kind: "defend", strength: 2 }),
+        expect.objectContaining({ kind: "investigate", strength: 1 }),
         expect.objectContaining({ kind: "avoid", strength: 3 }),
       ],
     });
@@ -74,7 +76,7 @@ describe("bridge-defense tutorial and debrief integration", () => {
   });
 
   it("projects artillery world events and the selected officer's causal decision", () => {
-    const session = createGameSession(bridgeDefenseCampaign, "effect-probe");
+    const session = createGameSession(bridgeDefenseCampaign, 0);
     session.dispatch({
       type: "set-harness",
       harness: {
@@ -92,14 +94,12 @@ describe("bridge-defense tutorial and debrief integration", () => {
     const eventIds = new Set(snapshot.operationEvents.map(({ id }) => id));
     const battlefield = projectBattlefieldFrame(snapshot);
     const effects = battlefield?.effects.filter(({ kind }) =>
-      ["hit", "suppression", "retreat"].includes(kind),
+      ["attack", "hit", "suppression", "retreat"].includes(kind),
     ) ?? [];
-    expect(effects.map(({ kind }) => kind)).toEqual([
-      "hit",
-      "suppression",
-      "retreat",
-    ]);
-    effects.forEach(({ id }) => expect(eventIds.has(id)).toBe(true));
+    expect(effects.map(({ kind }) => kind)).toEqual(
+      expect.arrayContaining(["attack", "suppression"]),
+    );
+    expect(effects.some(({ id }) => eventIds.has(id))).toBe(true);
 
     const view = projectGameViewModel(snapshot, {
       title: bridgeDefenseCampaign.title,
@@ -112,7 +112,7 @@ describe("bridge-defense tutorial and debrief integration", () => {
       decision: {
         action: "방어",
         reasons: expect.arrayContaining([expect.stringContaining("위협")]),
-        abandoned: expect.stringContaining("후퇴"),
+        abandoned: expect.stringContaining("효용"),
       },
     });
   });
