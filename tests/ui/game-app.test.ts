@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createGameSession, type GameSession } from "../../src/application/game-session";
+import type { CampaignDefinition } from "../../src/campaign";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import { flowCampaign } from "../fixtures/flow-campaign";
 import type { GameAudio } from "../../src/ui/GameAudio";
@@ -228,6 +229,64 @@ describe("production game app", () => {
     refreshedStrength.value = "3";
     refreshedStrength.dispatchEvent(new Event("change", { bubbles: true }));
     expect(action("issue-spatial-signal").disabled).toBe(true);
+  });
+
+  it("keeps a spatial-signal tutorial target visible until the exact signal is issued", () => {
+    app.destroy();
+    const campaign = structuredClone(completeCampaign) as CampaignDefinition;
+    const scene = campaign.scenes[0];
+    if (!scene) throw new Error("Expected a tutorial scene.");
+    (scene as { guidance: CampaignDefinition["scenes"][number]["guidance"] }).guidance = [{
+      id: "defend-crossing",
+      instruction: "표시된 교량에 방어 신호를 보낸다.",
+      action: "signal",
+      target: {
+        kind: "spatial-signal",
+        signal: "defend",
+        strength: 2,
+        position: { x: 11, y: 7 },
+      },
+      completionEvent: "spatial-signal-issued",
+    }];
+    session = createGameSession(campaign, "signal-guidance-ui");
+    app = mountGameApp(root, campaign, session, {
+      frameScheduler: scheduler,
+      audio: silentAudio(),
+    });
+    startAttempt();
+
+    const controls = root.querySelector<HTMLElement>("[data-region='spatial-signal']");
+    const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
+    expect(root.querySelector(".tutorial-guidance")?.textContent).toContain(
+      "방어 신호 · 강도 2 · 타일 11, 7",
+    );
+    expect(root.querySelector(".operation-screen")?.classList.contains("tutorial-active"))
+      .toBe(true);
+    expect(controls?.classList.contains("guidance-target")).toBe(true);
+    expect(controls?.textContent).toContain("훈련 목표 타일 11, 7");
+    expect(controls?.querySelector<HTMLSelectElement>("[data-signal-kind]")?.value).toBe("defend");
+    expect(controls?.querySelector<HTMLSelectElement>("[data-signal-strength]")?.value).toBe("2");
+    expect(canvas?.dataset.guidanceTile).toBe("11,7");
+    expect(canvas?.getAttribute("aria-label")).toContain("훈련 목표 타일 11, 7");
+    if (!canvas) throw new Error("Expected a battlefield canvas.");
+
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 320, clientY: 180 }));
+    canvas.dispatchEvent(new MouseEvent("pointerup", { button: 0, clientX: 320, clientY: 180 }));
+    action("issue-spatial-signal").click();
+
+    expect(session.read().operation?.signals).toHaveLength(1);
+    expect(session.read().tutorial.currentStep?.id).toBe("defend-crossing");
+    expect(canvas.dataset.guidanceTile).toBe("11,7");
+
+    expect(action("issue-spatial-signal").disabled).toBe(false);
+
+    canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    expect(action("issue-spatial-signal").disabled).toBe(false);
+    action("issue-spatial-signal").click();
+
+    expect(session.read().operation?.signals).toHaveLength(2);
+    expect(session.read().tutorial.currentStep).toBeNull();
   });
 
   it("releases the persistent battlefield frame loop when destroyed", () => {

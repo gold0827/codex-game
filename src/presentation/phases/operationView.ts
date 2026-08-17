@@ -38,6 +38,7 @@ export function renderOperationView(
   main.dataset.phase = "operation";
   if (!operation) return main;
   if (view.tutorial) {
+    main.classList.add("tutorial-active");
     const tutorial = node("aside", "tutorial-guidance");
     tutorial.dataset.tutorialAction = view.tutorial.action;
     tutorial.setAttribute("role", "status");
@@ -184,13 +185,22 @@ export function renderOperationView(
   const interventionActions = node("div", "intervention-actions");
   const signalControls = node("div", "spatial-signal-controls");
   signalControls.dataset.region = "spatial-signal";
+  const signalGuidance = view.tutorial?.signal ?? null;
+  if (signalGuidance) {
+    signalControls.classList.add("guidance-target");
+    signalControls.setAttribute("aria-label", "훈련 목표 공간 신호");
+  }
   const selectedPosition = options.selectedSignalPosition ?? null;
   const selectedLabel = node(
     "span",
     "spatial-signal-target",
-    selectedPosition
-      ? `선택 타일 ${selectedPosition.x}, ${selectedPosition.y}`
-      : "전장에서 신호 타일을 선택합니다.",
+    `${signalGuidance
+      ? `훈련 목표 타일 ${signalGuidance.position.x}, ${signalGuidance.position.y} · `
+      : ""}${
+      selectedPosition
+        ? `선택 타일 ${selectedPosition.x}, ${selectedPosition.y}`
+        : "전장에서 신호 타일을 선택합니다."
+    }`,
   );
   const kind = node("select");
   kind.dataset.signalKind = "";
@@ -198,6 +208,7 @@ export function renderOperationView(
   signalKinds.forEach((value) => {
     const option = node("option", undefined, signalKindLabels[value]);
     option.value = value;
+    option.selected = value === signalGuidance?.kind;
     kind.append(option);
   });
   const strength = node("select");
@@ -207,6 +218,7 @@ export function renderOperationView(
     const option = node("option", undefined, `강도 ${value}`);
     option.value = String(value);
     option.disabled = value > operation.remainingAttention;
+    option.selected = value === signalGuidance?.strength;
     strength.append(option);
   });
   const issue = commandButton(
@@ -214,8 +226,8 @@ export function renderOperationView(
     "issue-spatial-signal",
     {
       type: "issue-spatial-signal",
-      signal: "investigate",
-      strength: 1,
+      signal: signalGuidance?.kind ?? "investigate",
+      strength: signalGuidance?.strength ?? 1,
       position: selectedPosition ?? { x: 0, y: 0 },
     },
     (command, cue, focusKey) => {
