@@ -60,11 +60,14 @@ export {
 } from "./types";
 export {
   CampaignValidationError,
+  assertPlayableCampaignScene,
   assertValidCampaignDefinition,
+  playableSceneDiagnostics,
   validateCampaignDefinition,
   type CampaignDiagnostic,
   type CampaignDiagnosticCode,
   type CampaignValidationResult,
+  type PlayableCampaignScene,
 } from "./validation";
 export {
   createBuiltInCampaignRepository,

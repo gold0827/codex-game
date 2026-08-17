@@ -170,9 +170,6 @@ export function createOperationSimulation(
   const harness = clone(suppliedHarness);
   const experience = experienceByOfficer(roster, clone(suppliedExperience));
   const mapTopology = scene.mapTopology;
-  if (!mapTopology) {
-    throw new RangeError("Operation simulation requires authored map topology.");
-  }
   const randomStreams = createOperationRandomStreams(
     deriveRandomStreamSeed(
       runSeed,
@@ -239,10 +236,6 @@ export function createOperationSimulation(
     panicReaction: null,
     objectiveId: objectives[index % Math.max(1, objectives.length)]?.id ?? null,
   }));
-  if (mapTopology.spawns.length < roster.length ||
-      mapTopology.destinations.length < roster.length) {
-    throw new RangeError("Operation map requires one unique spawn and destination per officer.");
-  }
   const spatialWorld = createSpatialWorld(
     mapTopology,
     roster.map((officer, index) => ({
