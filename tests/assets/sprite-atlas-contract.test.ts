@@ -36,6 +36,17 @@ function readFixture(): unknown {
 }
 
 describe("sprite atlas asset contract", () => {
+  it("keeps generated production assets on LF checkouts for byte comparison", () => {
+    const attributes = readFileSync(join(process.cwd(), ".gitattributes"), "utf8");
+
+    expect(attributes).toContain(
+      "public/assets/visual/sprites/officers/atlas.svg text eol=lf",
+    );
+    expect(attributes).toContain(
+      "public/assets/visual/sprites/officers/manifest.json text eol=lf",
+    );
+  });
+
   it("accepts the generated production officer atlas", () => {
     const manifest = JSON.parse(
       readFileSync(join(productionDirectory, "manifest.json"), "utf8"),
