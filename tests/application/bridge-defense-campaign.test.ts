@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { createGameSession } from "../../src/application/game-session";
+import { projectGameViewModel } from "../../src/presentation/gameViewModel";
+import { projectBattlefieldFrame } from "../../src/presentation/operation/battlefieldProjector";
 import {
   bridgeDefenseCampaign,
   bridgeDefenseMapSkin,
@@ -69,5 +71,49 @@ describe("bridge-defense tutorial and debrief integration", () => {
       expect.objectContaining({ id: "preserve-haein-bridge", completed: true }),
       expect.objectContaining({ id: "preserve-civilian-column", completed: true }),
     ]);
+  });
+
+  it("projects artillery world events and the selected officer's causal decision", () => {
+    const session = createGameSession(bridgeDefenseCampaign, "effect-probe");
+    session.dispatch({
+      type: "set-harness",
+      harness: {
+        informationReach: 0.05,
+        authorityClarity: 0.05,
+        verificationDepth: 0.05,
+        feedbackCompression: 0.05,
+      },
+    });
+    session.dispatch({ type: "start-attempt" });
+    session.dispatch({ type: "inspect-officer", officerId: "captain-han" });
+    session.advance(18_000);
+
+    const snapshot = session.read();
+    const eventIds = new Set(snapshot.operationEvents.map(({ id }) => id));
+    const battlefield = projectBattlefieldFrame(snapshot);
+    const effects = battlefield?.effects.filter(({ kind }) =>
+      ["hit", "suppression", "retreat"].includes(kind),
+    ) ?? [];
+    expect(effects.map(({ kind }) => kind)).toEqual([
+      "hit",
+      "suppression",
+      "retreat",
+    ]);
+    effects.forEach(({ id }) => expect(eventIds.has(id)).toBe(true));
+
+    const view = projectGameViewModel(snapshot, {
+      title: bridgeDefenseCampaign.title,
+      sceneCount: bridgeDefenseCampaign.scenes.length,
+      officers: bridgeDefenseCampaign.officers,
+    });
+    const selected = view.operation?.officers.find(({ selected }) => selected);
+    expect(selected).toMatchObject({
+      id: "captain-han",
+      decision: {
+        action: "방어",
+        reasons: expect.arrayContaining([expect.stringContaining("위협")]),
+        abandoned: expect.stringContaining("후퇴"),
+      },
+    });
   });
 });
