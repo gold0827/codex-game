@@ -1,30 +1,123 @@
-# 의존 방향과 회귀 기준선
+# 현재 화면과 모듈 배선
 
-이 문서는 현재 소스 배치를 목표 module 그래프에 대응시키고, 허용하지 않은
-의존이 추가되는 일을 `npm run check`에서 막는 기준이다. 검사 module의 외부
-interface는 다음 두 명령뿐이다.
+이 문서는 현재 구현의 화면, 명령 흐름, module 책임과 허용 의존을 설명하는
+단일 기준이다. 과거 구조나 이동 이력은 기록하지 않는다. 구현과 설명이
+어긋나면 `npm run check`와 아래 public interface를 기준으로 함께 수정한다.
+
+## 화면 와이어프레임
+
+작전 단계의 1440×900 고정 데스크톱 화면은 다음 순서로 조립된다.
 
 ```text
-npm run check:dependencies
-node scripts/check-dependencies.mjs --source-root <격리된-src-경로>
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 게임 제목 │ 장면/시도 │ 작전 시간·배속·상태 │ 음소거                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 튜토리얼 안내 · 현재 행동 · 대상                              (선택 영역) │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 작전 시계 │ 일시정지·재개 │ 0.5배·1배·2배 │ 남은 직접 개입              │
+├──────────────────┬────────────────────────────────┬──────────────────────────┤
+│ 작전 상태        │                                │ 선택 장교                │
+│ 지표·목표        │                                │ 역할·의도·상태           │
+│                  │        실시간 전장             ├──────────────────────────┤
+│ 하네스 조정      │ unit · threat · objective      │ 보고 기록                │
+│ 정보·권한        │ movement · impact              │ 전달 대상·검증 행동      │
+│ 검증·피드백      │                                │                          │
+├──────────────────┴────────────────────────────────┴──────────────────────────┤
+│ 사건 흐름 · 최근 operation event 여섯 건                                    │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 직접 개입 트레이 · 예외 권한 · 최신 보고 전달 · 최신 보고 검증 우선         │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-첫 명령은 저장소의 `src/`와 아래의 정확한 이전 예외를 함께 검사한다. 두 번째
-명령은 fixture처럼 격리된 소스 트리를 목표 규칙만으로 검사한다. 구현은
-TypeScript 구문 scanner로 정적 import, re-export, 동적 import와 `require`를 읽으므로
-호출자가 파일별 규칙이나 정규식을 알 필요가 없다.
+브리핑, 디브리핑, 졸업은 같은 header와 shell 안에서 각 phase view만 교체한다.
+`작전 교범`과 `장면 편집`은 workbench가 소유하며 동시에 열리지 않는다. 진행 중인
+작전에서 둘 중 하나를 열면 작전을 멈추고, 닫으면 필요한 경우 재개한다.
 
-## 회귀 기준선
+## 실행 배선
 
-이 guardrail을 추가하기 전 `npm test` 기준선은 **13개 test file, 186개 test
-통과**다. 이 186개 동작 test는 삭제하거나 제외하지 않는다. architecture test가
-추가된 뒤에도 기존 186개가 모두 통과해야 하며, `npm run check`는 build, 전체
-test, 의존 방향 검사를 차례로 실행한다.
+```text
+src/main.ts
+└─ mountProductionGame                         app composition
+   ├─ browser frame/audio/localStorage adapter platform
+   └─ mountGameWorkbench                       app
+      ├─ CampaignDocument + CampaignWorkshop   authoring
+      │  └─ CampaignRepository                 domain/campaign seam
+      ├─ GameSession                           application interface
+      │  └─ GameController                     application state machine
+      │     └─ operationEngine                 domain/operation interface
+      │        ├─ timeline
+      │        ├─ signals + limited beliefs
+      │        ├─ decisions
+      │        ├─ threats + movement
+      │        └─ outcome + operation events
+      └─ GameApp                               presentation mount adapter
+         ├─ GameEffects                        frame/focus/audio owner
+         ├─ projectGameViewModel               snapshot projector
+         └─ phase views → DOM
+```
 
-## 목표 module 그래프
+입력과 출력은 서로 반대 방향으로 흐른다.
 
-화살표의 왼쪽 module만 오른쪽 module을 알 수 있다. 같은 module 내부 의존은
-항상 허용한다.
+```text
+DOM input ─→ typed GameCommand ─→ GameSession.dispatch ─→ operation state
+RAF delta ──────────────────────→ GameSession.advance  ─→ operation state
+
+operation state ─→ GameSnapshot ─→ GameViewModel ─→ phase view ─→ DOM
+```
+
+presentation은 simulation 내부를 직접 알지 않는다. 모든 player action은 typed
+`GameCommand`로 application에 들어가고, 모든 화면 데이터는 `GameSnapshot`을
+project한 `GameViewModel`로 나온다. 브라우저 전역은 app/workbench,
+CampaignWorkshop, presentation과 platform adapter에만 있고 application과
+domain에는 없다.
+
+## Public interface
+
+application의 깊은 interface는 세 동작뿐이다.
+
+```ts
+type GameSession = Readonly<{
+  read: () => GameSnapshot;
+  dispatch: (command: GameCommand) => GameSnapshot;
+  advance: (realElapsedMs: number) => GameSnapshot;
+}>;
+```
+
+authoring은 저장 방식 대신 repository seam만 안다.
+
+```ts
+interface CampaignRepository {
+  load(): CampaignDefinition;
+  save(campaign: CampaignDefinition): void;
+  restore(): CampaignDefinition;
+}
+```
+
+현재 adapter는 읽기 전용 built-in, test/격리용 memory, browser localStorage 세
+종류다. `CampaignWorkshop`은 `CampaignDocument`를 통해서만 장면을 읽고 바꾸며,
+game session이나 operation을 import하지 않는다.
+
+## Module 책임과 현재 경로
+
+| module | 책임 | 현재 경로 |
+| --- | --- | --- |
+| `app` | production 조립, workbench 수명주기 | `src/main.ts`, `src/app/` |
+| `presentation` | DOM, view model, phase view, effect, style | `src/presentation/`, `src/ui/`, `src/styles/` |
+| `application` | command 처리와 campaign/operation 진행 | `src/application/`, `src/game/` |
+| `platform` | browser frame, audio, localStorage adapter | `src/platform/` |
+| `authoring` | campaign document와 workshop | `src/authoring/` |
+| `content` | 실제 여섯 장면 | `src/scenarios/` |
+| `domain/operation` | clock, deterministic random, 전장과 작전 규칙 | `src/domain/operation/`, `src/simulation/` |
+| `domain/campaign` | campaign type, parse, validate, progress, repository seam | `src/campaign/` |
+
+현재 경로명이 module명과 다른 경우에도 표의 책임이 기준이다. 예를 들어
+`src/ui/GameApp.ts`는 presentation mount adapter이고,
+`src/simulation/operationSimulation.ts`는 operation domain의 public entrypoint다.
+
+## 허용 의존
+
+화살표 왼쪽 module만 오른쪽 module을 알 수 있다. 같은 module 내부 의존은
+허용한다.
 
 ```text
 app → presentation → application → domain/operation → domain/campaign
@@ -45,22 +138,18 @@ app → presentation → application → domain/operation → domain/campaign
 | `domain/operation` | `domain/operation`, `domain/campaign` |
 | `domain/campaign` | `domain/campaign` |
 
-표에 없는 방향은 금지다. 특히 `domain`은 app, presentation, platform을 알 수
-없고, `presentation`은 operation 내부를 직접 import할 수 없으며, `authoring`은
-game session이나 operation을 import할 수 없다. `app`만 여러 module을 조립한다.
+표에 없는 방향과 분류되지 않은 새 최상위 소스 경로는 검사 실패다. 현재
+migration exception은 `0`이다.
 
-## 현재 경로 대응
+## 검증 interface
 
-| 현재 경로 | 목표 module | 앞으로 생길 경로 |
-| --- | --- | --- |
-| `src/main.ts`, `src/main.d.ts` | `app` | `src/app/` |
-| `src/ui/`, `src/styles/` | `presentation` | `src/presentation/` |
-| `src/game/` | `application` | `src/application/` |
-| `src/simulation/` | `domain/operation` | `src/domain/operation/` |
-| `src/campaign/` | `domain/campaign` | `src/domain/campaign/` |
-| `src/authoring/` | `authoring` | `src/authoring/` |
-| `src/scenarios/` | `content` | `src/content/` |
-| 없음 | `platform` | `src/platform/` |
+```text
+npm run check
+npm run check:dependencies
+node scripts/check-dependencies.mjs --source-root <격리된-src-경로>
+```
 
-대응되지 않는 새 최상위 소스 경로도 검사 실패다. 새 module을 암묵적으로
-허용하지 않고 이 문서와 검사 규칙을 함께 바꾸게 하기 위해서다.
+`npm run check`는 build, 전체 test, module 의존 검사를 차례로 실행한다. 의존
+검사는 TypeScript scanner로 정적 import, re-export, 동적 import와 `require`를
+읽는다. 특정 test 개수나 과거 기준선은 문서에 고정하지 않고 현재 명령 결과를
+판정 기준으로 사용한다.

@@ -6,9 +6,8 @@ export {
   type CampaignDocumentResult,
 } from "./CampaignDocument";
 export {
-  mountCampaignEditor,
-  mountCampaignEditor as mountCampaignWorkshop,
-  type CampaignEditor,
-  type CampaignEditorOptions,
+  mountCampaignWorkshop,
+  type CampaignWorkshop,
+  type CampaignWorkshopOptions,
 } from "./CampaignWorkshop";
 export type { CampaignDefinition, CampaignRepository } from "../../campaign";
