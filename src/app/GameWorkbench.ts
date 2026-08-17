@@ -28,16 +28,14 @@ import {
   type WorkbenchOverlayName,
   type WorkbenchOverlays,
 } from "./WorkbenchOverlays";
+import {
+  createWorkbenchManual,
+  type GameAudioCredit,
+  type WorkbenchManualVariant,
+} from "./WorkbenchManual";
 
 export type { PlayerSettings, PlayerSettingsStore, PlayerUiScale } from "./PlayerSettings";
-
-export type GameAudioCredit = Readonly<{
-  title: string;
-  author: string;
-  sourcePageUrl: string;
-  license: string;
-  licenseUrl: string;
-}>;
+export type { GameAudioCredit } from "./WorkbenchManual";
 
 export type GameWorkbenchOptions = Readonly<{
   repository?: CampaignRepository;
@@ -46,6 +44,7 @@ export type GameWorkbenchOptions = Readonly<{
   audioCredits?: readonly GameAudioCredit[];
   seed?: string | number;
   editorEnabled?: boolean;
+  fieldManualVariant?: WorkbenchManualVariant;
   settingsStore?: PlayerSettingsStore;
   checkpoint?: CampaignCheckpoint;
 }>;
@@ -96,82 +95,16 @@ export function mountGameWorkbench(
   editorToggle.textContent = "장면 편집";
   tools.append(manualToggle, settingsToggle);
   if (editorEnabled) tools.append(editorToggle);
-  const manualRoot = document.createElement("div");
-  manualRoot.id = "field-manual";
-  manualRoot.className = "workbench-manual";
-  manualRoot.hidden = true;
-  manualRoot.setAttribute("role", "dialog");
-  manualRoot.setAttribute("aria-modal", "true");
-  manualRoot.setAttribute("aria-labelledby", "field-manual-title");
-  manualRoot.innerHTML = `
-    <article class="field-manual">
-      <header class="field-manual-header">
-        <div>
-          <p class="field-manual-eyebrow">FIELD OPERATIONS / 01</p>
-          <h1 id="field-manual-title">작전 교범</h1>
-        </div>
-        <button type="button" class="editor-button" data-action="close-manual">교범 닫기</button>
-      </header>
-      <div class="field-manual-content">
-        <p class="field-manual-lead">명령을 반복하는 대신 자율 장교가 판단할 조건을 설계한다.</p>
-        <section>
-          <h2>1. 브리핑에서 지휘 조건 설정</h2>
-          <p>정보 도달, 권한 명료성, 검증 깊이, 피드백 압축을 조정한다. 배정 자원 안에서 설정을 마치고 작전을 시작한다.</p>
-        </section>
-        <section>
-          <h2>2. 자율 작전 관찰</h2>
-          <p>장교들은 설정된 조건에 따라 스스로 이동하고 보고한다. 전장, 장교의 의도, 위험 신호, 수신 보고를 함께 살핀다.</p>
-        </section>
-        <section>
-          <h2>3. 시간 통제</h2>
-          <p>일시정지로 판단할 시간을 확보하고 0.5배속, 1배속, 2배속으로 흐름을 조절한다. 교범을 열면 진행 중인 작전도 멈춘다.</p>
-        </section>
-        <section>
-          <h2>4. 제한된 직접 개입</h2>
-          <p>보고 전달, 권한 승인, 검증 우선은 직접 개입 횟수를 사용한다. 남은 횟수를 확인하고 자율성을 보완할 때만 개입한다.</p>
-        </section>
-        <section>
-          <h2>5. 여섯 작전과 졸업</h2>
-          <p>통신학교 튜토리얼부터 최종작전까지 여섯 작전을 순서대로 완료한다. 실패하면 같은 작전을 재정비하고, 모두 통과하면 졸업 장면에 도착한다.</p>
-        </section>
-        <section>
-          <h2>별도 도구 · 장면 편집</h2>
-          <p>게임 밖의 장면 편집에서 모든 장면의 문구, 연출, 수치와 사건 데이터를 확인하고 바꿀 수 있다. 변경 사항은 캠페인을 재시작할 때 적용된다.</p>
-        </section>
-      </div>
-    </article>
-  `;
-  if (options.audioCredits && options.audioCredits.length > 0) {
-    const creditSection = document.createElement("section");
-    creditSection.className = "audio-credits";
-    const creditHeading = document.createElement("h2");
-    creditHeading.textContent = "배경음악 출처";
-    const creditSummary = document.createElement("p");
-    creditSummary.textContent = "아래 음원은 원작자가 CC0 1.0으로 공개했습니다.";
-    const creditList = document.createElement("ul");
-    creditList.className = "audio-credit-list";
-    options.audioCredits.forEach((credit) => {
-      const item = document.createElement("li");
-      const source = document.createElement("a");
-      source.href = credit.sourcePageUrl;
-      source.target = "_blank";
-      source.rel = "noreferrer";
-      source.textContent = `${credit.title} — ${credit.author}`;
-      const licenseLink = document.createElement("a");
-      licenseLink.href = credit.licenseUrl;
-      licenseLink.target = "_blank";
-      licenseLink.rel = "noreferrer";
-      licenseLink.textContent = credit.license;
-      item.append(source, document.createTextNode(" · "), licenseLink);
-      creditList.append(item);
-    });
-    creditSection.append(creditHeading, creditSummary, creditList);
-    manualRoot.querySelector(".field-manual-content")?.append(creditSection);
-  }
+  let requestManualClose = (): void => undefined;
+  const manual = createWorkbenchManual({
+    variant: options.fieldManualVariant ?? "complete-campaign",
+    audioCredits: options.audioCredits,
+    onRequestClose: () => requestManualClose(),
+  });
   const editorRoot = document.createElement("div");
   editorRoot.className = "workbench-editor";
   editorRoot.hidden = true;
-  shell.append(gameRoot, tools, manualRoot, editorRoot);
+  shell.append(gameRoot, tools, manual.element, editorRoot);
   if (!loadResult.ok) {
     const startupNotice = document.createElement("div");
     startupNotice.className = "workbench-notice";
@@ -198,6 +131,8 @@ export function mountGameWorkbench(
   const closeTool = (name: WorkbenchOverlayName): void => {
     if (!destroyed) overlays.close(name);
   };
+
+  requestManualClose = () => closeTool("manual");
 
   const gameOptions = (audio: GameAudio | undefined): GameAppOptions => ({
     frameScheduler: options.frameScheduler,
@@ -277,13 +212,8 @@ export function mountGameWorkbench(
     tools,
     adapters: {
       manual: {
-        show: () => {
-          manualRoot.hidden = false;
-          const manualContent = manualRoot.querySelector<HTMLElement>(".field-manual-content");
-          if (manualContent) manualContent.scrollTop = 0;
-          manualRoot.querySelector<HTMLButtonElement>('[data-action="close-manual"]')?.focus();
-        },
-        hide: () => { manualRoot.hidden = true; },
+        show: manual.show,
+        hide: manual.hide,
         focusTrigger: () => { manualToggle.focus(); },
       },
       settings: {
@@ -317,9 +247,6 @@ export function mountGameWorkbench(
   manualToggle.addEventListener("click", () => openTool("manual"));
   settingsToggle.addEventListener("click", () => openTool("settings"));
   if (editorEnabled) editorToggle.addEventListener("click", () => openTool("editor"));
-  manualRoot
-    .querySelector<HTMLButtonElement>('[data-action="close-manual"]')
-    ?.addEventListener("click", () => closeTool("manual"));
   document.addEventListener("keydown", handleKeyDown);
 
   if (!loadResult.ok) workshop.showDiagnostics(loadResult.diagnostics);
@@ -334,6 +261,7 @@ export function mountGameWorkbench(
       if (destroyed) return;
       destroyed = true;
       gameApp.destroy();
+      manual.destroy();
       settingsPanel.destroy();
       workshop.destroy();
       document.removeEventListener("keydown", handleKeyDown);
