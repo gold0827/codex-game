@@ -182,10 +182,30 @@ let completedFlow = {
   resetToBridge: false,
   playerManual: false,
 };
+const threatMarkers = {
+  drawn: false,
+  physical: false,
+  informational: false,
+  resolved: false,
+  accessible: false,
+};
+const observeThreatMarkers = (): void => {
+  const categories = (canvas.dataset.threatMarkerCategories ?? "").split(",");
+  const description = canvas.getAttribute("aria-label") ?? "";
+  threatMarkers.drawn ||= Number(canvas.dataset.drawnThreatMarkerCount ?? 0) > 0;
+  threatMarkers.physical ||= categories.includes("physical");
+  threatMarkers.informational ||= categories.includes("informational");
+  threatMarkers.resolved ||= description.includes("차단됨") || description.includes("목표 피해");
+  threatMarkers.accessible ||= description.includes("물리적 위협 포격") &&
+    description.includes("정보 위협 허위 정보");
+};
 if (!mapPreview) {
   action("speed-2").click();
   const debriefReached = await waitForDuration(
-    () => root.querySelector("[data-phase='debrief']") !== null,
+    () => {
+      observeThreatMarkers();
+      return root.querySelector("[data-phase='debrief']") !== null;
+    },
     90_000,
   );
   completedFlow = {
@@ -240,6 +260,7 @@ const result = {
     ...operationLayout,
     centralShare: Math.round(operationLayout.centralShare * 1_000) / 1_000,
   },
+  threatMarkers,
   completedFlow,
   errors,
 };
@@ -283,6 +304,13 @@ const passed = result.productionEntrypoint &&
   !result.operationLayout.controlsOverlapBattlefield &&
   !result.operationLayout.guidanceOverlapBattlefield &&
   !result.operationLayout.guidanceOverlapControls &&
+  (mapPreview || (
+    result.threatMarkers.drawn &&
+    result.threatMarkers.physical &&
+    result.threatMarkers.informational &&
+    result.threatMarkers.resolved &&
+    result.threatMarkers.accessible
+  )) &&
   errors.length === 0 &&
   (mapPreview || (
     result.completedFlow.debriefStatus === "success" &&

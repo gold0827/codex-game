@@ -35,6 +35,18 @@ describe("battlefield draw order", () => {
     ]);
   });
 
+  it("depth-sorts a hostile marker with actors while keeping props in front", () => {
+    const threat = renderable("hostile", "threat", 3, 2);
+    const actor = renderable("unit", "actor", 3, 2);
+    const prop = renderable("tree", "prop", 1, 4);
+
+    expect(orderBattlefieldRenderables([prop, threat, actor]).map(({ id }) => id)).toEqual([
+      "hostile",
+      "unit",
+      "tree",
+    ]);
+  });
+
   it.each(["tree", "rock", "barricade"] as const)(
     "depth-sorts the %s obstacle with actors and effects",
     (obstacle) => {

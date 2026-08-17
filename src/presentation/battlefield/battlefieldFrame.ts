@@ -53,9 +53,31 @@ export type BattlefieldActorFrame = Readonly<{
   selected: boolean;
 }>;
 
+export type BattlefieldThreatFrame = Readonly<{
+  id: string;
+  position: WorldPosition;
+  category: "physical" | "informational";
+  kind:
+    | "communications"
+    | "flood"
+    | "artillery"
+    | "ambush"
+    | "misinformation"
+    | "obstruction";
+  severity: "low" | "medium" | "high" | "critical";
+  state: "telegraphed" | "resolved";
+  result: "blocked" | "damaged-objective" | null;
+  health: number;
+  glyph: string;
+  severityGlyph: string;
+  statusGlyph: string;
+  label: string;
+}>;
+
 export type BattlefieldFrame = Readonly<{
   map: BattlefieldMapFrame;
   actors: readonly BattlefieldActorFrame[];
+  threats: readonly BattlefieldThreatFrame[];
   effects: readonly EffectSample[];
   guidedTile?: WorldPosition | null;
 }>;

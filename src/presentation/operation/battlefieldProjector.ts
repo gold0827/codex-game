@@ -6,6 +6,7 @@ import type {
   BattlefieldFacing,
   BattlefieldFrame,
   BattlefieldMapFrame,
+  BattlefieldThreatFrame,
   WorldPosition,
 } from "../battlefield/battlefieldFrame";
 import { projectEffectTrack } from "../effects/effectCueProjector";
@@ -13,6 +14,7 @@ import { sampleEffectTrack, type EffectTrack } from "../effects/effectTrack";
 
 type Operation = NonNullable<GameSnapshot["operation"]>;
 type Unit = Operation["units"][number];
+type Threat = Operation["threats"][number];
 
 const actionByIntent = {
   "advance-locally": "walk",
@@ -57,6 +59,54 @@ function cues(unit: Unit, moving: boolean): readonly BattlefieldCue[] {
   if (!moving) values.push("destination-reached");
   if (unit.health < 30 && unit.health > 0) values.push("low-health");
   return values;
+}
+
+const threatPresentation = {
+  communications: { category: "informational", glyph: "⌁", label: "통신 교란" },
+  flood: { category: "physical", glyph: "≋", label: "범람" },
+  artillery: { category: "physical", glyph: "✹", label: "포격" },
+  ambush: { category: "physical", glyph: "▲", label: "매복" },
+  misinformation: { category: "informational", glyph: "?", label: "허위 정보" },
+  obstruction: { category: "physical", glyph: "▦", label: "장애물" },
+} as const satisfies Record<Threat["kind"], {
+  category: BattlefieldThreatFrame["category"];
+  glyph: string;
+  label: string;
+}>;
+
+const severityPresentation = {
+  low: { glyph: "Ⅰ", label: "낮음" },
+  medium: { glyph: "Ⅱ", label: "중간" },
+  high: { glyph: "Ⅲ", label: "높음" },
+  critical: { glyph: "Ⅳ", label: "치명적" },
+} as const satisfies Record<Threat["severity"], { glyph: string; label: string }>;
+
+function threatStatus(threat: Threat): Readonly<{ glyph: string; label: string }> {
+  if (threat.state === "telegraphed") return { glyph: "…", label: "예고 중" };
+  return threat.result === "blocked"
+    ? { glyph: "✓", label: "차단됨" }
+    : { glyph: "!", label: "목표 피해" };
+}
+
+function projectThreat(threat: Threat): BattlefieldThreatFrame {
+  const kind = threatPresentation[threat.kind];
+  const severity = severityPresentation[threat.severity];
+  const status = threatStatus(threat);
+  const categoryLabel = kind.category === "physical" ? "물리적 위협" : "정보 위협";
+  return {
+    id: threat.id,
+    position: { ...threat.tile },
+    category: kind.category,
+    kind: threat.kind,
+    severity: threat.severity,
+    state: threat.state,
+    result: threat.result,
+    health: Math.max(0, Math.min(100, threat.health)),
+    glyph: kind.glyph,
+    severityGlyph: severity.glyph,
+    statusGlyph: status.glyph,
+    label: `${categoryLabel} ${kind.label}. 심각도 ${severity.label}. ${status.label}. 타일 ${threat.tile.x}, ${threat.tile.y}`,
+  };
 }
 
 function projectMap(snapshot: GameSnapshot): BattlefieldMapFrame {
@@ -119,6 +169,7 @@ export function projectBattlefieldFrame(
   return {
     map: projectMap(snapshot),
     actors,
+    threats: operation.threats.map(projectThreat),
     guidedTile:
       snapshot.tutorial.active && snapshot.tutorial.currentStep?.action === "signal"
         ? { ...snapshot.tutorial.currentStep.target.position }

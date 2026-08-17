@@ -64,6 +64,7 @@ const frame = (x: number): BattlefieldFrame => ({
     cues: [],
     selected: true,
   }],
+  threats: [],
   effects: [],
 });
 
@@ -84,6 +85,35 @@ describe("persistent Canvas battlefield viewport", () => {
     expect(createBattlefieldDrawList(previous, current, 100).actors[0]?.x).toBe(2);
     expect(createBattlefieldDrawList(previous, current, 150).actors[0]?.x).toBe(6);
     expect(createBattlefieldDrawList(previous, current, 200).actors[0]?.x).toBe(10);
+  });
+
+  it("interpolates threat positions without changing the friendly actor path", () => {
+    const threat = {
+      id: "artillery",
+      position: { x: 4, y: 5 },
+      category: "physical" as const,
+      kind: "artillery" as const,
+      severity: "medium" as const,
+      state: "telegraphed" as const,
+      result: null,
+      health: 55,
+      glyph: "✹",
+      severityGlyph: "Ⅱ",
+      statusGlyph: "…",
+      label: "물리적 위협 포격. 심각도 중간. 예고 중. 타일 4, 5",
+    };
+    const previous = {
+      frame: { ...frame(2), threats: [{ ...threat, position: { x: 2, y: 5 } }] },
+      receivedAt: 0,
+    };
+    const current = {
+      frame: { ...frame(10), threats: [threat] },
+      receivedAt: 100,
+    };
+    const drawList = createBattlefieldDrawList(previous, current, 150);
+
+    expect(drawList.actors[0]?.x).toBe(6);
+    expect(drawList.threats[0]).toMatchObject({ x: 3, y: 5, glyph: "✹" });
   });
 
   it("keeps one Canvas, responds to resize, and releases observers and frames", () => {
@@ -280,6 +310,60 @@ describe("persistent Canvas battlefield viewport", () => {
     });
 
     expect(host.querySelector("canvas")?.getAttribute("aria-label")).toContain("식별된 효과: 검증");
+    viewport.destroy();
+  });
+
+  it("announces physical and informational threat markers from the Canvas", () => {
+    const host = document.createElement("section");
+    const viewport = createCanvasBattlefieldViewport(host, {
+      scheduler: new TestScheduler(),
+      resizeObserver: TestResizeObserver as unknown as typeof ResizeObserver,
+      fetchManifest: async () => { throw new Error("offline"); },
+    });
+
+    viewport.update({
+      ...frame(2),
+      threats: [
+        {
+          id: "artillery",
+          position: { x: 4, y: 5 },
+          category: "physical",
+          kind: "artillery",
+          severity: "medium",
+          state: "telegraphed",
+          result: null,
+          health: 55,
+          glyph: "✹",
+          severityGlyph: "Ⅱ",
+          statusGlyph: "…",
+          label: "물리적 위협 포격. 심각도 중간. 예고 중. 타일 4, 5",
+        },
+        {
+          id: "false-report",
+          position: { x: 6, y: 2 },
+          category: "informational",
+          kind: "misinformation",
+          severity: "high",
+          state: "resolved",
+          result: "blocked",
+          health: 90,
+          glyph: "?",
+          severityGlyph: "Ⅲ",
+          statusGlyph: "✓",
+          label: "정보 위협 허위 정보. 심각도 높음. 차단됨. 타일 6, 2",
+        },
+      ],
+    });
+
+    const canvas = host.querySelector("canvas");
+    expect(canvas?.dataset.threatMarkerCount).toBe("2");
+    expect(canvas?.dataset.threatMarkerCategories).toBe("physical,informational");
+    expect(canvas?.getAttribute("aria-label")).toContain(
+      "식별된 위협: 물리적 위협 포격. 심각도 중간. 예고 중. 타일 4, 5",
+    );
+    expect(canvas?.getAttribute("aria-label")).toContain(
+      "정보 위협 허위 정보. 심각도 높음. 차단됨. 타일 6, 2",
+    );
     viewport.destroy();
   });
 });
