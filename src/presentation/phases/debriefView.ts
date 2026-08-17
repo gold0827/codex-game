@@ -13,6 +13,38 @@ export function renderDebriefView(view: GameViewModel, dispatch: CommandDispatch
     node("p", "debrief-copy", debrief?.copy ?? ""),
     node("p", "lesson-copy", debrief?.lesson ?? ""),
   );
+  const objectiveResults = node("section", "debrief-results");
+  objectiveResults.dataset.region = "objective-results";
+  objectiveResults.append(node("h3", undefined, "목표 판정"));
+  const objectiveList = node("ul", "debrief-objective-list");
+  debrief?.objectives.forEach((objective) => {
+    const item = node(
+      "li",
+      `debrief-objective ${objective.passed ? "objective-passed" : "objective-failed"}`,
+    );
+    item.append(
+      node("span", undefined, objective.label),
+      node("strong", undefined, objective.passed ? "달성" : "미달성"),
+    );
+    objectiveList.append(item);
+  });
+  objectiveResults.append(objectiveList);
+  card.append(objectiveResults);
+  if (debrief?.failures.length) {
+    const failureCauses = node("section", "debrief-failures");
+    failureCauses.dataset.region = "failure-causes";
+    failureCauses.append(node("h3", undefined, "재시도 초점"));
+    debrief.failures.forEach((failure) => {
+      const item = node("article", "debrief-failure");
+      item.append(
+        node("strong", undefined, failure.reason),
+        node("p", undefined, `관련 목표 · ${failure.objective}`),
+      );
+      if (failure.officer) item.append(node("p", undefined, `관련 장교 · ${failure.officer}`));
+      failureCauses.append(item);
+    });
+    card.append(failureCauses);
+  }
   const next = commandButton(
     success ? "다음 작전" : "다시 시도",
     "continue-campaign",

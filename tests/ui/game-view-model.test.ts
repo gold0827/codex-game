@@ -45,4 +45,41 @@ describe("game presentation view model", () => {
     expect(view.operation?.events.length).toBeGreaterThan(0);
     expect(view.operation?.events.every(({ label }) => !/[A-Za-z]{4}/.test(label))).toBe(true);
   });
+
+  it("projects structured operation failures into player-facing debrief guidance", () => {
+    const session = createGameSession(completeCampaign, "view-model-debrief");
+    session.dispatch({
+      type: "set-harness",
+      harness: {
+        informationReach: 0,
+        authorityClarity: 0,
+        verificationDepth: 0,
+        feedbackCompression: 0,
+      },
+    });
+    session.dispatch({ type: "start-attempt" });
+    const operation = session.read();
+    session.advance(
+      operation.scene.encounterParameters.durationMs /
+        operation.scene.gameplayTuning.simulationSpeed +
+        1,
+    );
+
+    const view = projectGameViewModel(session.read(), campaignView);
+
+    expect(view.debrief?.success).toBe(false);
+    expect(view.debrief?.objectives).toHaveLength(operation.scene.objectives.length);
+    expect(view.debrief?.objectives.some(({ passed }) => !passed)).toBe(true);
+    expect(view.debrief?.failures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reason: "보고가 필요한 장교에게 전달되지 않았습니다.",
+          officer: "소령 백돌격",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(view.debrief)).not.toMatch(
+      /point-not-preserved|threat-not-neutralized|report-not-routed|signal-school:event/,
+    );
+  });
 });
