@@ -1,6 +1,5 @@
 import { commandButton, node, type CommandDispatcher } from "../dom";
-import { renderGameBattlefield } from "../gameBattlefield";
-import type { GameViewModel, ThreatImpactViewModel } from "../gameViewModel";
+import type { GameViewModel } from "../gameViewModel";
 import { renderHarnessControls } from "../gameChrome";
 
 function renderMeter(label: string, value: number): HTMLElement {
@@ -16,7 +15,7 @@ function renderMeter(label: string, value: number): HTMLElement {
 export function renderOperationView(
   view: GameViewModel,
   dispatch: CommandDispatcher,
-  threatImpacts: ReadonlyMap<string, ThreatImpactViewModel>,
+  battlefield: HTMLElement,
 ): HTMLElement {
   const operation = view.operation;
   const main = node("main", "operation-screen");
@@ -190,7 +189,7 @@ export function renderOperationView(
   const left = node("aside", "operation-sidebar operation-sidebar-left");
   left.append(status, renderHarnessControls(view, dispatch));
   const center = node("section", "battlefield-column");
-  center.append(renderGameBattlefield(operation.battlefield, threatImpacts));
+  center.append(battlefield);
   const right = node("aside", "operation-sidebar operation-sidebar-right");
   right.append(officers, reports);
   grid.append(left, center, right);

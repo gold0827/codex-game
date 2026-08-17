@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createLocalStorageCampaignRepository,
@@ -98,6 +98,7 @@ describe("game workbench", () => {
   };
 
   beforeEach(() => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     document.body.innerHTML = '<div id="root"></div>';
     root = document.querySelector("#root")!;
     storage = new MemoryStorage();
@@ -113,6 +114,7 @@ describe("game workbench", () => {
 
   afterEach(() => {
     workbench.destroy();
+    vi.restoreAllMocks();
   });
 
   it("keeps the field manual available in every game phase", () => {
