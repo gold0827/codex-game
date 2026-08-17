@@ -124,6 +124,10 @@ describe("production game app", () => {
     expect(root.querySelector("[data-phase='operation']")).not.toBeNull();
     expect(action("pause").textContent).toBe("일시정지");
     expect(root.querySelectorAll("[data-action^='speed-']")).toHaveLength(3);
+    expect(root.querySelector("[data-region='event-flow']")).not.toBeNull();
+    expect(root.querySelector("[data-region='interventions']")?.textContent).toContain("회 남음");
+    expect(root.querySelector(".operation-grid")?.children[1]?.getAttribute("data-region")).toBeNull();
+    expect(root.querySelector(".operation-grid")?.children[1]?.querySelector("[data-region='battlefield']")).not.toBeNull();
   });
 
   it("renders live state and advances authored tutorial actions in order", () => {

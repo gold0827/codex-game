@@ -172,14 +172,14 @@
   font: 7px ui-monospace, monospace;
 }
 
-.officer-list,
+.officer-roster,
 .report-list {
   display: grid;
   gap: 7px;
   margin-top: 9px;
 }
 
-.officer-card,
+.officer-roster-item,
 .report-card {
   padding: 8px;
   border: 1px solid #213b30;
@@ -189,6 +189,26 @@
 .officer-selected {
   border-color: var(--scene-accent);
   box-shadow: inset 3px 0 var(--scene-accent);
+}
+
+.officer-roster {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.officer-roster-item {
+  padding: 3px;
+}
+
+.selected-officer-detail {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #213b30;
+  background: #0d1c18;
+}
+
+.selected-officer-name {
+  color: var(--cyan);
+  font-size: 10px;
 }
 
 .officer-select {
@@ -254,10 +274,22 @@
 }
 
 .report-actions .game-button,
-.officer-card > .game-button:last-child {
+.selected-officer-detail > .game-button:last-child {
   min-height: 25px;
   padding: 4px 6px;
   font-size: 8px;
+}
+
+.officer-panel,
+.report-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.report-list {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .empty-copy {

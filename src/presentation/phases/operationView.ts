@@ -75,10 +75,11 @@ export function renderOperationView(
 
   const officers = node("section", "officer-panel panel-card");
   officers.dataset.region = "officers";
-  officers.append(node("p", "eyebrow", "자율 장교"), node("h2", undefined, "장교 판단"));
-  const officerList = node("div", "officer-list");
+  officers.append(node("p", "eyebrow", "자율 장교"), node("h2", undefined, "선택 장교"));
+  const officerList = node("div", "officer-roster");
+  const selectedOfficer = operation.officers.find(({ selected }) => selected) ?? operation.officers[0];
   operation.officers.forEach((officer) => {
-    const card = node("article", `officer-card${officer.selected ? " officer-selected" : ""}`);
+    const card = node("article", `officer-roster-item${officer.selected ? " officer-selected" : ""}`);
     card.dataset.officerId = officer.id;
     if (officer.guided) card.classList.add("guidance-target");
     const inspect = commandButton(officer.name, "inspect-officer", { type: "inspect-officer", officerId: officer.id }, dispatch, {
@@ -86,16 +87,17 @@ export function renderOperationView(
       focusKey: `inspect-${officer.id}`,
     });
     inspect.classList.add("officer-select");
-    const facts = node("dl", "officer-facts");
-    officer.facts.forEach(([term, value]) => facts.append(node("dt", undefined, term), node("dd", undefined, value)));
-    const authorize = commandButton("예외 권한 승인", "authorize-officer", { type: "authorize-officer", officerId: officer.id }, dispatch, {
-      disabled: !officer.canAuthorize,
-      focusKey: `authorize-${officer.id}`,
-    });
-    card.append(inspect, facts, authorize);
+    card.append(inspect);
     officerList.append(card);
   });
   officers.append(officerList);
+  if (selectedOfficer) {
+    const detail = node("article", "selected-officer-detail");
+    const facts = node("dl", "officer-facts");
+    selectedOfficer.facts.forEach(([term, value]) => facts.append(node("dt", undefined, term), node("dd", undefined, value)));
+    detail.append(node("strong", "selected-officer-name", selectedOfficer.name), facts);
+    officers.append(detail);
+  }
 
   const reports = node("section", "report-panel panel-card");
   reports.dataset.region = "reports";
@@ -132,6 +134,58 @@ export function renderOperationView(
   if (!operation.reports.length) reportList.append(node("p", "empty-copy", "아직 수신된 보고가 없습니다."));
   reports.append(reportList);
 
+  const eventFlow = node("section", "operation-event-flow panel-card");
+  eventFlow.dataset.region = "event-flow";
+  eventFlow.append(node("p", "eyebrow", "실시간 기록"), node("h2", undefined, "사건 흐름"));
+  const eventList = node("ol", "event-flow-list");
+  operation.events.forEach((event) => {
+    const item = node("li", `event-flow-item event-${event.kind}`);
+    item.dataset.eventSequence = String(event.sequence);
+    item.append(node("time", undefined, event.time), node("span", undefined, event.label));
+    eventList.append(item);
+  });
+  if (!operation.events.length) eventList.append(node("li", "event-flow-empty", "작전 사건을 기다리는 중"));
+  eventFlow.append(eventList);
+
+  const interventions = node("section", "intervention-tray panel-card");
+  interventions.dataset.region = "interventions";
+  const interventionHeading = node("div", "intervention-heading");
+  interventionHeading.append(
+    node("div", undefined, "직접 개입 트레이"),
+    node("strong", undefined, `${operation.remainingInterventions}회 남음`),
+  );
+  const interventionActions = node("div", "intervention-actions");
+  if (selectedOfficer) {
+    interventionActions.append(commandButton(
+      `${selectedOfficer.name} 예외 권한`,
+      "authorize-officer",
+      { type: "authorize-officer", officerId: selectedOfficer.id },
+      dispatch,
+      { disabled: !selectedOfficer.canAuthorize, focusKey: `tray-authorize-${selectedOfficer.id}` },
+    ));
+  }
+  const latestReport = operation.reports[0];
+  if (latestReport) {
+    interventionActions.append(
+      commandButton(
+        "최신 보고 전달",
+        "route-report",
+        { type: "route-report", reportId: latestReport.id, recipientOfficerId: latestReport.recipientId },
+        dispatch,
+        { disabled: !latestReport.canIntervene, focusKey: `tray-route-${latestReport.id}`, cue: "report" },
+      ),
+      commandButton(
+        "최신 보고 검증 우선",
+        "prioritize-verification",
+        { type: "prioritize-verification", reportId: latestReport.id },
+        dispatch,
+        { disabled: !latestReport.canVerify, focusKey: `tray-verify-${latestReport.id}`, cue: "report" },
+      ),
+    );
+  }
+  if (!interventionActions.childElementCount) interventionActions.append(node("p", "empty-copy", "개입 가능한 보고나 장교가 없습니다."));
+  interventions.append(interventionHeading, interventionActions);
+
   const grid = node("div", "operation-grid");
   const left = node("aside", "operation-sidebar operation-sidebar-left");
   left.append(status, renderHarnessControls(view, dispatch));
@@ -140,6 +194,6 @@ export function renderOperationView(
   const right = node("aside", "operation-sidebar operation-sidebar-right");
   right.append(officers, reports);
   grid.append(left, center, right);
-  main.append(commandBar, grid);
+  main.append(commandBar, grid, eventFlow, interventions);
   return main;
 }
