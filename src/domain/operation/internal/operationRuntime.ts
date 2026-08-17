@@ -423,6 +423,8 @@ export function createOperationSimulation(
     scene, harness, consequences, durationMs, state,
     officers, messages, spatialSignals, threats, units, objectives, metrics, replayEntries, operationEvents, appendReplay,
     spatialWorld,
+    encounter,
+    threatActorId,
   });
   const decisions = createDecisions({
     scene, roster, harness, durationMs, compoundReplanRequired, state, officers, messages, spatialSignals, threats, units,

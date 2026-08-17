@@ -33,7 +33,10 @@ export type MutableMessage = Mutable<Omit<OperationMessageSnapshot, "verificatio
 export type MutableSpatialSignal = Mutable<Omit<OperationSpatialSignalSnapshot, "recipients">> & {
   recipients: Array<Mutable<OperationSpatialSignalSnapshot["recipients"][number]>>;
 };
-export type MutableThreat = Omit<OperationThreatSnapshot, "state" | "result"> & {
+export type MutableThreat = Omit<
+  OperationThreatSnapshot,
+  "state" | "result" | "tile" | "health" | "suppression" | "panicReaction"
+> & {
   state: "telegraphed" | "resolved";
   result: "blocked" | "damaged-objective" | null;
 };
