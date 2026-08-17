@@ -100,15 +100,15 @@ export type GameCommand =
       strength: SpatialSignalStrength;
       position: CampaignTilePosition;
     }>
-  /** @deprecated Remove with route tutorial and legacy operation controls. */
+  /** Delivers a selected runtime report to one officer as a limited direct intervention. */
   | Readonly<{
       type: "route-report";
       reportId: string;
       recipientOfficerId: string;
     }>
-  /** @deprecated Remove with route tutorial and legacy operation controls. */
+  /** Grants one officer exception authority as a limited direct intervention. */
   | Readonly<{ type: "authorize-officer"; officerId: string }>
-  /** @deprecated Remove with route tutorial and legacy operation controls. */
+  /** Moves one runtime report to the front of verification as a limited direct intervention. */
   | Readonly<{ type: "prioritize-verification"; reportId: string }>
   | Readonly<{ type: "continue-campaign" }>
   | Readonly<{ type: "choose-lesson"; lessonId: string }>
