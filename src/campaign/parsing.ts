@@ -1,4 +1,7 @@
-import type { CampaignDefinition } from "./types";
+import {
+  CAMPAIGN_SPATIAL_SIGNAL_KINDS,
+  type CampaignDefinition,
+} from "./types";
 import {
   validateCampaignDefinition,
   type CampaignDiagnosticCode,
@@ -166,7 +169,7 @@ function checkGuidance(
   const action = expectMember(
     guidance,
     "action",
-    ["pause", "inspect", "route", "resume"],
+    ["pause", "inspect", "route", "resume", "signal"],
     path,
     diagnostics,
   );
@@ -193,13 +196,35 @@ function checkGuidance(
       path,
       diagnostics,
     );
-  } else {
+  } else if (action === "route") {
     expectMember(target, "kind", ["report-recipient"], targetPath, diagnostics);
     expectStrings(target, ["reportId", "recipientOfficerId"], targetPath, diagnostics);
     expectMember(
       guidance,
       "completionEvent",
       ["report-routed"],
+      path,
+      diagnostics,
+    );
+  } else {
+    expectMember(target, "kind", ["spatial-signal"], targetPath, diagnostics);
+    expectMember(
+      target,
+      "signal",
+      CAMPAIGN_SPATIAL_SIGNAL_KINDS,
+      targetPath,
+      diagnostics,
+    );
+    expectType(target, "strength", "number", targetPath, diagnostics);
+    checkPosition(
+      target.position,
+      propertyPath(targetPath, "position"),
+      diagnostics,
+    );
+    expectMember(
+      guidance,
+      "completionEvent",
+      ["spatial-signal-issued"],
       path,
       diagnostics,
     );

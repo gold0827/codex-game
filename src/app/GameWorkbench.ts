@@ -14,10 +14,19 @@ import {
 } from "../ui/GameApp";
 import type { GameAudio } from "../ui/GameAudio";
 
+export type GameAudioCredit = Readonly<{
+  title: string;
+  author: string;
+  sourcePageUrl: string;
+  license: string;
+  licenseUrl: string;
+}>;
+
 export type GameWorkbenchOptions = Readonly<{
   repository?: CampaignRepository;
   frameScheduler?: GameFrameScheduler;
   audioFactory?: () => GameAudio;
+  audioCredits?: readonly GameAudioCredit[];
   seed?: string | number;
 }>;
 
@@ -105,6 +114,33 @@ export function mountGameWorkbench(
       </div>
     </article>
   `;
+  if (options.audioCredits && options.audioCredits.length > 0) {
+    const creditSection = document.createElement("section");
+    creditSection.className = "audio-credits";
+    const creditHeading = document.createElement("h2");
+    creditHeading.textContent = "배경음악 출처";
+    const creditSummary = document.createElement("p");
+    creditSummary.textContent = "아래 음원은 원작자가 CC0 1.0으로 공개했습니다.";
+    const creditList = document.createElement("ul");
+    creditList.className = "audio-credit-list";
+    options.audioCredits.forEach((credit) => {
+      const item = document.createElement("li");
+      const source = document.createElement("a");
+      source.href = credit.sourcePageUrl;
+      source.target = "_blank";
+      source.rel = "noreferrer";
+      source.textContent = `${credit.title} — ${credit.author}`;
+      const licenseLink = document.createElement("a");
+      licenseLink.href = credit.licenseUrl;
+      licenseLink.target = "_blank";
+      licenseLink.rel = "noreferrer";
+      licenseLink.textContent = credit.license;
+      item.append(source, document.createTextNode(" · "), licenseLink);
+      creditList.append(item);
+    });
+    creditSection.append(creditHeading, creditSummary, creditList);
+    manualRoot.querySelector(".field-manual-content")?.append(creditSection);
+  }
   const editorRoot = document.createElement("div");
   editorRoot.className = "workbench-editor";
   editorRoot.hidden = true;

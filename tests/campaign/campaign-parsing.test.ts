@@ -4,6 +4,7 @@ import {
   parseCampaignJson,
   parseCampaignValue,
   type CampaignDefinition,
+  type CampaignGuidanceStep,
 } from "../../src/campaign";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 
@@ -18,6 +19,57 @@ describe("campaign parsing", () => {
     expect(result.value.scenes[0].copy.title).toBe(
       completeCampaign.scenes[0].copy.title,
     );
+  });
+
+  it("round-trips a spatial signal guidance through JSON parsing", () => {
+    const source = structuredClone(completeCampaign) as CampaignDefinition;
+    const guidance: CampaignGuidanceStep = {
+      id: "defend-bridge",
+      instruction: "교량에 방어 신호를 보낸다.",
+      action: "signal",
+      target: {
+        kind: "spatial-signal",
+        signal: "defend",
+        strength: 2,
+        position: { x: 11, y: 7 },
+      },
+      completionEvent: "spatial-signal-issued",
+    };
+    (source.scenes[0].guidance as CampaignGuidanceStep[])[0] = guidance;
+
+    const result = parseCampaignJson(JSON.stringify(source));
+
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) throw new Error("Expected spatial signal guidance to parse.");
+    expect(result.value.scenes[0].guidance[0]).toEqual(guidance);
+  });
+
+  it("rejects an unknown spatial signal kind at the shape boundary", () => {
+    const source = structuredClone(completeCampaign) as CampaignDefinition;
+    (source.scenes[0].guidance as unknown as Array<Record<string, unknown>>)[0] = {
+      id: "invalid-signal",
+      instruction: "잘못된 신호",
+      action: "signal",
+      target: {
+        kind: "spatial-signal",
+        signal: "broadcast",
+        strength: 2,
+        position: { x: 11, y: 7 },
+      },
+      completionEvent: "spatial-signal-issued",
+    };
+
+    const result = parseCampaignValue(source);
+
+    expect(result).toMatchObject({
+      ok: false,
+      diagnostics: [
+        expect.objectContaining({
+          kind: "shape",
+          path: "$.scenes[0].guidance[0].target.signal",
+        }),
+      ],
+    });
   });
 
   it("returns a JSON diagnostic for malformed input", () => {

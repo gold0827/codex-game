@@ -44,6 +44,46 @@ type GameAppCampaign = Readonly<{
   officers: PresentationCampaign["officers"];
 }>;
 
+function isolateOptionalAudio(audio: GameAudio): GameAudio {
+  return {
+    cue: (cue) => {
+      try {
+        audio.cue(cue);
+      } catch {
+        // Optional audio cannot block game commands.
+      }
+    },
+    setSoundtrack: (soundtrackId) => {
+      try {
+        audio.setSoundtrack(soundtrackId);
+      } catch {
+        // Keep rendering without music.
+      }
+    },
+    muted: () => {
+      try {
+        return audio.muted();
+      } catch {
+        return true;
+      }
+    },
+    setMuted: (muted) => {
+      try {
+        audio.setMuted(muted);
+      } catch {
+        // Keep the mute control non-blocking.
+      }
+    },
+    dispose: () => {
+      try {
+        audio.dispose();
+      } catch {
+        // Continue the remaining UI teardown.
+      }
+    },
+  };
+}
+
 export function mountGameApp(
   root: HTMLElement,
   campaign: GameAppCampaign,
@@ -51,12 +91,13 @@ export function mountGameApp(
   options: GameAppOptions = {},
 ): GameApp {
   const scheduler = options.frameScheduler ?? { request: () => 0, cancel: () => undefined };
-  const audio = options.audio ?? {
+  const audio = isolateOptionalAudio(options.audio ?? {
     cue: () => undefined,
+    setSoundtrack: () => undefined,
     muted: () => true,
     setMuted: () => undefined,
     dispose: () => undefined,
-  } satisfies GameAudio;
+  } satisfies GameAudio);
   const campaignView: PresentationCampaign = {
     title: campaign.title,
     sceneCount: campaign.scenes.length,

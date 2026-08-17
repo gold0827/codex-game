@@ -109,23 +109,27 @@ function assertAffordable(
 
 function matchesGuidance(
   step: CampaignGuidanceStep,
-  action: CampaignGuidanceStep["action"],
-  target: Readonly<Record<string, string>>,
+  command: GameCommand,
 ): boolean {
-  if (step.action !== action) return false;
-  if (step.action === "pause" || step.action === "resume") {
-    return target.kind === "operation-clock";
+  switch (step.action) {
+    case "pause":
+      return command.type === "pause";
+    case "resume":
+      return command.type === "resume";
+    case "inspect":
+      return command.type === "inspect-officer" &&
+        command.officerId === step.target.officerId;
+    case "route":
+      return command.type === "route-report" &&
+        command.reportId === step.target.reportId &&
+        command.recipientOfficerId === step.target.recipientOfficerId;
+    case "signal":
+      return command.type === "issue-spatial-signal" &&
+        command.signal === step.target.signal &&
+        command.strength === step.target.strength &&
+        command.position.x === step.target.position.x &&
+        command.position.y === step.target.position.y;
   }
-  if (step.action === "inspect") {
-    return (
-      target.kind === "officer" && target.officerId === step.target.officerId
-    );
-  }
-  return (
-    target.kind === "report-recipient" &&
-    target.reportId === step.target.reportId &&
-    target.recipientOfficerId === step.target.recipientOfficerId
-  );
 }
 
 export function createGameSession(
@@ -165,14 +169,13 @@ export function createGameSession(
     return launch.seed;
   };
 
-  const routeReportsExist = (): boolean => {
+  const guidanceStepIsReady = (step: CampaignGuidanceStep): boolean => {
     if (!simulation) return false;
+    if (step.action !== "route") return true;
     const reportIds = new Set(
       simulation.snapshot().messages.map(({ authoredReportId }) => authoredReportId),
     );
-    return scene.guidance
-      .filter((step) => step.action === "route")
-      .every((step) => reportIds.has(step.target.reportId));
+    return reportIds.has(step.target.reportId);
   };
 
   const guidanceSnapshot = (): TutorialGuidanceSnapshot => {
@@ -181,7 +184,7 @@ export function createGameSession(
       active:
         phase === "operation" &&
         currentStep !== null &&
-        routeReportsExist(),
+        guidanceStepIsReady(currentStep),
       currentStepIndex: completedGuidanceSteps,
       currentStep: currentStep === null ? null : clone(currentStep),
       completedStepIds: scene.guidance
@@ -348,14 +351,13 @@ export function createGameSession(
   };
 
   const completeGuidance = (
-    action: CampaignGuidanceStep["action"],
-    target: Readonly<Record<string, string>>,
+    command: GameCommand,
   ): void => {
     const guidance = guidanceSnapshot();
     if (
       guidance.active &&
       guidance.currentStep &&
-      matchesGuidance(guidance.currentStep, action, target)
+      matchesGuidance(guidance.currentStep, command)
     ) {
       completedGuidanceSteps += 1;
     }
@@ -365,7 +367,7 @@ export function createGameSession(
     requirePhase("operation", "Pausing");
     if (paused) return snapshot();
     paused = true;
-    completeGuidance("pause", { kind: "operation-clock" });
+    completeGuidance({ type: "pause" });
     return snapshot();
   };
 
@@ -373,7 +375,7 @@ export function createGameSession(
     requirePhase("operation", "Resuming");
     if (!paused) return snapshot();
     paused = false;
-    completeGuidance("resume", { kind: "operation-clock" });
+    completeGuidance({ type: "resume" });
     return snapshot();
   };
 
@@ -387,7 +389,7 @@ export function createGameSession(
       );
     }
     selectedOfficerId = officerId;
-    completeGuidance("inspect", { kind: "officer", officerId });
+    completeGuidance({ type: "inspect-officer", officerId });
     return snapshot();
   };
 
@@ -415,8 +417,8 @@ export function createGameSession(
       reportId,
       recipientOfficerId,
     });
-    completeGuidance("route", {
-      kind: "report-recipient",
+    completeGuidance({
+      type: "route-report",
       reportId,
       recipientOfficerId,
     });
@@ -427,12 +429,21 @@ export function createGameSession(
     signal: SpatialSignalKind,
     strength: SpatialSignalStrength,
     position: CampaignTilePosition,
-  ): GameSnapshot => intervene({
-    kind: "issue-spatial-signal",
-    signal,
-    strength,
-    position,
-  });
+  ): GameSnapshot => {
+    const result = intervene({
+      kind: "issue-spatial-signal",
+      signal,
+      strength,
+      position,
+    });
+    completeGuidance({
+      type: "issue-spatial-signal",
+      signal,
+      strength,
+      position,
+    });
+    return snapshot().phase === result.phase ? snapshot() : result;
+  };
 
   const authorizeOfficer = (officerId: string): GameSnapshot =>
     intervene({ kind: "authorize-officer", officerId });

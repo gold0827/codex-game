@@ -1,3 +1,9 @@
+import {
+  createLocalStorageCampaignRepository,
+  type CampaignDefinition,
+  type CampaignRepository,
+} from "../../campaign";
+
 type BrowserAudioCue =
   | "click"
   | "report"
@@ -12,7 +18,18 @@ type BrowserAudioCue =
   | "panic"
   | "retreat";
 
+export type BrowserSoundtrack = Readonly<{
+  id: string;
+  src: string;
+  volume?: number;
+}>;
+
 type AudioContextConstructor = new () => AudioContext;
+
+type BrowserAudioOptions = Readonly<{
+  createMusicElement?: () => HTMLAudioElement;
+  audioContextConstructor?: AudioContextConstructor | null;
+}>;
 
 const cueNotes: Readonly<Record<BrowserAudioCue, readonly [number, number, number]>> = {
   click: [520, 0.025, 0.025],
@@ -51,21 +68,91 @@ export function createBrowserCampaignRepository(
   return createLocalStorageCampaignRepository(campaign, createBrowserStorage(), storageKey);
 }
 
-export function createBrowserAudio() {
+export function createBrowserAudio(
+  soundtracks: readonly BrowserSoundtrack[] = [],
+  options: BrowserAudioOptions = {},
+) {
+  const soundtrackById = new Map(soundtracks.map((soundtrack) => [soundtrack.id, soundtrack]));
+  const music = options.createMusicElement?.() ?? new Audio();
   let context: AudioContext | null = null;
   let isMuted = false;
+  let isUnlocked = false;
+  let activeSoundtrackId: string | null = null;
+  let disposed = false;
+
+  const safelyUseMusic = (operation: () => void): boolean => {
+    try {
+      operation();
+      return true;
+    } catch {
+      // HTMLMediaElement support and state vary by browser. Audio stays optional.
+      return false;
+    }
+  };
+
+  const clearMusic = (): void => {
+    safelyUseMusic(() => music.pause());
+    safelyUseMusic(() => music.removeAttribute("src"));
+    safelyUseMusic(() => music.load());
+  };
 
   const contextConstructor = (): AudioContextConstructor | null => {
+    if (options.audioContextConstructor !== undefined) {
+      return options.audioContextConstructor;
+    }
     const audioWindow = window as typeof window & { webkitAudioContext?: AudioContextConstructor };
     return window.AudioContext ?? audioWindow.webkitAudioContext ?? null;
   };
 
+  const playMusic = (): void => {
+    if (disposed || isMuted || !isUnlocked || activeSoundtrackId === null) return;
+    try {
+      const started = music.play();
+      void started.catch(() => undefined);
+    } catch {
+      // Browser media failures must never block play.
+    }
+  };
+
+  const setSoundtrack = (soundtrackId: string | null): void => {
+    if (disposed || soundtrackId === activeSoundtrackId) return;
+    const soundtrack = soundtrackId === null ? undefined : soundtrackById.get(soundtrackId);
+    activeSoundtrackId = soundtrack?.id ?? null;
+    if (!soundtrack) {
+      clearMusic();
+      return;
+    }
+    safelyUseMusic(() => music.pause());
+    const requestedVolume = soundtrack.volume ?? 0.16;
+    const volume = Number.isFinite(requestedVolume)
+      ? Math.min(1, Math.max(0, requestedVolume))
+      : 0.16;
+    const configured = safelyUseMusic(() => {
+      music.src = soundtrack.src;
+      music.loop = true;
+      music.preload = "auto";
+      music.volume = volume;
+      music.muted = isMuted;
+      music.currentTime = 0;
+    });
+    if (!configured) {
+      activeSoundtrackId = null;
+      clearMusic();
+      return;
+    }
+    playMusic();
+  };
+
   const cue = (name: BrowserAudioCue): void => {
+    if (disposed) return;
+    isUnlocked = true;
     if (isMuted) return;
+    playMusic();
     try {
       const Constructor = contextConstructor();
       if (!Constructor) return;
       context ??= new Constructor();
+      if (context.state === "suspended") void context.resume().catch(() => undefined);
       const [frequency, duration, volume] = cueNotes[name];
       const oscillator = context.createOscillator();
       const gain = context.createGain();
@@ -87,17 +174,32 @@ export function createBrowserAudio() {
 
   return {
     cue,
+    setSoundtrack,
     muted: () => isMuted,
-    setMuted: (muted: boolean) => { isMuted = muted; },
+    setMuted: (muted: boolean) => {
+      if (disposed) return;
+      isUnlocked = true;
+      isMuted = muted;
+      safelyUseMusic(() => {
+        music.muted = muted;
+      });
+      if (muted) safelyUseMusic(() => music.pause());
+      else playMusic();
+    },
     dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      clearMusic();
+      activeSoundtrackId = null;
       const closing = context;
       context = null;
-      if (closing) void closing.close().catch(() => undefined);
+      if (closing) {
+        try {
+          void closing.close().catch(() => undefined);
+        } catch {
+          // A failed context close must not interrupt the remaining UI teardown.
+        }
+      }
     },
   };
 }
-import {
-  createLocalStorageCampaignRepository,
-  type CampaignDefinition,
-  type CampaignRepository,
-} from "../../campaign";

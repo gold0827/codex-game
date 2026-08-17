@@ -6,6 +6,7 @@ import {
 } from "../../src/campaign";
 import type { GameSession } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { productionSoundtrackCatalog } from "../../src/app/musicCatalog";
 import type { GameAudio } from "../../src/ui/GameAudio";
 import type { GameFrameScheduler } from "../../src/ui/GameApp";
 import {
@@ -100,6 +101,7 @@ describe("game workbench", () => {
 
   const audioFactory = (): GameAudio => ({
     cue: () => undefined,
+    setSoundtrack: () => undefined,
     muted: () => true,
     setMuted: () => undefined,
     dispose: () => { disposedAudio += 1; },
@@ -122,6 +124,7 @@ describe("game workbench", () => {
       repository: createLocalStorageCampaignRepository(completeCampaign, storage),
       frameScheduler: scheduler,
       audioFactory,
+      audioCredits: productionSoundtrackCatalog,
       seed: "workbench-test",
     });
   });
@@ -179,6 +182,13 @@ describe("game workbench", () => {
     expect(overlay.textContent).toContain("제한된 직접 개입");
     expect(overlay.textContent).toContain("여섯 작전과 졸업");
     expect(overlay.textContent).toContain("별도 도구 · 장면 편집");
+    expect(overlay.textContent).toContain("배경음악 출처");
+    expect(overlay.querySelectorAll(".audio-credit-list li")).toHaveLength(
+      productionSoundtrackCatalog.length,
+    );
+    expect(overlay.querySelector<HTMLAnchorElement>(".audio-credit-list a")?.href).toBe(
+      productionSoundtrackCatalog[0].sourcePageUrl,
+    );
     expect(overlay.contains(content)).toBe(true);
     document.documentElement.scrollTop = 0;
     content.scrollTop = 160;

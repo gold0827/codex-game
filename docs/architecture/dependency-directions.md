@@ -38,6 +38,7 @@
 ```text
 src/main.ts
 └─ mountProductionGame                         app composition
+   ├─ CC0 music catalog                        app asset composition
    ├─ browser frame/audio/localStorage adapter platform
    └─ mountGameWorkbench                       app
       ├─ CampaignDocument + CampaignWorkshop   authoring
