@@ -64,18 +64,3 @@ game session이나 operation을 import할 수 없다. `app`만 여러 module을 
 
 대응되지 않는 새 최상위 소스 경로도 검사 실패다. 새 module을 암묵적으로
 허용하지 않고 이 문서와 검사 규칙을 함께 바꾸게 하기 위해서다.
-
-## 현재 이전 예외
-
-현재 presentation에 섞여 있는 조립·authoring·투영 책임 때문에 아래 **정확한
-파일 쌍 2개만** 한시적으로 허용한다. module 간 방향 전체를 허용하지 않으므로
-같은 금지 방향의 새 import는 실패한다. import가 이동되면 검사기는 쓰이지 않는
-예외를 실패로 보고하며, 해당 예외와 이 표의 행을 같은 변경에서 삭제해야 한다.
-
-| importer → imported | 제거 시점 |
-| --- | --- |
-| `ui/CommandRoom.ts` → `scenarios/commandRoomScenario.ts` | #72에서 기존 scenario 기반 view를 교체할 때 |
-| `ui/TacticalMap.ts` → `scenarios/commandRoomScenario.ts` | #72에서 기존 scenario 기반 view를 교체할 때 |
-
-이 예외는 현재 동작을 보존하기 위한 이전 장부이지 목표 구조의 허용 방향이
-아니다.

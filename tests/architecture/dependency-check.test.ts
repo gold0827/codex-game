@@ -28,11 +28,11 @@ describe("dependency direction checker", () => {
     }
   });
 
-  it("accepts the repository graph and its exact migration exceptions", () => {
+  it("accepts the repository graph without migration exceptions", () => {
     const result = runChecker();
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("2 migration exceptions");
+    expect(result.stdout).toContain("0 migration exceptions");
   });
 
   it("rejects a new presentation import from the campaign domain", () => {
