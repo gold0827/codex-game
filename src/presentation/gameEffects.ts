@@ -31,6 +31,7 @@ export function createGameEffects(
   let previousFrameTime: number | null = null;
   let previousRenderTime: number | null = null;
   let previousPhase = session.read().phase;
+  let previousSoundtrackId: string | null = null;
   let knownThreatIds = new Set<string>();
   let knownEffectCueIds = new Set<string>();
   let destroyed = false;
@@ -69,6 +70,11 @@ export function createGameEffects(
     threatImpacts,
     get effectTrack() { return effectTrack; },
     observe: (snapshot) => {
+      const soundtrackId = snapshot.scene.presentation.soundtrackId;
+      if (soundtrackId !== previousSoundtrackId) {
+        audio.setSoundtrack(soundtrackId);
+        previousSoundtrackId = soundtrackId;
+      }
       const currentThreatIds = new Set(snapshot.operation?.threats.map(({ id }) => id));
       if ([...currentThreatIds].some((id) => !knownThreatIds.has(id))) audio.cue("threat");
       knownThreatIds = currentThreatIds;

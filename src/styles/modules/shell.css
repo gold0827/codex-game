@@ -115,6 +115,20 @@
   line-height: 1.65;
 }
 
+.audio-credit-list {
+  display: grid;
+  gap: 5px;
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.audio-credit-list a {
+  color: var(--cyan);
+}
+
 .field-manual-content .field-manual-lead {
   color: var(--ink);
   font-size: 13px;
