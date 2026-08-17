@@ -11,6 +11,18 @@ export {
   type CampaignProgress,
   type CampaignProgressSnapshot,
 } from "./progress";
+export {
+  CampaignRunError,
+  createCampaignRun,
+  type CampaignLessonChoice,
+  type CampaignRun,
+  type CampaignRunSnapshot,
+  type CampaignRunStatus,
+  type OfficerLesson,
+  type OfficerLessonMemory,
+  type OperationLaunch,
+  type OperationResult,
+} from "./campaignRun";
 export type {
   CampaignDefinition,
   CampaignEncounterBeat,
