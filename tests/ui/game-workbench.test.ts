@@ -153,7 +153,9 @@ describe("game workbench", () => {
     ).length;
     let completedOperations = 1;
     while (workbench.session().read().phase !== "epilogue") {
-      workbench.session().dispatch({ type: "continue-campaign" });
+      const lesson = workbench.session().read().debrief?.lessonChoices[0];
+      if (!lesson) throw new Error("A successful operation must offer a lesson.");
+      workbench.session().dispatch({ type: "choose-lesson", lessonId: lesson.id });
       if (workbench.session().read().phase === "epilogue") break;
       if (completedOperations >= operationCount) {
         throw new Error("Campaign did not reach the epilogue within the authored operations.");

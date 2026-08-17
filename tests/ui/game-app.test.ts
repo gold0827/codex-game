@@ -328,8 +328,12 @@ describe("production game app", () => {
       );
       expect(root.querySelector("[data-region='objective-results']")?.textContent).toContain("달성");
       expect(root.querySelector("[data-region='failure-causes']")).toBeNull();
-      expect(action("continue-campaign").textContent).toBe("다음 작전");
-      action("continue-campaign").click();
+      const lessonChoices = root.querySelectorAll<HTMLButtonElement>(
+        '[data-action="choose-lesson"]',
+      );
+      expect(lessonChoices).toHaveLength(completeCampaign.officers.length);
+      expect(lessonChoices[0]?.textContent).toContain(completeCampaign.officers[0]?.name);
+      lessonChoices[0]?.click();
     }
 
     expect(playedScenes).toEqual(

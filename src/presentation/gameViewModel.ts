@@ -205,6 +205,14 @@ function projectDebrief(
         officer: officer ? `${officer.rank} ${officer.name}` : null,
       };
     }) ?? [],
+    lessonChoices: snapshot.debrief.lessonChoices.map((lesson) => {
+      const officer = roster.get(lesson.officerId);
+      return {
+        id: lesson.id,
+        officer: officer ? `${officer.rank} ${officer.name}` : lesson.officerId,
+        summary: lesson.summary,
+      };
+    }),
   } as const;
 }
 

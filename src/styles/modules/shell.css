@@ -310,13 +310,15 @@
 }
 
 .debrief-results,
-.debrief-failures {
+.debrief-failures,
+.debrief-lessons {
   margin-top: 18px;
   text-align: left;
 }
 
 .debrief-results h3,
-.debrief-failures h3 {
+.debrief-failures h3,
+.debrief-lessons h3 {
   margin: 0 0 8px;
   color: var(--scene-accent);
   font-size: 11px;
@@ -384,6 +386,16 @@
 
 .debrief-card > .primary-button {
   margin-top: 20px;
+}
+
+.debrief-lessons {
+  display: grid;
+  gap: 8px;
+}
+
+.debrief-lessons .game-button {
+  width: 100%;
+  text-align: left;
 }
 
 .epilogue-screen {

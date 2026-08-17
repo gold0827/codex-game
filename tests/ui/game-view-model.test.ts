@@ -82,4 +82,21 @@ describe("game presentation view model", () => {
       /point-not-preserved|threat-not-neutralized|report-not-routed|signal-school:event/,
     );
   });
+
+  it("projects successful lesson choices with officer names", () => {
+    const session = createGameSession(completeCampaign, "view-model-lessons");
+    session.dispatch({ type: "start-attempt" });
+    const operation = session.read();
+    session.advance(
+      operation.scene.encounterParameters.durationMs /
+        operation.scene.gameplayTuning.simulationSpeed +
+        1,
+    );
+
+    const view = projectGameViewModel(session.read(), campaignView);
+
+    expect(view.debrief?.success).toBe(true);
+    expect(view.debrief?.lessonChoices).toHaveLength(completeCampaign.officers.length);
+    expect(view.debrief?.lessonChoices[0]?.officer).toBe("소령 백돌격");
+  });
 });

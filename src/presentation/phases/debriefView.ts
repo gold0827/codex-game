@@ -45,15 +45,33 @@ export function renderDebriefView(view: GameViewModel, dispatch: CommandDispatch
     });
     card.append(failureCauses);
   }
-  const next = commandButton(
-    success ? "다음 작전" : "다시 시도",
-    "continue-campaign",
-    { type: "continue-campaign" },
-    dispatch,
-    { cue: success ? "success" : "failure", focusKey: "start-attempt" },
-  );
-  next.classList.add("primary-button");
-  card.append(next);
+  if (success) {
+    const lessons = node("section", "debrief-lessons");
+    lessons.dataset.region = "lesson-choices";
+    lessons.append(node("h3", undefined, "남길 교훈 선택"));
+    debrief?.lessonChoices.forEach((lesson, index) => {
+      const choice = commandButton(
+        `${lesson.officer} · ${lesson.summary}`,
+        "choose-lesson",
+        { type: "choose-lesson", lessonId: lesson.id },
+        dispatch,
+        { cue: "success", focusKey: index === 0 ? "start-attempt" : undefined },
+      );
+      if (index === 0) choice.classList.add("primary-button");
+      lessons.append(choice);
+    });
+    card.append(lessons);
+  } else {
+    const retry = commandButton(
+      "다시 시도",
+      "continue-campaign",
+      { type: "continue-campaign" },
+      dispatch,
+      { cue: "failure", focusKey: "start-attempt" },
+    );
+    retry.classList.add("primary-button");
+    card.append(retry);
+  }
   main.append(card);
   return main;
 }

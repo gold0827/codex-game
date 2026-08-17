@@ -44,12 +44,14 @@ src/main.ts
       │  └─ CampaignRepository                 domain/campaign seam
       ├─ GameSession                           application interface
       │  └─ GameController                     application state machine
-      │     └─ operationEngine                 domain/operation interface
-      │        ├─ timeline
-      │        ├─ signals + limited beliefs
-      │        ├─ decisions
-      │        ├─ threats + movement
-      │        └─ outcome + operation events
+      │     └─ CampaignRun                     campaign progress + lesson memory
+      │        └─ CampaignOperation            launch/result adapter
+      │           └─ operationEngine           domain/operation interface
+      │              ├─ timeline
+      │              ├─ signals + limited beliefs
+      │              ├─ decisions
+      │              ├─ threats + movement
+      │              └─ outcome + operation events
       └─ GameApp                               presentation mount adapter
          ├─ GameEffects                        frame/focus/audio owner
          ├─ projectGameViewModel               snapshot projector
@@ -70,6 +72,11 @@ presentation은 simulation 내부를 직접 알지 않는다. 모든 player acti
 project한 `GameViewModel`로 나온다. 브라우저 전역은 app/workbench,
 CampaignWorkshop, presentation과 platform adapter에만 있고 application과
 domain에는 없다.
+
+`CampaignRun`은 현재 장면, 시도 번호, 안정적인 작전 seed와 장교별 최근 교훈을
+단독 소유한다. `GameController`는 run이 내놓은 launch를 `CampaignOperation`에
+전달하고, 실패 결과는 같은 launch로 재시도하며 성공 결과는 플레이어가 교훈을
+선택한 뒤에만 다음 장면으로 진행한다.
 
 ## Public interface
 
