@@ -151,13 +151,13 @@ describe("operation simulation determinism", () => {
       scene,
       completeCampaign.officers,
       "segmentation-seed",
-      BALANCED_HARNESS,
+      poorHarness,
     );
     const segmented = createOperationSimulation(
       scene,
       completeCampaign.officers,
       "segmentation-seed",
-      BALANCED_HARNESS,
+      poorHarness,
     );
     single.advance(scene.encounterParameters.durationMs);
 
@@ -173,6 +173,7 @@ describe("operation simulation determinism", () => {
 
     expect(segmented.snapshot()).toEqual(single.snapshot());
     expect(segmented.replay()).toEqual(single.replay());
+    expect(segmented.events()).toEqual(single.events());
   });
 
   it("uses no elapsed display time while the caller does not advance", () => {
@@ -446,6 +447,42 @@ describe("reports and harness tradeoffs", () => {
 });
 
 describe("threats, intervention, and outcome", () => {
+  it("runs spatial combat, personality panic, and autonomous recovery through operation events", () => {
+    const scene = playableScenes.find(
+      ({ identity }) => identity.id === "misaddressed-artillery",
+    ) as CampaignScene;
+    const simulation = runToEnd(scene, 101, poorHarness);
+    const events = simulation.events();
+
+    expect(events).toContainEqual(expect.objectContaining({
+      kind: "unit-hit",
+      data: expect.objectContaining({
+        actorId: "threat:artillery-ceremonial-volley",
+        targetId: "captain-han",
+      }),
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      kind: "unit-suppressed",
+      data: expect.objectContaining({ actorId: "captain-han" }),
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      kind: "unit-retreated",
+      data: expect.objectContaining({ actorId: "captain-han" }),
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      kind: "panic-recovered",
+      timeMs: 21_400,
+      data: { actorId: "captain-han" },
+    }));
+    expect(simulation.snapshot().units.find(
+      ({ officerId }) => officerId === "captain-han",
+    )).toMatchObject({
+      tile: { x: 21, y: 7 },
+      panicReaction: null,
+      suppression: 0.33,
+    });
+  });
+
   it("never damages an objective before the authored telegraph ends", () => {
     const scene = playableScenes[1] as CampaignScene;
     const simulation = createOperationSimulation(

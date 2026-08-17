@@ -1,7 +1,9 @@
 import type { CampaignThreat, ThreatSeverity } from "../../../campaign/types";
-import type { HarnessConfiguration, OfficerBeliefSnapshot } from "../../../simulation/simulationTypes";
+import type { OfficerBeliefSnapshot, ReplayDataValue } from "../../../simulation/simulationTypes";
+import type { EncounterEvent, EncounterSimulation } from "./encounterTypes";
 import type {
   AppendReplay,
+  AppendWorldEvent,
   MutableMetrics,
   MutableObjective,
   MutableOfficer,
@@ -9,15 +11,13 @@ import type {
   MutableUnit,
   OperationRuntimeState,
 } from "./operationTypes";
-import { SEVERITY_DAMAGE, SEVERITY_THRESHOLD, clamp, rounded } from "./operationTypes";
+import { SEVERITY_DAMAGE, clamp, rounded } from "./operationTypes";
+import type { SpatialWorld } from "./spatial";
 
 export function threatDamage(severity: ThreatSeverity): number { return SEVERITY_DAMAGE[severity]; }
-export function isThreatBlocked(defense: number, severity: ThreatSeverity): boolean { return defense >= SEVERITY_THRESHOLD[severity]; }
 
 type ThreatContext = {
-  harness: HarnessConfiguration;
   durationMs: number;
-  readiness: number;
   state: OperationRuntimeState;
   officers: MutableOfficer[];
   threats: MutableThreat[];
@@ -25,12 +25,97 @@ type ThreatContext = {
   units: MutableUnit[];
   metrics: MutableMetrics;
   appendReplay: AppendReplay;
+  appendWorldEvent: AppendWorldEvent;
   addBelief: (officer: MutableOfficer, belief: OfficerBeliefSnapshot) => void;
-  advanceSpatial: () => void;
+  spatialWorld: SpatialWorld;
+  encounter: EncounterSimulation;
+  threatActorId: (threatId: string) => string;
 };
 
+function encounterEventData(event: EncounterEvent): Readonly<Record<string, ReplayDataValue>> {
+  if (event.kind === "attack-blocked") {
+    return { actorId: event.actorId, targetId: event.targetId, reason: event.reason };
+  }
+  if (event.kind === "attack-missed") {
+    return { actorId: event.actorId, targetId: event.targetId };
+  }
+  if (event.kind === "unit-hit") {
+    return {
+      actorId: event.actorId,
+      targetId: event.targetId,
+      damage: event.damage,
+      remainingHealth: event.remainingHealth,
+      inCover: event.inCover,
+    };
+  }
+  if (event.kind === "unit-suppressed") {
+    return { actorId: event.actorId, sourceId: event.sourceId, suppression: event.suppression };
+  }
+  if (event.kind === "unit-retreated") {
+    return {
+      actorId: event.actorId,
+      sourceId: event.sourceId,
+      fromX: event.from.x,
+      fromY: event.from.y,
+      toX: event.to.x,
+      toY: event.to.y,
+    };
+  }
+  if (event.kind === "target-misidentified") {
+    return { actorId: event.actorId, mistakenTargetId: event.mistakenTargetId ?? "" };
+  }
+  if (event.kind === "ally-followed") {
+    return {
+      actorId: event.actorId,
+      allyId: event.allyId ?? "",
+      fromX: event.from.x,
+      fromY: event.from.y,
+      toX: event.to.x,
+      toY: event.to.y,
+    };
+  }
+  return { actorId: event.actorId };
+}
+
 export function createThreats(context: ThreatContext) {
-  const { durationMs, readiness, state, officers, threats, objectives, units, metrics, appendReplay, addBelief, advanceSpatial } = context;
+  const {
+    durationMs, state, officers, threats, objectives, units, metrics, appendReplay, appendWorldEvent,
+    addBelief, spatialWorld, encounter, threatActorId,
+  } = context;
+
+  const recordEncounterEvents = (events: readonly EncounterEvent[]): void => {
+    events.forEach((event) => {
+      if ((event.kind === "unit-retreated" || event.kind === "ally-followed") &&
+          (event.from.x !== event.to.x || event.from.y !== event.to.y) &&
+          units.some(({ officerId }) => officerId === event.actorId)) {
+        spatialWorld.execute({ actorId: event.actorId, destination: event.to });
+      }
+      appendWorldEvent(event.kind, event.timeMs, encounterEventData(event));
+    });
+  };
+
+  const syncUnits = (): void => {
+    const snapshots = encounter.snapshot().actors;
+    units.forEach((unit) => {
+      const actor = snapshots.find(({ id }) => id === unit.officerId);
+      if (!actor) throw new Error(`Missing encounter actor "${unit.officerId}".`);
+      unit.health = actor.health;
+      unit.suppression = actor.suppression;
+      unit.panicReaction = actor.panicReaction;
+    });
+  };
+
+  const syncEncounter = (): void => {
+    spatialWorld.snapshot().actors.forEach((actor) => {
+      encounter.execute({ kind: "relocate", actorId: actor.actorId, position: actor.position });
+    });
+    const encounterElapsedMs = encounter.snapshot().elapsedMs;
+    if (encounterElapsedMs > state.elapsedMs) {
+      throw new Error("Encounter runtime advanced beyond operation time.");
+    }
+    recordEncounterEvents(encounter.advance(state.elapsedMs - encounterElapsedMs));
+    syncUnits();
+  };
 
   const telegraphThreat = (threat: CampaignThreat, timeMs: number): void => {
     const objective = objectives[threats.length % Math.max(1, objectives.length)];
@@ -49,7 +134,8 @@ export function createThreats(context: ThreatContext) {
     });
     officers.forEach((officer) => {
       const unit = units.find(({ officerId }) => officerId === officer.id);
-      const locallyVisible = unit?.lane === threat.lane || (threat.lane === "command" && officer.disposition === "communication");
+      const locallyVisible = unit?.lane === threat.lane ||
+        (threat.lane === "command" && officer.disposition === "communication");
       if (locallyVisible) {
         addBelief(officer, {
           subjectId: threat.id,
@@ -75,11 +161,52 @@ export function createThreats(context: ThreatContext) {
   };
 
   const resolveThreat = (threat: MutableThreat): void => {
-    const dispositionSupport = officers.some(({ disposition, authorized }) => disposition === "action" && authorized) ? 0.07 : 0;
-    const crossCheckSupport = threat.kind === "misinformation" && state.crossChecked ? 0.22 : 0;
-    const replanSupport = state.autonomousReplan ? 0.12 : 0;
-    const defense = readiness + dispositionSupport + crossCheckSupport + replanSupport;
-    const blocked = isThreatBlocked(defense, threat.severity);
+    const hostileId = threatActorId(threat.id);
+    const encounterActors = encounter.snapshot().actors;
+    const hostile = encounterActors.find(({ id }) => id === hostileId);
+    if (!hostile) throw new Error(`Missing hostile encounter actor "${hostileId}".`);
+    const actionPriority = { defend: 0, move: 1, support: 2 } as const;
+    const candidates = officers
+      .filter((officer) =>
+        officer.committedAction !== null &&
+        officer.committedAction.trace.selectedAction.kind !== "retreat" &&
+        (units.find(({ officerId }) => officerId === officer.id)?.health ?? 0) > 0 &&
+        units.find(({ officerId }) => officerId === officer.id)?.panicReaction === null
+      )
+      .sort((left, right) => {
+        const leftUnit = units.find(({ officerId }) => officerId === left.id);
+        const rightUnit = units.find(({ officerId }) => officerId === right.id);
+        const laneOrder = Number(rightUnit?.lane === threat.lane) - Number(leftUnit?.lane === threat.lane);
+        if (laneOrder !== 0) return laneOrder;
+        const priority = (officer: MutableOfficer): number => {
+          const kind = officer.committedAction?.trace.selectedAction.kind;
+          return kind && kind in actionPriority
+            ? actionPriority[kind as keyof typeof actionPriority]
+            : 3;
+        };
+        return priority(left) - priority(right) || left.id.localeCompare(right.id);
+      });
+    let engagingOfficerId = "";
+    for (const officer of candidates) {
+      engagingOfficerId = officer.id;
+      const events = encounter.execute({ kind: "attack", actorId: officer.id, targetId: hostileId });
+      recordEncounterEvents(events);
+      if (encounter.snapshot().actors.find(({ id }) => id === hostileId)?.health === 0) break;
+    }
+
+    const blocked = encounter.snapshot().actors.find(({ id }) => id === hostileId)?.health === 0;
+    if (!blocked) {
+      const livingUnits = units.filter(({ health }) => health > 0);
+      const target = livingUnits.find(({ lane }) => lane === threat.lane) ?? livingUnits[0];
+      if (target) {
+        recordEncounterEvents(encounter.execute({
+          kind: "attack",
+          actorId: hostileId,
+          targetId: target.officerId,
+        }));
+      }
+    }
+    syncUnits();
     threat.state = "resolved";
     threat.result = blocked ? "blocked" : "damaged-objective";
     if (blocked) {
@@ -93,8 +220,6 @@ export function createThreats(context: ThreatContext) {
       metrics.civilianSafety = clamp(metrics.civilianSafety - damage, 0, 100);
       metrics.logistics = clamp(metrics.logistics - Math.ceil(damage * 0.7), 0, 100);
       metrics.organizationTrust = clamp(metrics.organizationTrust - Math.ceil(damage * 0.6), 0, 100);
-      const unit = units.find(({ lane }) => lane === threat.lane);
-      if (unit) unit.health = clamp(unit.health - damage, 0, 100);
     }
     appendReplay("threat-resolved", threat.resolutionTimeMs, `Threat ${threat.id} ${blocked ? "was blocked" : "damaged its objective"} after its telegraph ended.`, {
       threatId: threat.id,
@@ -102,20 +227,23 @@ export function createThreats(context: ThreatContext) {
       target: threat.target,
       telegraphEndsAtMs: threat.telegraphEndsAtMs,
       resolutionTimeMs: threat.resolutionTimeMs,
-      defense: rounded(defense),
+      engagingOfficerId,
     });
   };
 
   const processThreats = (): void => {
+    syncEncounter();
     threats.forEach((threat) => {
       if (threat.state === "telegraphed" && threat.resolutionTimeMs <= state.elapsedMs) resolveThreat(threat);
     });
   };
 
   const updateProgress = (stepMs: number): void => {
-    const progressIncrement = (stepMs / durationMs) * readiness * 1.25;
+    const healthyRatio = units.reduce((total, unit) => total + unit.health, 0) /
+      Math.max(1, units.length * 100);
+    const progressIncrement = (stepMs / durationMs) * healthyRatio * 1.25;
     objectives.forEach((objective) => { objective.progress = clamp(objective.progress + progressIncrement); });
-    advanceSpatial();
+    spatialWorld.advance();
     metrics.objectiveProgress = rounded(
       objectives.reduce((total, objective) => total + objective.progress, 0) / Math.max(1, objectives.length),
     );

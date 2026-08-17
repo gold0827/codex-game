@@ -1,18 +1,26 @@
-import type { OperationReplayKind, ReplayDataValue } from "../../simulation/simulationTypes";
+import type {
+  OperationEventKind,
+  OperationReplayKind,
+  ReplayDataValue,
+} from "../../simulation/simulationTypes";
 
 export interface OperationEvent {
   readonly id: string;
   readonly sequence: number;
   readonly timeMs: number;
-  readonly kind: OperationReplayKind;
+  readonly kind: OperationEventKind;
   readonly data: Readonly<Record<string, ReplayDataValue>>;
 }
 
-export interface OperationReplayProjection extends OperationEvent {
+export interface OperationReplayEvent extends Omit<OperationEvent, "kind"> {
+  readonly kind: OperationReplayKind;
+}
+
+export interface OperationReplayProjection extends OperationReplayEvent {
   readonly description: string;
 }
 
-export function projectOperationReplay(event: OperationEvent): OperationReplayProjection {
+export function projectOperationReplay(event: OperationReplayEvent): OperationReplayProjection {
   const data = event.data;
   const value = (key: string): string => String(data[key] ?? "");
   const descriptions: Partial<Record<OperationReplayKind, string>> = {

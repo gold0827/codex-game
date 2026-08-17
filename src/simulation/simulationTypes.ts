@@ -14,6 +14,9 @@ import type {
   ActionCommitment,
   OfficerIntent,
 } from "../domain/operation/internal/agent/actions";
+import type { PanicReaction } from "../domain/operation/internal/encounterTypes";
+
+export type { PanicReaction } from "../domain/operation/internal/encounterTypes";
 
 export type {
   ActionCommitment,
@@ -117,6 +120,8 @@ export interface OperationUnitSnapshot {
   readonly route: readonly ThreatLane[];
   readonly intent: OfficerIntent;
   readonly health: number;
+  readonly suppression: number;
+  readonly panicReaction: PanicReaction | null;
   readonly objectiveId: string | null;
 }
 
@@ -195,6 +200,19 @@ export type OperationReplayKind =
 
 export type ReplayDataValue = string | number | boolean | readonly string[];
 
+export type OperationWorldEventKind =
+  | "attack-blocked"
+  | "attack-missed"
+  | "unit-hit"
+  | "unit-suppressed"
+  | "unit-retreated"
+  | "target-misidentified"
+  | "ally-followed"
+  | "unit-froze"
+  | "panic-recovered";
+
+export type OperationEventKind = OperationReplayKind | OperationWorldEventKind;
+
 export interface OperationReplayEntry {
   readonly sequence: number;
   readonly timeMs: number;
@@ -207,7 +225,7 @@ export type OperationEvent = Readonly<{
   readonly id: string;
   readonly sequence: number;
   readonly timeMs: number;
-  readonly kind: OperationReplayKind;
+  readonly kind: OperationEventKind;
   readonly data: Readonly<Record<string, ReplayDataValue>>;
 }>;
 

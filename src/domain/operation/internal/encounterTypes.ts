@@ -35,11 +35,17 @@ export type EncounterDefinition = Readonly<{
   actors: readonly EncounterActorDefinition[];
 }>;
 
-export type EncounterAction = Readonly<{
-  kind: "attack";
-  actorId: string;
-  targetId: string;
-}>;
+export type EncounterAction =
+  | Readonly<{
+      kind: "attack";
+      actorId: string;
+      targetId: string;
+    }>
+  | Readonly<{
+      kind: "relocate";
+      actorId: string;
+      position: CampaignTilePosition;
+    }>;
 
 export type AttackBlockReason =
   | "unknown-actor"

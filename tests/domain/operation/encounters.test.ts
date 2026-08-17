@@ -69,8 +69,25 @@ describe("spatial encounter runtime", () => {
     expect(occluded.execute({ kind: "attack", actorId: "officer", targetId: "hostile" })).toEqual([
       expect.objectContaining({ kind: "attack-blocked", reason: "no-line-of-sight" }),
     ]);
+    expect(outsideRange.events().some(({ kind }) => kind === "unit-suppressed")).toBe(false);
+    expect(occluded.events().some(({ kind }) => kind === "unit-suppressed")).toBe(false);
     expect(outsideRange.snapshot().actors.find(({ id }) => id === "hostile")?.health).toBe(100);
     expect(occluded.snapshot().actors.find(({ id }) => id === "hostile")?.health).toBe(100);
+  });
+
+  it("reduces suppression for an actor occupying cover", () => {
+    const simulation = createEncounterSimulation(encounter([
+      actor("officer", { position: { x: 1, y: 1 } }),
+      actor("hostile", { position: { x: 2, y: 1 } }),
+    ], { cover: [{ x: 2, y: 1 }] }), "cover");
+
+    const events = simulation.execute({ kind: "attack", actorId: "officer", targetId: "hostile" });
+
+    expect(events).toContainEqual(expect.objectContaining({
+      kind: "unit-suppressed",
+      actorId: "hostile",
+      suppression: 0.44,
+    }));
   });
 
   it.each([

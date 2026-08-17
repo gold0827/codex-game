@@ -272,6 +272,16 @@ export function createEncounterSimulation(
 
   const execute = (action: EncounterAction): readonly EncounterEvent[] => {
     const emitted: EncounterEvent[] = [];
+    if (action.kind === "relocate") {
+      const actor = actors.get(action.actorId);
+      if (!actor) throw new RangeError(`Unknown encounter actor "${action.actorId}".`);
+      validatePosition(action.position, definition.topology, `Actor "${action.actorId}" relocation`);
+      if (definition.topology.blocked.some((tile) => sameTile(tile, action.position))) {
+        throw new RangeError(`Actor "${action.actorId}" cannot relocate onto a blocked tile.`);
+      }
+      actor.position = copyTile(action.position);
+      return emitted;
+    }
     const actor = actors.get(action.actorId);
     const target = actors.get(action.targetId);
     const reason = blockedReason(actor, target);
