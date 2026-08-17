@@ -10,6 +10,7 @@ import type {
 import type { RandomSeed } from "../simulation/seededRandom";
 import type {
   HarnessConfiguration,
+  OperationEvent,
   OperationIntervention,
   OperationReplayEntry,
   OperationSnapshot,
@@ -66,6 +67,7 @@ export type GameSnapshot = Readonly<{
   harnessBudget: HarnessBudgetSnapshot;
   briefing: GameBriefingSnapshot | null;
   operation: OperationSnapshot | null;
+  operationEvents: readonly OperationEvent[];
   replay: readonly OperationReplayEntry[];
   paused: boolean;
   playerSpeed: PlayerSpeed;

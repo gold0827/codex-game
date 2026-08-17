@@ -103,79 +103,39 @@ export function projectEffectTrack(snapshot: GameSnapshot): EffectTrack {
     });
   }
 
+  for (const event of snapshot.operationEvents) {
+    const actorId = String(event.data.actorId ?? "");
+    const targetId = String(event.data.targetId ?? "");
+    const kind = event.kind === "unit-hit"
+      ? "hit"
+      : event.kind === "unit-suppressed"
+        ? "suppression"
+        : event.kind === "unit-retreated"
+          ? "retreat"
+          : event.kind === "target-misidentified" ||
+              event.kind === "unit-froze" ||
+              event.kind === "ally-followed"
+            ? "panic"
+            : null;
+    if (!kind) continue;
+    const actor = actors.get(event.kind === "unit-hit" ? targetId : actorId);
+    if (!actor) continue;
+    cues.push({
+      id: event.id,
+      kind,
+      position: actor.position,
+      startsAtMs: event.timeMs,
+      endsAtMs: event.timeMs + effectAssetManifest.effects[kind].durationMs,
+    });
+  }
+
   return { cues };
 }
 
 export function createEffectCueProjector(): EffectCueProjector {
-  let previous: GameSnapshot | null = null;
-  let sceneId: string | null = null;
-  const transientCues = new Map<string, EffectCue>();
-
-  const appendTransient = (
-    kind: EffectKind,
-    actorId: string,
-    position: Readonly<{ x: number; y: number }>,
-    operationTimeMs: number,
-    causalValue: string | number,
-  ): void => {
-    const id = `${kind}:${actorId}:${operationTimeMs}:${causalValue}`;
-    transientCues.set(id, {
-      id,
-      kind,
-      position,
-      startsAtMs: operationTimeMs,
-      endsAtMs: operationTimeMs + effectAssetManifest.effects[kind].durationMs,
-    });
-  };
-
-  const reset = (): void => {
-    previous = null;
-    sceneId = null;
-    transientCues.clear();
-  };
-
   return {
-    observe(snapshot) {
-      const operation = snapshot.operation;
-      if (!operation) {
-        reset();
-        return { cues: [] };
-      }
-      if (sceneId !== snapshot.scene.identity.id) reset();
-      sceneId = snapshot.scene.identity.id;
-      const previousOperation = previous?.operation;
-      const previousUnits = new Map(previousOperation?.units.map((unit) => [unit.officerId, unit]));
-      const actors = new Map(operation.spatial.actors.map((actor) => [actor.actorId, actor]));
-
-      for (const unit of operation.units) {
-        const actor = actors.get(unit.officerId);
-        if (!actor) continue;
-        const before = previousUnits.get(unit.officerId);
-        if (before && unit.health < before.health) {
-          appendTransient("hit", unit.officerId, actor.position, operation.elapsedMs, unit.health);
-        }
-        if ((!before && unit.suppression > 0) || (before && unit.suppression > before.suppression)) {
-          appendTransient("suppression", unit.officerId, actor.position, operation.elapsedMs, unit.suppression);
-        }
-        if (unit.panicReaction !== null && unit.panicReaction !== before?.panicReaction) {
-          appendTransient(
-            unit.panicReaction === "retreat" ? "retreat" : "panic",
-            unit.officerId,
-            actor.position,
-            operation.elapsedMs,
-            unit.panicReaction,
-          );
-        }
-      }
-
-      for (const [id, cue] of transientCues) {
-        if (cue.endsAtMs <= operation.elapsedMs) transientCues.delete(id);
-      }
-      previous = snapshot;
-      const sustained = projectEffectTrack(snapshot).cues;
-      return { cues: [...sustained, ...transientCues.values()] };
-    },
-    reset,
+    observe: projectEffectTrack,
+    reset: () => undefined,
   };
 }
 

@@ -105,7 +105,7 @@ describe("operation-time effect track", () => {
     expect(cues.find(({ id }) => id.startsWith(`verification:${officer.id}:`))?.position).toEqual(actor.position);
   });
 
-  it("retains causal combat deltas and spatial report cues for their manifest durations", () => {
+  it("projects each world event ID once regardless of repeated renderer observations", () => {
     const session = createGameSession(completeCampaign, "effect-deltas");
     session.dispatch({ type: "start-attempt" });
     const initial = session.read();
@@ -128,6 +128,54 @@ describe("operation-time effect track", () => {
 
     const changed: GameSnapshot = {
       ...baseline,
+      operationEvents: [
+        ...baseline.operationEvents,
+        {
+          id: "fixture:event-hit",
+          sequence: baseline.operationEvents.length,
+          timeMs: 100,
+          kind: "unit-hit",
+          data: {
+            actorId: secondUnit.officerId,
+            targetId: firstUnit.officerId,
+            damage: 26,
+            remainingHealth: 74,
+            inCover: false,
+          },
+        },
+        {
+          id: "fixture:event-suppressed",
+          sequence: baseline.operationEvents.length + 1,
+          timeMs: 100,
+          kind: "unit-suppressed",
+          data: {
+            actorId: firstUnit.officerId,
+            sourceId: secondUnit.officerId,
+            suppression: 0.6,
+          },
+        },
+        {
+          id: "fixture:event-panic",
+          sequence: baseline.operationEvents.length + 2,
+          timeMs: 100,
+          kind: "unit-froze",
+          data: { actorId: firstUnit.officerId },
+        },
+        {
+          id: "fixture:event-retreat",
+          sequence: baseline.operationEvents.length + 3,
+          timeMs: 100,
+          kind: "unit-retreated",
+          data: {
+            actorId: secondUnit.officerId,
+            sourceId: firstUnit.officerId,
+            fromX: 1,
+            fromY: 1,
+            toX: 2,
+            toY: 1,
+          },
+        },
+      ],
       operation: {
         ...baselineOperation,
         elapsedMs: 100,
@@ -167,15 +215,21 @@ describe("operation-time effect track", () => {
       "retreat",
     ]));
     expect(projector.observe(changed)).toEqual(changedTrack);
+    expect(changedTrack.cues.filter(({ id }) => id === "fixture:event-hit")).toHaveLength(1);
+    expect(changedTrack.cues.filter(({ id }) => id === "fixture:event-suppressed")).toHaveLength(1);
+    expect(changedTrack.cues.filter(({ id }) => id === "fixture:event-panic")).toHaveLength(1);
+    expect(changedTrack.cues.filter(({ id }) => id === "fixture:event-retreat")).toHaveLength(1);
 
     const settled: GameSnapshot = {
       ...changed,
       operation: { ...changed.operation!, elapsedMs: 2_100 },
     };
-    const settledKinds = projector.observe(settled).cues.map(({ kind }) => kind);
+    const settledTrack = projector.observe(settled);
+    const settledKinds = sampleEffectTrack(settledTrack, 2_100).map(({ kind }) => kind);
     expect(settledKinds).not.toContain("hit");
     expect(settledKinds).not.toContain("suppression");
     expect(settledKinds).not.toContain("panic");
+    expect(settledTrack.cues.some(({ id }) => id === "fixture:event-hit")).toBe(true);
   });
 
   it("projects the real artillery encounter health, suppression, and retreat transition", () => {
@@ -205,6 +259,7 @@ describe("operation-time effect track", () => {
       ...shell,
       scene,
       operation: simulation.snapshot(),
+      operationEvents: simulation.events(),
       replay: simulation.replay(),
     });
     simulation.advance(100);
@@ -213,6 +268,7 @@ describe("operation-time effect track", () => {
       ...shell,
       scene,
       operation: after,
+      operationEvents: simulation.events(),
       replay: simulation.replay(),
     });
 
@@ -222,5 +278,46 @@ describe("operation-time effect track", () => {
     expect(affected?.health).toBeLessThan(100);
     expect(affected?.suppression).toBeGreaterThan(0);
     expect(affected?.panicReaction).toBe("retreat");
+    const effectEventIds = new Set(track.cues.map(({ id }) => id));
+    const visibleActorIds = new Set(after.spatial.actors.map(({ actorId }) => actorId));
+    simulation.events()
+      .filter(({ kind }) => ["unit-hit", "unit-suppressed", "unit-retreated"].includes(kind))
+      .filter((event) => visibleActorIds.has(String(
+        event.kind === "unit-hit" ? event.data.targetId : event.data.actorId,
+      )))
+      .forEach(({ id }) => expect(effectEventIds.has(id)).toBe(true));
+  });
+
+  it("creates the same world event cue track for segmented and one-shot advance", () => {
+    const scene = completeCampaign.scenes.find(
+      ({ identity }) => identity.id === "misaddressed-artillery",
+    );
+    if (!scene) throw new Error("Missing artillery runtime fixture");
+    const poorHarness: HarnessConfiguration = {
+      informationReach: 0,
+      authorityClarity: 0,
+      verificationDepth: 0,
+      feedbackCompression: 0,
+    };
+    const single = createOperationSimulation(scene, completeCampaign.officers, 101, poorHarness);
+    const segmented = createOperationSimulation(scene, completeCampaign.officers, 101, poorHarness);
+    single.advance(20_000);
+    [3_000, 7_000, 9_900, 100].forEach((elapsedMs) => segmented.advance(elapsedMs));
+    const shellSession = createGameSession(completeCampaign, "effect-segmentation-shell");
+    shellSession.dispatch({ type: "start-attempt" });
+    const shell = shellSession.read();
+    const snapshotFor = (simulation: typeof single): GameSnapshot => ({
+      ...shell,
+      scene,
+      operation: simulation.snapshot(),
+      operationEvents: simulation.events(),
+      replay: simulation.replay(),
+    });
+
+    const singleTrack = createEffectCueProjector().observe(snapshotFor(single));
+    const segmentedTrack = createEffectCueProjector().observe(snapshotFor(segmented));
+
+    expect(segmented.events()).toEqual(single.events());
+    expect(segmentedTrack).toEqual(singleTrack);
   });
 });
