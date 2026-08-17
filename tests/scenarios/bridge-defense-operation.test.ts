@@ -37,6 +37,61 @@ describe("bridge-defense vertical slice content", () => {
     );
   });
 
+  it("places readable obstacle props only on matching blocked and rough topology", () => {
+    const obstacleKinds = ["tree", "rock", "barricade"] as const;
+    const obstacles = bridgeDefenseMapSkin.landmarks.filter(({ kind }) =>
+      (obstacleKinds as readonly string[]).includes(kind),
+    );
+    const blocked = new Set(bridgeDefenseMap.blocked.map(({ x, y }) => `${x},${y}`));
+    const rough = new Set(bridgeDefenseMap.terrain.map(({ position: { x, y } }) => `${x},${y}`));
+    const protectedTiles = new Set([
+      ...bridgeDefenseMap.spawns,
+      ...bridgeDefenseMap.destinations,
+      ...bridgeDefenseMapSkin.crossings,
+    ].map(({ position: { x, y } }) => `${x},${y}`));
+
+    expect(obstacles).toHaveLength(10);
+    expect(new Set(obstacles.map(({ kind }) => kind))).toEqual(new Set(obstacleKinds));
+    expect(new Set(obstacles.map(({ position: { x, y } }) => `${x},${y}`)).size)
+      .toBe(obstacles.length);
+    for (const obstacle of obstacles) {
+      const { x, y } = obstacle.position;
+      const key = `${x},${y}`;
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x).toBeLessThan(bridgeDefenseMap.width);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(y).toBeLessThan(bridgeDefenseMap.height);
+      expect(protectedTiles).not.toContain(key);
+      expect(obstacle.kind === "rock" ? blocked : rough).toContain(key);
+    }
+  });
+
+  it("leaves all crossings, signals, and authored officer routes clear of obstacle props", () => {
+    const propTiles = new Set(bridgeDefenseMapSkin.landmarks
+      .filter(({ kind }) => kind === "tree" || kind === "rock" || kind === "barricade")
+      .map(({ position: { x, y } }) => `${x},${y}`));
+    const simulation = createOperationSimulation(
+      bridgeDefenseOperation,
+      bridgeDefenseOfficers,
+      "bridge-prop-routes",
+      BALANCED_HARNESS,
+    );
+    const officerRouteTiles = simulation.snapshot().spatial.actors.flatMap(({ path }) => path);
+
+    expect(bridgeDefenseMapSkin.crossings.map(({ id }) => id)).toEqual([
+      "north-ford",
+      "haein-bridge",
+      "south-farm-track",
+    ]);
+    for (const { position: { x, y } } of bridgeDefenseMapSkin.crossings) {
+      expect(propTiles).not.toContain(`${x},${y}`);
+    }
+    for (const { x, y } of officerRouteTiles) {
+      expect(propTiles).not.toContain(`${x},${y}`);
+    }
+    expect(propTiles).not.toContain("11,7");
+  });
+
   it("authors one real artillery threat, one false report, and bridge/civilian objectives", () => {
     const scene: CampaignScene = bridgeDefenseOperation;
     const threats = scene.beats.flatMap(({ threats }) => threats);

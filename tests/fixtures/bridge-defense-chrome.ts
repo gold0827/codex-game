@@ -109,6 +109,46 @@ const assetsReady = await waitFor(() =>
   canvas.dataset.spriteImage === "ready" &&
   canvas.dataset.mapImage === "ready"
 );
+type RuntimeMapPlacement = Readonly<{
+  id: string;
+  kind: string;
+  position: Readonly<{ x: number; y: number }>;
+}>;
+type RuntimeMapManifest = Readonly<{
+  skins?: Readonly<Record<string, Readonly<{
+    tiles?: readonly RuntimeMapPlacement[];
+    props?: readonly RuntimeMapPlacement[];
+  }>>>;
+}>;
+const mapManifestResponse = await fetch(new URL(
+  "assets/visual/maps/battlefield/manifest.json",
+  document.baseURI,
+));
+const mapManifest = await mapManifestResponse.json() as RuntimeMapManifest;
+const runtimeMapSkin = mapManifest.skins?.[bridgeDefenseMapSkin.id];
+const runtimeProps = runtimeMapSkin?.props ?? [];
+const runtimeTiles = runtimeMapSkin?.tiles ?? [];
+const runtimeMap = {
+  responseOk: mapManifestResponse.ok,
+  propCount: runtimeProps.length,
+  obstacleKinds: [...new Set(runtimeProps
+    .filter(({ kind }) => ["tree", "rock", "barricade"].includes(kind))
+    .map(({ kind }) => kind))].sort(),
+  landmarkIds: runtimeProps
+    .filter(({ id }) => [
+      "west-command-post",
+      "east-civilian-shelter",
+      "bridge-river-rock",
+      "east-bank-tree-center",
+      "east-bank-barricade-center",
+    ].includes(id))
+    .map(({ id }) => id)
+    .sort(),
+  crossingIds: runtimeTiles
+    .filter(({ id }) => ["north-ford", "haein-bridge", "south-farm-track"].includes(id))
+    .map(({ id }) => id)
+    .sort(),
+};
 const gridWidth = grid.getBoundingClientRect().width;
 const battlefieldWidth = battlefield.getBoundingClientRect().width;
 const operationLayout = {
@@ -192,6 +232,7 @@ const result = {
     mapImage: canvas.dataset.mapImage ?? null,
   },
   assetsReady,
+  runtimeMap,
   targetBeforeSignal,
   selectedBridge,
   tutorialCompleted,
@@ -209,8 +250,24 @@ const passed = result.productionEntrypoint &&
   result.canvasWidth > 0 &&
   result.canvasHeight > 0 &&
   result.mapTileCount > 24 * 16 &&
-  result.mapPropCount === bridgeDefenseMapSkin.landmarks.length &&
+  result.mapPropCount === 12 &&
   result.assetsReady &&
+  result.runtimeMap.responseOk &&
+  result.runtimeMap.propCount === 12 &&
+  JSON.stringify(result.runtimeMap.obstacleKinds) ===
+    JSON.stringify(["barricade", "rock", "tree"]) &&
+  JSON.stringify(result.runtimeMap.landmarkIds) === JSON.stringify([
+    "bridge-river-rock",
+    "east-bank-barricade-center",
+    "east-bank-tree-center",
+    "east-civilian-shelter",
+    "west-command-post",
+  ]) &&
+  JSON.stringify(result.runtimeMap.crossingIds) === JSON.stringify([
+    "haein-bridge",
+    "north-ford",
+    "south-farm-track",
+  ]) &&
   result.targetBeforeSignal.tutorialAction === "signal" &&
   result.targetBeforeSignal.guidanceTile === "11,7" &&
   result.targetBeforeSignal.controlsGuided &&

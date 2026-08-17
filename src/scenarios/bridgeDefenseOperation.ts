@@ -49,7 +49,7 @@ export type BridgeDefenseMapSkin = Readonly<{
   }>[];
   landmarks: readonly Readonly<{
     id: string;
-    kind: "civilian-shelter" | "command-post";
+    kind: "civilian-shelter" | "command-post" | "tree" | "rock" | "barricade";
     position: CampaignTilePosition;
   }>[];
 }>;
@@ -65,6 +65,16 @@ export const bridgeDefenseMapSkin = {
   landmarks: [
     { id: "west-command-post", kind: "command-post", position: { x: 2, y: 2 } },
     { id: "east-civilian-shelter", kind: "civilian-shelter", position: { x: 21, y: 13 } },
+    { id: "north-river-rock", kind: "rock", position: { x: 11, y: 1 } },
+    { id: "bridge-river-rock", kind: "rock", position: { x: 11, y: 5 } },
+    { id: "south-river-rock", kind: "rock", position: { x: 11, y: 10 } },
+    { id: "river-mouth-rock", kind: "rock", position: { x: 11, y: 15 } },
+    { id: "east-bank-tree-north", kind: "tree", position: { x: 16, y: 8 } },
+    { id: "east-bank-tree-center", kind: "tree", position: { x: 20, y: 8 } },
+    { id: "east-bank-tree-south", kind: "tree", position: { x: 23, y: 8 } },
+    { id: "east-bank-barricade-west", kind: "barricade", position: { x: 15, y: 8 } },
+    { id: "east-bank-barricade-center", kind: "barricade", position: { x: 18, y: 8 } },
+    { id: "east-bank-barricade-east", kind: "barricade", position: { x: 22, y: 8 } },
   ],
 } as const satisfies BridgeDefenseMapSkin;
 
