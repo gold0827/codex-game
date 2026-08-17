@@ -85,6 +85,34 @@ export interface CampaignScenePresentation {
   readonly accentColor: string;
 }
 
+export const CAMPAIGN_SPATIAL_SIGNAL_KINDS = [
+  "investigate",
+  "defend",
+  "avoid",
+] as const;
+export type CampaignSpatialSignalKind =
+  (typeof CAMPAIGN_SPATIAL_SIGNAL_KINDS)[number];
+
+export const CAMPAIGN_SPATIAL_SIGNAL_STRENGTHS = [1, 2, 3] as const;
+export type CampaignSpatialSignalStrength =
+  (typeof CAMPAIGN_SPATIAL_SIGNAL_STRENGTHS)[number];
+
+export type CampaignSpatialSignalGuidanceStep = Readonly<{
+  id: string;
+  instruction: string;
+  action: "signal";
+  target: Readonly<{
+    kind: "spatial-signal";
+    signal: CampaignSpatialSignalKind;
+    strength: CampaignSpatialSignalStrength;
+    position: CampaignTilePosition;
+    // Keeps legacy route-only projections source-compatible until #146 and #147.
+    reportId?: never;
+    recipientOfficerId?: never;
+  }>;
+  completionEvent: "spatial-signal-issued";
+}>;
+
 export type CampaignGuidanceStep =
   | Readonly<{
       id: string;
@@ -117,7 +145,8 @@ export type CampaignGuidanceStep =
       action: "resume";
       target: Readonly<{ kind: "operation-clock" }>;
       completionEvent: "operation-resumed";
-    }>;
+    }>
+  | CampaignSpatialSignalGuidanceStep;
 
 export interface CampaignOfficerReport {
   readonly id: string;

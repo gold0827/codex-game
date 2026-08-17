@@ -1,10 +1,15 @@
-import type { CampaignDefinition } from "./types";
+import {
+  CAMPAIGN_SPATIAL_SIGNAL_KINDS,
+  CAMPAIGN_SPATIAL_SIGNAL_STRENGTHS,
+  type CampaignDefinition,
+} from "./types";
 
 export type CampaignDiagnosticCode =
   | "duplicate-officer-id"
   | "duplicate-scene-id"
   | "duplicate-outcome-id"
   | "duplicate-guidance-id"
+  | "invalid-guidance-signal"
   | "duplicate-beat-id"
   | "duplicate-report-id"
   | "duplicate-threat-id"
@@ -171,12 +176,17 @@ export function validateCampaignDefinition(
     );
 
     const { mapTopology } = scene;
-    if (mapTopology) {
     const validDimensions =
+      mapTopology !== undefined &&
       Number.isSafeInteger(mapTopology.width) &&
       mapTopology.width > 0 &&
       Number.isSafeInteger(mapTopology.height) &&
       mapTopology.height > 0;
+    const positionIsValid = ({ x, y }: { readonly x: number; readonly y: number }): boolean =>
+      mapTopology !== undefined && validDimensions &&
+      Number.isSafeInteger(x) && Number.isSafeInteger(y) &&
+      x >= 0 && y >= 0 && x < mapTopology.width && y < mapTopology.height;
+    if (mapTopology) {
     if (!validDimensions) {
       diagnostics.push({
         code: "invalid-map-dimensions",
@@ -186,9 +196,6 @@ export function validateCampaignDefinition(
       });
     }
     const positionKey = ({ x, y }: { readonly x: number; readonly y: number }): string => `${x},${y}`;
-    const positionIsValid = ({ x, y }: { readonly x: number; readonly y: number }): boolean =>
-      validDimensions && Number.isSafeInteger(x) && Number.isSafeInteger(y) &&
-      x >= 0 && y >= 0 && x < mapTopology.width && y < mapTopology.height;
     const blockedKeys = new Set<string>();
     mapTopology.blocked.forEach((position, index) => {
       if (!positionIsValid(position)) {
@@ -338,6 +345,33 @@ export function validateCampaignDefinition(
             sceneId: scene.identity.id,
             field: `guidance[${guidanceIndex}].target.recipientOfficerId`,
             message: `Officer "${guidance.target.recipientOfficerId}" is not declared in the campaign roster.`,
+          });
+        }
+      }
+
+      if (guidance.action === "signal") {
+        if (!CAMPAIGN_SPATIAL_SIGNAL_KINDS.includes(guidance.target.signal)) {
+          diagnostics.push({
+            code: "invalid-guidance-signal",
+            sceneId: scene.identity.id,
+            field: `guidance[${guidanceIndex}].target.signal`,
+            message: `Spatial signal "${String(guidance.target.signal)}" is not supported.`,
+          });
+        }
+        if (!CAMPAIGN_SPATIAL_SIGNAL_STRENGTHS.includes(guidance.target.strength)) {
+          diagnostics.push({
+            code: "invalid-guidance-signal",
+            sceneId: scene.identity.id,
+            field: `guidance[${guidanceIndex}].target.strength`,
+            message: "Spatial signal strength must be 1, 2, or 3.",
+          });
+        }
+        if (!positionIsValid(guidance.target.position)) {
+          diagnostics.push({
+            code: "invalid-map-position",
+            sceneId: scene.identity.id,
+            field: `guidance[${guidanceIndex}].target.position`,
+            message: `Spatial signal tile (${guidance.target.position.x}, ${guidance.target.position.y}) must be inside the map.`,
           });
         }
       }
