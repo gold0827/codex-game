@@ -172,9 +172,10 @@ describe("production game app", () => {
     expect(battlefield?.getAttribute("aria-label")).toBe("실시간 픽셀 전장");
     expect(root.querySelector('[data-region="officers"]')?.textContent).toContain("현재 믿음");
     expect(root.querySelector('[data-region="officers"]')?.textContent).toContain("체력");
-    expect(root.querySelector('[data-region="reports"]')?.textContent).toContain(
+    expect(root.querySelector('[data-region="reports"]')?.textContent).not.toContain(
       completeCampaign.scenes[0]?.beats[2]?.reports[0]?.text,
     );
+    expect(root.querySelector('[data-region="reports"]')?.textContent).toContain("전송 대기");
     expect(session.read().tutorial.currentStep).toBeNull();
     expect(session.read().lastIntervention?.command).toEqual({
       kind: "route-report",
@@ -248,6 +249,60 @@ describe("production game app", () => {
       .toBe(true);
     expect(session.read().operation?.messages.find(({ id }) => id === original.id)?.prioritized)
       .toBe(false);
+  });
+
+  it("renders the same weak received copy shown in the recipient officer belief", () => {
+    app.destroy();
+    const campaign = structuredClone(completeCampaign) as CampaignDefinition;
+    const scene = campaign.scenes[0];
+    if (!scene || scene.identity.kind === "epilogue") {
+      throw new Error("Expected a playable report scene.");
+    }
+    (scene as { guidance: CampaignDefinition["scenes"][number]["guidance"] }).guidance = [];
+    session = createGameSession(campaign, "weak-report-ui");
+    session.dispatch({
+      type: "set-harness",
+      harness: {
+        informationReach: 0.5,
+        authorityClarity: 0.5,
+        verificationDepth: 0.4,
+        feedbackCompression: 0,
+      },
+    });
+    app = mountGameApp(root, campaign, session, {
+      frameScheduler: scheduler,
+      audio: silentAudio(),
+    });
+    startAttempt();
+    const queuedSnapshot = session.read();
+    const queued = queuedSnapshot.operation?.messages[0];
+    if (!queued) throw new Error("Expected a queued report message.");
+    const queuedCard = root.querySelector<HTMLElement>(`[data-report-id="${queued.id}"]`);
+
+    expect(queuedCard?.dataset.deliveryState).toBe("queued");
+    expect(queuedCard?.querySelector(".report-transmission-state")?.textContent)
+      .toBe("전송 대기 · 아직 수신되지 않음");
+    expect(queuedCard?.querySelector("blockquote")?.textContent).not.toContain(queued.text);
+
+    session.advance(
+      queued.deliveryAtMs / queuedSnapshot.scene.gameplayTuning.simulationSpeed,
+    );
+    const delivered = session.read().operation?.messages.find(({ id }) => id === queued.id);
+    if (!delivered) throw new Error("Expected a delivered report message.");
+    session.dispatch({
+      type: "inspect-officer",
+      officerId: delivered.recipientOfficerIds[0] ?? "",
+    });
+    app.render();
+    const deliveredCard = root.querySelector<HTMLElement>(`[data-report-id="${queued.id}"]`);
+
+    expect(queued.receivedText).toBe(`[불확실한 송신] ${queued.text}`);
+    expect(deliveredCard?.dataset.deliveryState).toBe("delivered");
+    expect(deliveredCard?.dataset.verificationState).toBe("pending");
+    expect(deliveredCard?.querySelector("blockquote")?.textContent).toBe(queued.receivedText);
+    expect(root.querySelector(".selected-officer-detail")?.textContent).toContain(
+      queued.receivedText,
+    );
   });
 
   it("keeps operation controls mounted between visual projection intervals", () => {

@@ -101,6 +101,27 @@ const verificationLabels = {
   contradicted: "모순 확인",
 } as const;
 
+function reportTransmission(
+  report: NonNullable<GameSnapshot["operation"]>["messages"][number],
+) {
+  if (report.deliveryState === "queued") {
+    return {
+      status: "전송 대기 · 아직 수신되지 않음",
+      text: "수신 대기 중 · 전달 후 수신 문구를 확인할 수 있습니다.",
+    } as const;
+  }
+  if (report.verificationState === "verified") {
+    return {
+      status: "검증 완료 · 원문 확인",
+      text: report.text,
+    } as const;
+  }
+  return {
+    status: `수신됨 · ${verificationLabels[report.verificationState]}`,
+    text: report.receivedText,
+  } as const;
+}
+
 const phaseLabels = {
   briefing: "브리핑",
   operation: "작전 중",
@@ -345,20 +366,26 @@ export function projectGameViewModel(
                 : null,
             };
           }),
-          reports: [...operation.messages].reverse().map((report) => ({
-            id: report.id,
-            authoredReportId: report.authoredReportId,
-            guided: isGuidanceTarget("route", report.authoredReportId),
-            meta: `${formatGameTime(report.createdAtMs)} · ${roster.get(report.sourceOfficerId)?.name ?? report.sourceOfficerId} · ${report.deliveryState === "delivered" ? "전달됨" : "대기"}`,
-            text: report.text,
-            detail: `수신 ${report.recipientOfficerIds.map((id) => roster.get(id)?.name ?? id).join(", ") || "없음"} · 신뢰 ${percentage(report.reliability)} · ${verificationLabels[report.verificationState]}`,
-            recipientId:
-              guidance?.action === "route" && guidance.target.reportId === report.authoredReportId
-                ? guidance.target.recipientOfficerId
-                : campaign.officers[0]?.id ?? "",
-            canIntervene: remainingAttention > 0,
-            canVerify: remainingAttention > 0 && !report.prioritized,
-          })),
+          reports: [...operation.messages].reverse().map((report) => {
+            const transmission = reportTransmission(report);
+            return {
+              id: report.id,
+              authoredReportId: report.authoredReportId,
+              deliveryState: report.deliveryState,
+              verificationState: report.verificationState,
+              guided: isGuidanceTarget("route", report.authoredReportId),
+              meta: `${formatGameTime(report.createdAtMs)} · ${roster.get(report.sourceOfficerId)?.name ?? report.sourceOfficerId}`,
+              status: transmission.status,
+              text: transmission.text,
+              detail: `수신 ${report.recipientOfficerIds.map((id) => roster.get(id)?.name ?? id).join(", ") || "없음"} · 신뢰 ${percentage(report.reliability)}`,
+              recipientId:
+                guidance?.action === "route" && guidance.target.reportId === report.authoredReportId
+                  ? guidance.target.recipientOfficerId
+                  : campaign.officers[0]?.id ?? "",
+              canIntervene: remainingAttention > 0,
+              canVerify: remainingAttention > 0 && !report.prioritized,
+            };
+          }),
           events: snapshot.replay.slice(-6).reverse().map((event) => ({
             sequence: event.sequence,
             time: formatGameTime(event.timeMs),

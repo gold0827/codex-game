@@ -85,6 +85,104 @@ describe("game presentation view model", () => {
       .toBe(true);
   });
 
+  it("projects weak transmissions from queued through contradicted without leaking authored copy", () => {
+    const campaign = structuredClone(completeCampaign) as CampaignDefinition;
+    const scene = campaign.scenes[0];
+    if (!scene || scene.identity.kind === "epilogue") {
+      throw new Error("Expected a playable report scene.");
+    }
+    (scene as { guidance: CampaignDefinition["scenes"][number]["guidance"] }).guidance = [];
+    const session = createGameSession(campaign, "weak-report-view-model");
+    session.dispatch({
+      type: "set-harness",
+      harness: {
+        informationReach: 0.5,
+        authorityClarity: 0.5,
+        verificationDepth: 0.4,
+        feedbackCompression: 0,
+      },
+    });
+    session.dispatch({ type: "start-attempt" });
+    const queuedSnapshot = session.read();
+    const queued = queuedSnapshot.operation?.messages[0];
+    if (!queued) throw new Error("Expected a queued report message.");
+    const queuedReport = projectGameViewModel(queuedSnapshot, campaignView).operation?.reports
+      .find(({ id }) => id === queued.id);
+
+    expect(queued.receivedText).toBe(`[불확실한 송신] ${queued.text}`);
+    expect(queuedReport).toMatchObject({
+      deliveryState: "queued",
+      status: "전송 대기 · 아직 수신되지 않음",
+      text: "수신 대기 중 · 전달 후 수신 문구를 확인할 수 있습니다.",
+    });
+    expect(queuedReport?.text).not.toContain(queued.text);
+
+    session.advance(
+      queued.deliveryAtMs / queuedSnapshot.scene.gameplayTuning.simulationSpeed,
+    );
+    const delivered = session.read().operation?.messages.find(({ id }) => id === queued.id);
+    if (!delivered) throw new Error("Expected a delivered report message.");
+    session.dispatch({
+      type: "inspect-officer",
+      officerId: delivered.recipientOfficerIds[0] ?? "",
+    });
+    const deliveredView = projectGameViewModel(session.read(), campaignView);
+    const deliveredReport = deliveredView.operation?.reports.find(({ id }) => id === queued.id);
+    const selectedOfficer = deliveredView.operation?.officers.find(({ selected }) => selected);
+
+    expect(deliveredReport).toMatchObject({
+      deliveryState: "delivered",
+      verificationState: "pending",
+      status: "수신됨 · 검증 대기",
+      text: queued.receivedText,
+    });
+    expect(selectedOfficer?.facts).toContainEqual(["현재 믿음", queued.receivedText]);
+
+    session.advance(6_000 / queuedSnapshot.scene.gameplayTuning.simulationSpeed);
+    const contradictedReport = projectGameViewModel(session.read(), campaignView).operation?.reports
+      .find(({ id }) => id === queued.id);
+    expect(contradictedReport).toMatchObject({
+      verificationState: "contradicted",
+      status: "수신됨 · 모순 확인",
+      text: queued.receivedText,
+    });
+  });
+
+  it("shows verified reports as confirmed authored copy", () => {
+    const campaign = structuredClone(completeCampaign) as CampaignDefinition;
+    const scene = campaign.scenes[0];
+    if (!scene || scene.identity.kind === "epilogue") {
+      throw new Error("Expected a playable report scene.");
+    }
+    (scene as { guidance: CampaignDefinition["scenes"][number]["guidance"] }).guidance = [];
+    const session = createGameSession(campaign, "verified-report-view-model");
+    session.dispatch({
+      type: "set-harness",
+      harness: {
+        informationReach: 0.5,
+        authorityClarity: 0.5,
+        verificationDepth: 0.4,
+        feedbackCompression: 1,
+      },
+    });
+    session.dispatch({ type: "start-attempt" });
+    const operation = session.read();
+    const report = operation.operation?.messages[0];
+    if (!report) throw new Error("Expected a verifiable report message.");
+    session.advance(
+      (report.deliveryAtMs + 6_000) / operation.scene.gameplayTuning.simulationSpeed,
+    );
+
+    const projected = projectGameViewModel(session.read(), campaignView).operation?.reports
+      .find(({ id }) => id === report.id);
+    expect(projected).toMatchObject({
+      deliveryState: "delivered",
+      verificationState: "verified",
+      status: "검증 완료 · 원문 확인",
+      text: report.text,
+    });
+  });
+
   it("projects a spatial signal tutorial as one Korean battlefield target", () => {
     const campaign = structuredClone(completeCampaign) as CampaignDefinition;
     const scene = campaign.scenes[0];
