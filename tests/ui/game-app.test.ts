@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createGameSession, type GameSession } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
@@ -22,6 +22,10 @@ class DeterministicFrameScheduler implements GameFrameScheduler {
 
   cancel(handle: number): void {
     this.callbacks.delete(handle);
+  }
+
+  pending(): number {
+    return this.callbacks.size;
   }
 
   frame(timestamp: number): void {
@@ -89,6 +93,7 @@ describe("production game app", () => {
   };
 
   beforeEach(() => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     document.body.innerHTML = '<div id="test-root"></div>';
     root = document.querySelector("#test-root")!;
     session = createGameSession(completeCampaign, "ui-test-seed");
@@ -102,6 +107,7 @@ describe("production game app", () => {
 
   afterEach(() => {
     app.destroy();
+    vi.restoreAllMocks();
   });
 
   it("configures the authored briefing and starts the real session", () => {
@@ -135,13 +141,8 @@ describe("production game app", () => {
     completeTutorial();
 
     const battlefield = root.querySelector<HTMLElement>('[data-region="battlefield"]');
-    expect(battlefield?.querySelector<HTMLImageElement>(".battlefield-image")?.src).toContain(
-      "/assets/campaign-battlefield.png",
-    );
-    expect(battlefield?.querySelectorAll(".unit-marker").length).toBeGreaterThan(0);
-    expect(battlefield?.querySelector(".threat-impact")?.textContent).toMatch(
-      /(?:체력|목표) \d+ → \d+/,
-    );
+    expect(battlefield?.querySelector("canvas.battlefield-canvas")).not.toBeNull();
+    expect(battlefield?.getAttribute("aria-label")).toBe("실시간 픽셀 전장");
     expect(root.querySelector('[data-region="officers"]')?.textContent).toContain("현재 믿음");
     expect(root.querySelector('[data-region="officers"]')?.textContent).toContain("체력");
     expect(root.querySelector('[data-region="reports"]')?.textContent).toContain(
@@ -158,13 +159,26 @@ describe("production game app", () => {
   it("keeps operation controls mounted between visual projection intervals", () => {
     startAttempt();
     const pause = action("pause");
+    const canvas = root.querySelector("canvas.battlefield-canvas");
 
     advanceRealTime(16);
 
     expect(action("pause")).toBe(pause);
-    pause.click();
+    advanceRealTime(100);
+    expect(root.querySelector("canvas.battlefield-canvas")).toBe(canvas);
+    action("pause").click();
     expect(session.read().paused).toBe(true);
     expect(action("resume").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("releases the persistent battlefield frame loop when destroyed", () => {
+    startAttempt();
+    expect(scheduler.pending()).toBeGreaterThan(0);
+
+    app.destroy();
+
+    expect(scheduler.pending()).toBe(0);
+    expect(root.childElementCount).toBe(0);
   });
 
   it("presents pending decisions without simulation diagnostics", () => {

@@ -5,6 +5,10 @@ import {
 } from "../application/game-session";
 import { type CommandDispatcher, node } from "../presentation/dom";
 import {
+  mountCanvasBattlefield,
+  type MountedCanvasBattlefield,
+} from "../presentation/battlefield/canvasBattlefield";
+import {
   createGameEffects,
   type GameFrameScheduler,
 } from "../presentation/gameEffects";
@@ -17,6 +21,7 @@ import { renderBriefingView } from "../presentation/phases/briefingView";
 import { renderDebriefView } from "../presentation/phases/debriefView";
 import { renderEpilogueView } from "../presentation/phases/epilogueView";
 import { renderOperationView } from "../presentation/phases/operationView";
+import { projectBattlefieldFrame } from "../presentation/operation/battlefieldProjector";
 import type { GameAudio } from "./GameAudio";
 
 export type { GameFrameScheduler } from "../presentation/gameEffects";
@@ -58,6 +63,7 @@ export function mountGameApp(
   };
   let message = "";
   let destroyed = false;
+  let battlefield: MountedCanvasBattlefield | null = null;
 
   const dispatch: CommandDispatcher = (command: GameCommand, cue = "click", focusKey) => {
     try {
@@ -79,6 +85,14 @@ export function mountGameApp(
     if (destroyed) return;
     const snapshot = session.read();
     effects.observe(snapshot);
+    const battlefieldFrame = projectBattlefieldFrame(snapshot);
+    if (battlefieldFrame) {
+      battlefield ??= mountCanvasBattlefield(scheduler);
+      battlefield.update(battlefieldFrame);
+    } else if (battlefield) {
+      battlefield.destroy();
+      battlefield = null;
+    }
     const view = projectGameViewModel(snapshot, campaignView);
     const shell = node("div", "game-shell");
     shell.style.setProperty("--scene-accent", view.accentColor);
@@ -94,7 +108,9 @@ export function mountGameApp(
       shell.append(notice);
     }
     if (view.phase === "briefing") shell.append(renderBriefingView(view, dispatch));
-    else if (view.phase === "operation") shell.append(renderOperationView(view, dispatch, effects.threatImpacts));
+    else if (view.phase === "operation" && battlefield) {
+      shell.append(renderOperationView(view, dispatch, battlefield.element));
+    }
     else if (view.phase === "debrief") shell.append(renderDebriefView(view, dispatch));
     else shell.append(renderEpilogueView(view, dispatch));
     root.replaceChildren(shell);
@@ -109,6 +125,8 @@ export function mountGameApp(
     render,
     destroy: () => {
       destroyed = true;
+      battlefield?.destroy();
+      battlefield = null;
       effects.destroy();
       root.replaceChildren();
     },
