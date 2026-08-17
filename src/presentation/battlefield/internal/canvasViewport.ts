@@ -425,7 +425,7 @@ export function createCanvasBattlefieldViewport(
   viewport.resize({ width: host.clientWidth || 640, height: host.clientHeight || 360 });
 
   const manifestUrl = new URL(
-    `${import.meta.env.BASE_URL}assets/visual/sprites/fixture/manifest.json`,
+    `${import.meta.env.BASE_URL}assets/visual/sprites/officers/manifest.json`,
     document.baseURI,
   ).href;
   const fetchManifest = options.fetchManifest ?? fetch;

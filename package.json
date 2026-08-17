@@ -7,9 +7,11 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
+    "assets:sprites": "tsx scripts/assets/generate-officer-sprites.mjs",
+    "check:assets": "tsx scripts/assets/generate-officer-sprites.mjs --check",
     "evaluate:operations": "tsx scripts/evaluate-operations.ts",
     "check:dependencies": "node scripts/check-dependencies.mjs",
-    "check": "npm run build && npm test && npm run check:dependencies"
+    "check": "npm run check:assets && npm run build && npm test && npm run check:dependencies"
   },
   "devDependencies": {
     "jsdom": "30.0.1",

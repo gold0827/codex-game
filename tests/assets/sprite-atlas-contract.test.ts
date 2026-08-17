@@ -22,11 +22,33 @@ const fixtureDirectory = join(
   "fixture",
 );
 
+const productionDirectory = join(
+  process.cwd(),
+  "public",
+  "assets",
+  "visual",
+  "sprites",
+  "officers",
+);
+
 function readFixture(): unknown {
   return JSON.parse(readFileSync(join(fixtureDirectory, "manifest.json"), "utf8"));
 }
 
 describe("sprite atlas asset contract", () => {
+  it("accepts the generated production officer atlas", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(productionDirectory, "manifest.json"), "utf8"),
+    ) as unknown;
+    const validation = validateSpriteAtlasManifest(manifest);
+
+    expect(validation.ok).toBe(true);
+    if (!validation.ok) throw new Error("production sprite manifest must be valid");
+    expect(readFileSync(join(productionDirectory, validation.manifest.image), "utf8")).toContain(
+      '<title>자율군단 장교 production sprite atlas</title>',
+    );
+  });
+
   it("accepts the canonical fixture with every action and eight-direction facing", () => {
     const validation = validateSpriteAtlasManifest(readFixture());
 

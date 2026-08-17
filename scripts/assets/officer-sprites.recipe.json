@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "cellSize": 48,
+  "columns": 16,
+  "anchor": {
+    "x": 24,
+    "y": 42
+  },
+  "animations": {
+    "idle": [420, 420],
+    "walk": [120, 120, 120, 120],
+    "attack": [90, 90, 180],
+    "inspect": [260, 260, 260],
+    "broadcast": [220, 220, 220],
+    "panic": [110, 110, 110, 110],
+    "hurt": [100, 240],
+    "down": [1000]
+  },
+  "palette": {
+    "outline": "#101815",
+    "shadow": "#07110e",
+    "uniformDark": "#35483b",
+    "uniform": "#60735a",
+    "uniformLight": "#8c9a72",
+    "skin": "#c9976b",
+    "helmet": "#56624a",
+    "visor": "#87d9cf",
+    "equipment": "#c8ad61",
+    "danger": "#ef6b61",
+    "signal": "#73d5c8"
+  }
+}
