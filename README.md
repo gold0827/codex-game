@@ -38,6 +38,23 @@ npm run check:assets
 `public/assets/visual/` 아래에 생성된 manifest만 읽으며, asset을 불러오지 못하면
 식별 가능한 Canvas 표식으로 폴백합니다.
 
+## 몬테카를로 작전 엔진
+
+작전은 seed 기반 몬테카를로 시뮬레이션이다. 같은 장면·하네스·seed는 같은
+사건을 재현하지만, 여러 seed에서는 위협 발견, 장교의 판단, 교전 명중, 피해와
+최종 결과가 분포를 이룬다. `move`, `defend`, `verify`, `broadcast`, `support`,
+`retreat` 선택은 이동·정보·교전 상태에 직접 반영된다.
+
+플레이어의 하네스와 공간 신호는 결과를 확정하지 않고 성공률, 피해, 위협 차단
+분포를 이동시킨다. 무개입과 강한 공간 통제를 같은 seed 집합에서 비교하려면:
+
+```sh
+npm run evaluate:operations -- --scene flooded-convoy --start 0 --count 500 --mode paired
+```
+
+평가 결과는 실제 행동 분포, 성공/재시도 분포, 피해, 차단 수, 서로 다른 최종
+세계 상태 수와 정책 간 delta를 JSON으로 출력한다.
+
 ## 게임 루프
 
 - 브리핑 예산 안에서 정보 공유, 권한 명료도, 교차 검증, 피드백 압축을 조정합니다.
@@ -52,7 +69,7 @@ npm run check:assets
 
 ## 코드 구조
 
-- `src/domain/operation`, `src/simulation`: 결정론적 작전 규칙과 simulation
+- `src/domain/operation`, `src/simulation`: seed 재현 가능한 몬테카를로 작전 규칙과 평가
 - `src/campaign`, `src/scenarios`: campaign model, 검증, 콘텐츠
 - `src/application`: 명령 처리와 campaign/operation 진행 상태
 - `src/presentation`, `src/ui`, `src/styles`: view model과 브라우저 표현

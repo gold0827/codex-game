@@ -65,6 +65,8 @@ export interface OfficerBeliefSnapshot {
   readonly reliability: number;
   readonly confidence: number;
   readonly verificationState: VerificationState;
+  readonly threatKind?: ThreatKind;
+  readonly threatSeverity?: ThreatSeverity;
 }
 
 export interface OfficerSimulationSnapshot {

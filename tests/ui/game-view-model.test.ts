@@ -84,7 +84,7 @@ describe("game presentation view model", () => {
   });
 
   it("projects successful lesson choices with officer names", () => {
-    const session = createGameSession(completeCampaign, "view-model-lessons");
+    const session = createGameSession(completeCampaign, 0);
     session.dispatch({ type: "start-attempt" });
     const operation = session.read();
     session.advance(

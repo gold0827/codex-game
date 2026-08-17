@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createGameSession, type GameSession } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { flowCampaign } from "../fixtures/flow-campaign";
 import type { GameAudio } from "../../src/ui/GameAudio";
 import {
   mountGameApp,
@@ -328,8 +329,16 @@ describe("production game app", () => {
   });
 
   it("continues every successful debrief into the epilogue and resets", () => {
+    app.destroy();
+    session = createGameSession(flowCampaign, "ui-flow-seed");
+    scheduler = new DeterministicFrameScheduler();
+    frameTime = 0;
+    app = mountGameApp(root, flowCampaign, session, {
+      frameScheduler: scheduler,
+      audio: silentAudio(audioCues),
+    });
     const playedScenes: string[] = [];
-    const operationCount = completeCampaign.scenes.filter(
+    const operationCount = flowCampaign.scenes.filter(
       ({ identity }) => identity.kind !== "epilogue",
     ).length;
 

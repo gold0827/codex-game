@@ -57,10 +57,13 @@ export type OperationRunEvaluation = Readonly<{
   firstReactionTimeMs: number | null;
   uniqueIntentCount: number;
   interventionCount: number;
+  damageTaken: number;
+  threatsBlocked: number;
+  worldOutcome: string;
 }>;
 
 export type OperationEvaluation = Readonly<{
-  schemaVersion: 1;
+  schemaVersion: 2;
   sceneId: string;
   policyId: string;
   seedRange: OperationSeedRange;
@@ -76,6 +79,10 @@ export type OperationEvaluation = Readonly<{
     uniqueIntentsPerRun: NumericDistribution;
   }>;
   interventionCount: NumericDistribution;
+  damageTaken: NumericDistribution;
+  threatsBlocked: NumericDistribution;
+  terminalStatusDistribution: readonly DistributionEntry[];
+  worldOutcomeDiversity: number;
   unclassifiedFailureCount: number;
   runs: readonly OperationRunEvaluation[];
 }>;
@@ -96,7 +103,7 @@ export type CompareOperationPoliciesInput = Readonly<
 >;
 
 export type PairedOperationEvaluation = Readonly<{
-  schemaVersion: 1;
+  schemaVersion: 2;
   sceneId: string;
   seedRange: OperationSeedRange;
   baseline: OperationEvaluation;
@@ -105,12 +112,16 @@ export type PairedOperationEvaluation = Readonly<{
   successRateDelta: number;
   firstReactionTimeDeltaMs: NumericDistribution;
   interventionCountDelta: NumericDistribution;
+  damageTakenDelta: NumericDistribution;
+  threatsBlockedDelta: NumericDistribution;
   pairs: readonly Readonly<{
     seed: number;
     baselineSuccess: boolean;
     comparisonSuccess: boolean;
     firstReactionTimeDeltaMs: number | null;
     interventionCountDelta: number;
+    damageTakenDelta: number;
+    threatsBlockedDelta: number;
   }>[];
 }>;
 
@@ -228,6 +239,7 @@ function failureReasons(
 
 type MeasuredRun = Readonly<{
   result: OperationRunEvaluation;
+  actions: readonly string[];
   intents: readonly OfficerIntent[];
   routes: readonly string[];
 }>;
@@ -254,15 +266,31 @@ function measureRun(
   }
 
   const events = simulation.events();
-  const intents = events
+  const decisions = events
     .filter(({ kind }) => kind === "decision")
-    .map(({ data }) => data.intent)
+    .map(({ data }) => data);
+  const actions = decisions
+    .map(({ action }) => action)
+    .filter((action): action is string => typeof action === "string");
+  const intents = decisions
+    .map(({ intent }) => intent)
     .filter((intent): intent is OfficerIntent => typeof intent === "string");
   const firstReaction = events.find(({ kind }) => kind === "decision");
-  const routes = snapshot.units.map(({ route }) =>
-    route.length === 0 ? "stationary" : route.join(">"),
+  const routes = snapshot.units.map(({ officerId, tile }) =>
+    `${officerId}@${tile.x},${tile.y}`,
   );
   const reasons = failureReasons(snapshot);
+  const damageTaken = rounded(snapshot.units.reduce(
+    (total, { health }) => total + Math.max(0, 100 - health),
+    0,
+  ));
+  const threatsBlocked = snapshot.threats.filter(({ result }) => result === "blocked").length;
+  const worldOutcome = JSON.stringify({
+    status: snapshot.status,
+    threats: snapshot.threats.map(({ result }) => result),
+    health: snapshot.units.map(({ health }) => health),
+    safety: snapshot.metrics.civilianSafety,
+  });
 
   return {
     result: {
@@ -273,7 +301,11 @@ function measureRun(
       firstReactionTimeMs: firstReaction?.timeMs ?? null,
       uniqueIntentCount: new Set(intents).size,
       interventionCount: snapshot.metrics.interventionCount,
+      damageTaken,
+      threatsBlocked,
+      worldOutcome,
     },
+    actions,
     intents,
     routes,
   };
@@ -320,11 +352,12 @@ export function evaluateOperations(
   const runs = measuredRuns.map(({ result }) => result);
   const successfulRuns = runs.filter(({ success }) => success);
   const failureReasonValues = runs.flatMap(({ failureReasons: reasons }) => reasons);
+  const actions = measuredRuns.flatMap(({ actions: runActions }) => runActions);
   const intents = measuredRuns.flatMap(({ intents: runIntents }) => runIntents);
   const routes = measuredRuns.flatMap(({ routes: runRoutes }) => runRoutes);
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     sceneId: input.scene.identity.id,
     policyId: input.policy.id,
     seedRange: { start: input.seedRange.start, count: input.seedRange.count },
@@ -332,7 +365,7 @@ export function evaluateOperations(
     successCount: successfulRuns.length,
     successRate: rounded(successfulRuns.length / runs.length),
     failureReasons: distribution(failureReasonValues, FAILURE_REASON_ORDER),
-    actionDistribution: distribution(intents),
+    actionDistribution: distribution(actions),
     routeDistribution: distribution(routes),
     firstReactionTimeMs: numericDistribution(
       runs.map(({ firstReactionTimeMs }) => firstReactionTimeMs),
@@ -346,6 +379,13 @@ export function evaluateOperations(
     interventionCount: numericDistribution(
       runs.map(({ interventionCount }) => interventionCount),
     ),
+    damageTaken: numericDistribution(runs.map(({ damageTaken }) => damageTaken)),
+    threatsBlocked: numericDistribution(runs.map(({ threatsBlocked }) => threatsBlocked)),
+    terminalStatusDistribution: distribution(
+      runs.map(({ success }) => success ? "success" : "retry"),
+      ["success", "retry"],
+    ),
+    worldOutcomeDiversity: new Set(runs.map(({ worldOutcome }) => worldOutcome)).size,
     unclassifiedFailureCount: runs.filter(
       ({ success, failureReasons: reasons }) => !success && reasons.length === 0,
     ).length,
@@ -385,6 +425,8 @@ export function compareOperationPolicies(
         : null,
       interventionCountDelta:
         comparisonRun.interventionCount - baselineRun.interventionCount,
+      damageTakenDelta: comparisonRun.damageTaken - baselineRun.damageTaken,
+      threatsBlockedDelta: comparisonRun.threatsBlocked - baselineRun.threatsBlocked,
     };
   });
   const pairedOutcomes = pairs.map((pair) => {
@@ -395,7 +437,7 @@ export function compareOperationPolicies(
   });
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     sceneId: input.scene.identity.id,
     seedRange: { start: input.seedRange.start, count: input.seedRange.count },
     baseline,
@@ -407,6 +449,12 @@ export function compareOperationPolicies(
     ),
     interventionCountDelta: numericDistribution(
       pairs.map(({ interventionCountDelta }) => interventionCountDelta),
+    ),
+    damageTakenDelta: numericDistribution(
+      pairs.map(({ damageTakenDelta }) => damageTakenDelta),
+    ),
+    threatsBlockedDelta: numericDistribution(
+      pairs.map(({ threatsBlockedDelta }) => threatsBlockedDelta),
     ),
     pairs,
   };

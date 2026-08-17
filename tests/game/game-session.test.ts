@@ -5,6 +5,7 @@ import {
   GameSessionError,
   type GameSession,
 } from "../../src/application/game-session";
+import { bridgeDefenseCampaign } from "../../src/scenarios/bridgeDefenseOperation";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 
@@ -28,12 +29,12 @@ describe("game session", () => {
   });
 
   it("projects the operation event log without losing IDs, order, time, or data", () => {
-    const session = createGameSession(completeCampaign, "session-events");
+    const session = createGameSession(bridgeDefenseCampaign, 0);
     session.dispatch({ type: "start-attempt" });
     const started = session.read();
     const simulation = createOperationSimulation(
       started.scene,
-      completeCampaign.officers,
+      bridgeDefenseCampaign.officers,
       started.attemptSeed,
       started.harness,
     );

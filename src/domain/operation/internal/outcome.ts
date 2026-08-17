@@ -117,7 +117,9 @@ export function createOutcome(context: OutcomeContext) {
 
     objectives.forEach((objective) => {
       const targetedThreats = threats.filter(({ target }) => target === objective.id);
-      const damagingThreat = targetedThreats.find(({ result }) => result === "damaged-objective");
+      const damagingThreat = targetedThreats.find(({ kind, result }) =>
+        kind !== "misinformation" && kind !== "communications" && result === "damaged-objective"
+      );
       const resolutionEvent = damagingThreat
         ? operationEvents.find((event) =>
             event.kind === "threat-resolved" && event.data.threatId === damagingThreat.id)

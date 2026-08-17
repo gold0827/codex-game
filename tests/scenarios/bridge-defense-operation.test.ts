@@ -72,13 +72,13 @@ describe("bridge-defense vertical slice content", () => {
     const balanced = createOperationSimulation(
       bridgeDefenseOperation,
       bridgeDefenseOfficers,
-      "bridge-harness-pair",
+      11,
       BALANCED_HARNESS,
     );
     const poor = createOperationSimulation(
       bridgeDefenseOperation,
       bridgeDefenseOfficers,
-      "bridge-harness-pair",
+      11,
       poorHarness,
     );
 
@@ -115,15 +115,11 @@ describe("bridge-defense vertical slice content", () => {
             code: "point-not-preserved",
             objectiveId: "preserve-haein-bridge",
           }),
-          expect.objectContaining({
-            code: "point-not-preserved",
-            objectiveId: "protect-civilian-column",
-          }),
         ]),
       },
       threats: [
         expect.objectContaining({ result: "damaged-objective" }),
-        expect.objectContaining({ result: "damaged-objective" }),
+        expect.objectContaining({ result: "blocked" }),
       ],
     });
     expect(poor.snapshot().metrics.civilianSafety).toBeLessThan(
