@@ -167,12 +167,12 @@ game session이나 operation을 import하지 않는다.
 
 | module | 책임 | 현재 경로 |
 | --- | --- | --- |
-| `app` | production 조립, workbench 수명주기 | `src/main.ts`, `src/app/` |
+| `app` | 배포 조립, workbench 수명주기 | `src/main.ts`, `src/app/` |
 | `presentation` | DOM, view model, phase view, effect, style | `src/presentation/`, `src/ui/`, `src/styles/` |
 | `application` | command 처리와 campaign/operation 진행 | `src/application/` |
 | `platform` | browser frame, audio, localStorage adapter | `src/platform/` |
 | `authoring` | campaign document와 workshop | `src/authoring/` |
-| `content` | 실제 여섯 장면 | `src/scenarios/` |
+| `content` | 배포용 해인교 시제품과 확장용 장면 콘텐츠 | `src/scenarios/` |
 | `domain/operation` | clock, deterministic random, 전장과 작전 규칙 | `src/domain/operation/`, `src/simulation/` |
 | `domain/campaign` | campaign type, parse, validate, progress, repository seam | `src/campaign/` |
 
