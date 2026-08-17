@@ -38,6 +38,9 @@ export type {
   CampaignSceneCopy,
   CampaignSceneIdentity,
   CampaignScenePresentation,
+  CampaignSpatialSignalGuidanceStep,
+  CampaignSpatialSignalKind,
+  CampaignSpatialSignalStrength,
   CampaignTransition,
   CampaignThreat,
   AgentProfile,
@@ -50,6 +53,10 @@ export type {
   ThreatKind,
   ThreatLane,
   ThreatSeverity,
+} from "./types";
+export {
+  CAMPAIGN_SPATIAL_SIGNAL_KINDS,
+  CAMPAIGN_SPATIAL_SIGNAL_STRENGTHS,
 } from "./types";
 export {
   CampaignValidationError,

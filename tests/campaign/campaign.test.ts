@@ -6,9 +6,27 @@ import {
   createCampaignProgress,
   validateCampaignDefinition,
   type CampaignDefinition,
+  type CampaignGuidanceStep,
   type CampaignScene,
   type CampaignTransition,
 } from "../../src/campaign";
+
+type SpatialSignalGuidance = Extract<CampaignGuidanceStep, { action: "signal" }>;
+
+function spatialSignalGuidance(): SpatialSignalGuidance {
+  return {
+    id: "defend-crossing",
+    instruction: "교량에 방어 신호를 보낸다.",
+    action: "signal",
+    target: {
+      kind: "spatial-signal",
+      signal: "defend",
+      strength: 2,
+      position: { x: 1, y: 1 },
+    },
+    completionEvent: "spatial-signal-issued",
+  };
+}
 
 function createScene(
   id: string,
@@ -163,6 +181,20 @@ describe("campaign definition", () => {
     });
   });
 
+  it("accepts a JSON-serializable spatial signal guidance contract", () => {
+    const definition = createDefinition();
+    (definition.scenes[0].guidance as CampaignGuidanceStep[])[0] =
+      spatialSignalGuidance();
+
+    expect(validateCampaignDefinition(definition)).toEqual({
+      valid: true,
+      diagnostics: [],
+    });
+    expect(
+      JSON.parse(JSON.stringify(definition.scenes[0].guidance[0])),
+    ).toEqual(spatialSignalGuidance());
+  });
+
   it("rejects duplicate scene identifiers", () => {
     const definition = createDefinition();
     const duplicate = structuredClone(definition.scenes[1]);
@@ -311,6 +343,41 @@ describe("campaign definition", () => {
     expect(diagnosticFor(definition, "unknown-officer-reference")).toMatchObject({
       sceneId: "tutorial",
       field: "guidance[0].target.recipientOfficerId",
+    });
+  });
+
+  it.each([
+    ["unknown kind", { signal: "broadcast" }, "target.signal"],
+    ["zero strength", { strength: 0 }, "target.strength"],
+    ["fractional strength", { strength: 1.5 }, "target.strength"],
+    ["excess strength", { strength: 4 }, "target.strength"],
+  ] as const)(
+    "rejects a spatial signal guidance with %s",
+    (_description, replacement, field) => {
+      const definition = createDefinition();
+      const guidance = spatialSignalGuidance();
+      (definition.scenes[0].guidance as CampaignGuidanceStep[])[0] = guidance;
+      Object.assign(
+        guidance.target as unknown as Record<string, unknown>,
+        replacement,
+      );
+
+      expect(diagnosticFor(definition, "invalid-guidance-signal")).toMatchObject({
+        sceneId: "tutorial",
+        field: `guidance[0].${field}`,
+      });
+    },
+  );
+
+  it("rejects a spatial signal guidance tile outside its scene map", () => {
+    const definition = createDefinition();
+    const guidance = spatialSignalGuidance();
+    (definition.scenes[0].guidance as CampaignGuidanceStep[])[0] = guidance;
+    (guidance.target.position as { x: number }).x = 4;
+
+    expect(diagnosticFor(definition, "invalid-map-position")).toMatchObject({
+      sceneId: "tutorial",
+      field: "guidance[0].target.position",
     });
   });
 
