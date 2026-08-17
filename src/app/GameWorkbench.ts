@@ -1,4 +1,8 @@
-import { createGameSession, type GameSession } from "../application/game-session";
+import {
+  createGameSession,
+  type GameSession,
+  type GameSessionResume,
+} from "../application/game-session";
 import {
   createCampaignDocument,
   mountCampaignWorkshop,
@@ -13,6 +17,14 @@ import {
   type GameFrameScheduler,
 } from "../ui/GameApp";
 import type { GameAudio } from "../ui/GameAudio";
+import {
+  mountPlayerSettingsPanel,
+  type PlayerSettingsPanel,
+  type PlayerSettingsStore,
+} from "./PlayerSettings";
+import type { CampaignCheckpoint } from "./CampaignCheckpoint";
+
+export type { PlayerSettings, PlayerSettingsStore, PlayerUiScale } from "./PlayerSettings";
 
 export type GameAudioCredit = Readonly<{
   title: string;
@@ -28,6 +40,9 @@ export type GameWorkbenchOptions = Readonly<{
   audioFactory?: () => GameAudio;
   audioCredits?: readonly GameAudioCredit[];
   seed?: string | number;
+  editorEnabled?: boolean;
+  settingsStore?: PlayerSettingsStore;
+  checkpoint?: CampaignCheckpoint;
 }>;
 
 export type GameWorkbench = Readonly<{
@@ -35,6 +50,8 @@ export type GameWorkbench = Readonly<{
   session: () => GameSession;
   openManual: () => void;
   closeManual: () => void;
+  openSettings: () => void;
+  closeSettings: () => void;
   openEditor: () => void;
   closeEditor: () => void;
   restartGame: () => void;
@@ -50,6 +67,7 @@ export function mountGameWorkbench(
     repository: options.repository,
   });
   const loadResult = campaignDocument.load();
+  const editorEnabled = options.editorEnabled ?? true;
   const shell = document.createElement("main");
   shell.className = "game-workbench";
   const gameRoot = document.createElement("div");
@@ -63,12 +81,20 @@ export function mountGameWorkbench(
   manualToggle.setAttribute("aria-haspopup", "dialog");
   manualToggle.setAttribute("aria-controls", "field-manual");
   manualToggle.textContent = "작전 교범";
+  const settingsToggle = document.createElement("button");
+  settingsToggle.type = "button";
+  settingsToggle.className = "workbench-tool-toggle workbench-settings-toggle";
+  settingsToggle.dataset.action = "open-settings";
+  settingsToggle.setAttribute("aria-haspopup", "dialog");
+  settingsToggle.setAttribute("aria-controls", "player-settings");
+  settingsToggle.textContent = "설정";
   const editorToggle = document.createElement("button");
   editorToggle.type = "button";
   editorToggle.className = "workbench-tool-toggle workbench-editor-toggle";
   editorToggle.dataset.action = "open-editor";
   editorToggle.textContent = "장면 편집";
-  tools.append(manualToggle, editorToggle);
+  tools.append(manualToggle, settingsToggle);
+  if (editorEnabled) tools.append(editorToggle);
   const manualRoot = document.createElement("div");
   manualRoot.id = "field-manual";
   manualRoot.className = "workbench-manual";
@@ -158,31 +184,43 @@ export function mountGameWorkbench(
 
   let generation = 0;
   let gameApp: GameApp;
+  let activeAudio: GameAudio | null = null;
+  let settingsPanel: PlayerSettingsPanel;
   let workshop: CampaignWorkshop;
   let manualOpen = false;
   let pausedForManual = false;
+  let settingsOpen = false;
+  let pausedForSettings = false;
   let editorOpen = false;
   let pausedForEditor = false;
   let destroyed = false;
 
-  const gameOptions = (): GameAppOptions => ({
+  const gameOptions = (audio: GameAudio | undefined): GameAppOptions => ({
     frameScheduler: options.frameScheduler,
-    audio: options.audioFactory?.(),
+    audio,
+    reducedMotion: () => settingsPanel.read().reducedMotion,
+    onSnapshot: (snapshot) => options.checkpoint?.capture(snapshot),
+    onMutedChange: (muted) => settingsPanel.setMuted(muted),
   });
 
-  const createFreshGame = (): GameApp => {
+  const createFreshGame = (resume?: GameSessionResume): GameApp => {
     const snapshot = structuredClone(campaignDocument.snapshot());
     const seed = `${String(options.seed ?? "production-campaign")}:restart-${generation}`;
+    const session = createGameSession(snapshot, seed, resume);
     generation += 1;
-    const session = createGameSession(snapshot, seed);
-    return mountGameApp(gameRoot, snapshot, session, gameOptions());
+    const audio = options.audioFactory?.();
+    activeAudio = audio ?? null;
+    settingsPanel.connectAudio(activeAudio);
+    return mountGameApp(gameRoot, snapshot, session, gameOptions(audio));
   };
 
   const restartGame = (): void => {
     if (destroyed) return;
+    options.checkpoint?.clear();
     gameApp.destroy();
     gameApp = createFreshGame();
     pausedForManual = false;
+    pausedForSettings = false;
     pausedForEditor = false;
   };
 
@@ -197,6 +235,8 @@ export function mountGameWorkbench(
       gameApp.render();
     }
     pausedForEditor = false;
+    gameRoot.inert = false;
+    editorToggle.focus();
   };
 
   const closeManual = (): void => {
@@ -210,11 +250,29 @@ export function mountGameWorkbench(
       gameApp.render();
     }
     pausedForManual = false;
+    gameRoot.inert = false;
+    manualToggle.focus();
+  };
+
+  const closeSettings = (): void => {
+    if (!settingsOpen || destroyed) return;
+    settingsOpen = false;
+    settingsPanel.close();
+    shell.classList.remove("settings-open");
+    tools.hidden = false;
+    if (pausedForSettings && gameApp.session.read().phase === "operation") {
+      gameApp.session.dispatch({ type: "resume" });
+      gameApp.render();
+    }
+    pausedForSettings = false;
+    gameRoot.inert = false;
+    settingsToggle.focus();
   };
 
   const openEditor = (): void => {
-    if (editorOpen || destroyed) return;
+    if (!editorEnabled || editorOpen || destroyed) return;
     if (manualOpen) closeManual();
+    if (settingsOpen) closeSettings();
     const snapshot = gameApp.session.read();
     if (snapshot.phase === "operation" && !snapshot.paused) {
       gameApp.session.dispatch({ type: "pause" });
@@ -225,12 +283,14 @@ export function mountGameWorkbench(
     editorRoot.hidden = false;
     shell.classList.add("editor-open");
     tools.hidden = true;
+    gameRoot.inert = true;
     workshop.render();
   };
 
   const openManual = (): void => {
     if (manualOpen || destroyed) return;
     if (editorOpen) closeEditor();
+    if (settingsOpen) closeSettings();
     const snapshot = gameApp.session.read();
     if (snapshot.phase === "operation" && !snapshot.paused) {
       gameApp.session.dispatch({ type: "pause" });
@@ -241,25 +301,81 @@ export function mountGameWorkbench(
     manualRoot.hidden = false;
     shell.classList.add("manual-open");
     tools.hidden = true;
+    gameRoot.inert = true;
     const manualContent = manualRoot.querySelector<HTMLElement>(".field-manual-content");
     if (manualContent) manualContent.scrollTop = 0;
     manualRoot.querySelector<HTMLButtonElement>('[data-action="close-manual"]')?.focus();
   };
 
+  const openSettings = (): void => {
+    if (settingsOpen || destroyed) return;
+    if (manualOpen) closeManual();
+    if (editorOpen) closeEditor();
+    const snapshot = gameApp.session.read();
+    if (snapshot.phase === "operation" && !snapshot.paused) {
+      gameApp.session.dispatch({ type: "pause" });
+      gameApp.render();
+      pausedForSettings = true;
+    }
+    settingsOpen = true;
+    settingsPanel.open();
+    shell.classList.add("settings-open");
+    tools.hidden = true;
+    gameRoot.inert = true;
+  };
+
   const handleKeyDown = (event: KeyboardEvent): void => {
     if (event.key === "Escape") {
       if (manualOpen) closeManual();
+      else if (settingsOpen) closeSettings();
       else if (editorOpen) closeEditor();
     }
   };
 
-  gameApp = createFreshGame();
+  settingsPanel = mountPlayerSettingsPanel(shell, shell, {
+    store: options.settingsStore,
+    onRequestClose: closeSettings,
+    onChange: () => {
+      if (generation > 0) gameApp.render();
+    },
+    onLoadFailure: () => {
+      const notice = document.createElement("div");
+      notice.className = "workbench-notice";
+      notice.setAttribute("role", "alert");
+      notice.textContent = "저장된 설정을 불러오지 못해 기본값을 사용합니다.";
+      shell.append(notice);
+    },
+    onNewGame: () => {
+      restartGame();
+      closeSettings();
+    },
+  });
+  const restored = options.checkpoint?.restore();
+  if (restored?.recoveredFromFailure) {
+    const notice = document.createElement("div");
+    notice.className = "workbench-notice";
+    notice.setAttribute("role", "alert");
+    notice.textContent = "저장된 진행을 불러오지 못해 새 게임으로 시작했습니다.";
+    shell.append(notice);
+  }
+  try {
+    gameApp = createFreshGame(restored?.resume);
+  } catch {
+    options.checkpoint?.clear();
+    gameApp = createFreshGame();
+    const notice = document.createElement("div");
+    notice.className = "workbench-notice";
+    notice.setAttribute("role", "alert");
+    notice.textContent = "저장된 진행이 현재 캠페인과 맞지 않아 새 게임으로 시작했습니다.";
+    shell.append(notice);
+  }
   workshop = mountCampaignWorkshop(editorRoot, campaignDocument, {
     onClose: closeEditor,
     onRestart: restartGame,
   });
   manualToggle.addEventListener("click", openManual);
-  editorToggle.addEventListener("click", openEditor);
+  settingsToggle.addEventListener("click", openSettings);
+  if (editorEnabled) editorToggle.addEventListener("click", openEditor);
   manualRoot
     .querySelector<HTMLButtonElement>('[data-action="close-manual"]')
     ?.addEventListener("click", closeManual);
@@ -272,6 +388,8 @@ export function mountGameWorkbench(
     session: () => gameApp.session,
     openManual,
     closeManual,
+    openSettings,
+    closeSettings,
     openEditor,
     closeEditor,
     restartGame,
@@ -279,6 +397,7 @@ export function mountGameWorkbench(
       if (destroyed) return;
       destroyed = true;
       gameApp.destroy();
+      settingsPanel.destroy();
       workshop.destroy();
       document.removeEventListener("keydown", handleKeyDown);
       root.replaceChildren();

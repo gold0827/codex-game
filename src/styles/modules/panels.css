@@ -44,7 +44,7 @@
 .briefing-copy h3 {
   margin: 22px 0 8px;
   color: var(--gold);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-step));
   letter-spacing: 0.08em;
 }
 
@@ -90,7 +90,7 @@
   margin: 7px 0 0;
   padding-left: 17px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-step));
   line-height: 1.45;
 }
 
@@ -118,12 +118,12 @@
 }
 
 .harness-control-head {
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-step));
 }
 
 .harness-control-head output {
   color: var(--scene-accent);
-  font: 800 10px ui-monospace, monospace;
+  font: 800 calc(10px + var(--ui-font-step)) ui-monospace, monospace;
 }
 
 .harness-control input {
@@ -134,7 +134,7 @@
 .harness-limits,
 .axis-cost {
   color: var(--dim);
-  font-size: 8px;
+  font-size: calc(8px + var(--ui-font-step));
 }
 
 .axis-cost {
@@ -230,6 +230,11 @@
 .operation-sidebar .briefing-harness {
   overflow-y: auto;
   box-shadow: none;
+}
+
+.operation-sidebar .officer-panel {
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .operation-sidebar .harness-controls {

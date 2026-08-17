@@ -5,6 +5,8 @@ import {
   type CampaignKeyValueStore,
 } from "../../src/campaign";
 import type { GameSession } from "../../src/application/game-session";
+import type { GameSessionResume } from "../../src/application/game-session";
+import { createCampaignCheckpoint } from "../../src/app/CampaignCheckpoint";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import { productionSoundtrackCatalog } from "../../src/app/musicCatalog";
 import { flowCampaign } from "../fixtures/flow-campaign";
@@ -334,6 +336,124 @@ describe("game workbench", () => {
     expect(workbench.document.snapshot()).toEqual(completeCampaign);
     expect(root.querySelector(".workbench-notice")?.textContent).toContain(
       "저장된 캠페인을 불러오지 못했습니다.",
+    );
+  });
+
+  it("pauses behind persisted player settings and hides production authoring", () => {
+    workbench.destroy();
+    let savedSettings: unknown = {
+      muted: false,
+      masterVolume: 0.9,
+      musicVolume: 0.6,
+      effectsVolume: 0.7,
+      reducedMotion: false,
+      showTutorial: true,
+      uiScale: "standard",
+    };
+    workbench = mountGameWorkbench(root, completeCampaign, {
+      frameScheduler: scheduler,
+      audioFactory,
+      editorEnabled: false,
+      settingsStore: {
+        load: () => savedSettings,
+        save: (settings) => { savedSettings = structuredClone(settings); },
+      },
+    });
+
+    expect(root.querySelector('[data-action="open-editor"]')).toBeNull();
+    action("start-attempt").click();
+    action("open-settings").click();
+    expect(workbench.session().read().paused).toBe(true);
+    expect(root.querySelector<HTMLElement>(".workbench-game")?.inert).toBe(true);
+    const requestFullscreen = vi.fn(async () => undefined);
+    const shell = root.querySelector<HTMLElement>(".game-workbench")!;
+    shell.requestFullscreen = requestFullscreen;
+    document.dispatchEvent(new Event("fullscreenchange"));
+    action("toggle-fullscreen").click();
+    expect(requestFullscreen).toHaveBeenCalledOnce();
+
+    const uiScale = root.querySelector<HTMLSelectElement>('[data-setting="uiScale"]')!;
+    uiScale.value = "large";
+    uiScale.dispatchEvent(new Event("change", { bubbles: true }));
+    const reducedMotion = root.querySelector<HTMLInputElement>(
+      '[data-setting="reducedMotion"]',
+    )!;
+    reducedMotion.checked = true;
+    reducedMotion.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(savedSettings).toMatchObject({ uiScale: "large", reducedMotion: true });
+    expect(root.querySelector<HTMLElement>(".game-workbench")?.dataset.uiScale).toBe("large");
+    action("close-settings").click();
+    expect(workbench.session().read().paused).toBe(false);
+    expect(root.querySelector<HTMLElement>(".workbench-game")?.inert).toBe(false);
+    expect(document.activeElement).toBe(action("open-settings"));
+  });
+
+  it("restores campaign checkpoints and confirms a new game", () => {
+    workbench.destroy();
+    let saved: GameSessionResume | null = null;
+    const checkpoint = createCampaignCheckpoint({
+      load: () => saved,
+      save: (resume) => { saved = structuredClone(resume); },
+      clear: () => { saved = null; },
+    });
+    workbench = mountGameWorkbench(root, completeCampaign, {
+      frameScheduler: scheduler,
+      audioFactory,
+      checkpoint,
+      seed: "checkpoint-test",
+    });
+
+    action("start-attempt").click();
+    finishSuccessfulAttempt(workbench.session());
+    const lesson = workbench.session().read().debrief?.lessonChoices[0];
+    if (!lesson) throw new Error("Expected a lesson choice");
+    workbench.session().dispatch({ type: "choose-lesson", lessonId: lesson.id });
+    action("open-settings").click();
+    const reducedMotion = root.querySelector<HTMLInputElement>(
+      '[data-setting="reducedMotion"]',
+    )!;
+    reducedMotion.checked = true;
+    reducedMotion.dispatchEvent(new Event("change", { bubbles: true }));
+    const nextSceneId = completeCampaign.scenes[1]!.identity.id;
+    expect(saved).toMatchObject({ progress: { currentSceneId: nextSceneId } });
+
+    workbench.destroy();
+    workbench = mountGameWorkbench(root, completeCampaign, {
+      frameScheduler: scheduler,
+      audioFactory,
+      checkpoint,
+      seed: "checkpoint-test",
+    });
+    expect(workbench.session().read()).toMatchObject({
+      phase: "briefing",
+      scene: { identity: { id: nextSceneId } },
+    });
+
+    action("open-settings").click();
+    action("request-new-game").click();
+    expect(root.querySelector<HTMLElement>(
+      '[data-region="new-game-confirmation"]',
+    )?.hidden).toBe(false);
+    action("confirm-new-game").click();
+    expect(workbench.session().read().scene.identity.id).toBe(completeCampaign.startSceneId);
+  });
+
+  it("recovers safely from a malformed progress checkpoint", () => {
+    workbench.destroy();
+    workbench = mountGameWorkbench(root, completeCampaign, {
+      frameScheduler: scheduler,
+      audioFactory,
+      checkpoint: createCampaignCheckpoint({
+        load: () => ({ broken: true }),
+        save: () => undefined,
+        clear: () => undefined,
+      }),
+    });
+
+    expect(workbench.session().read().scene.identity.id).toBe(completeCampaign.startSceneId);
+    expect(root.querySelector(".workbench-notice")?.textContent).toContain(
+      "새 게임으로 시작했습니다",
     );
   });
 

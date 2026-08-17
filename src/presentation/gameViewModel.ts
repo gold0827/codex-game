@@ -251,7 +251,9 @@ export function projectHudViewModel(
         ["시도", `${snapshot.attemptNumber}`],
         ["경과", formatGameTime(operation?.elapsedMs ?? 0)],
         ["속도", `${snapshot.playerSpeed}×`],
-        ["상태", phaseLabels[snapshot.phase]],
+        ["상태", snapshot.phase === "operation" && snapshot.paused
+          ? "일시정지"
+          : phaseLabels[snapshot.phase]],
       ] as const,
     },
     harness: (Object.keys(harnessLabels) as HarnessAxis[]).map((axis) => ({
