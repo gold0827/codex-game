@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CampaignOfficer, CampaignScene } from "../../src/campaign";
-import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { completeCampaign, firstSpatialMap } from "../../src/scenarios/completeCampaign";
 import {
   createOperationRandomStreams,
   operationRandomStreamKey,
@@ -44,6 +44,35 @@ function runToEnd(
   simulation.advance(scene.encounterParameters.durationMs);
   return simulation;
 }
+
+describe("operation spatial execution", () => {
+  it("executes the deterministic 24x16 fixture through the operation runtime", () => {
+    const run = () => {
+      const simulation = createOperationSimulation(
+        playableScenes[0] as CampaignScene,
+        completeCampaign.officers,
+        "spatial-runtime-proof",
+        BALANCED_HARNESS,
+      );
+      simulation.advance(4_000);
+      return simulation.snapshot().spatial;
+    };
+    const first = run();
+
+    expect(run()).toEqual(first);
+    expect(first.topology).toMatchObject({ width: 24, height: 16 });
+    expect(first.actors.map(({ position }) => position)).toEqual(
+      [...firstSpatialMap.destinations]
+        .map(({ position }, index) => ({
+          actorId: completeCampaign.officers[index]!.id,
+          position,
+        }))
+        .sort((left, right) => left.actorId.localeCompare(right.actorId))
+        .map(({ position }) => position),
+    );
+    expect(first.actors.every(({ destination, path }) => destination === null && path.length === 0)).toBe(true);
+  });
+});
 
 describe("seeded random", () => {
   it("replays the same local sequence and stays inside its documented range", () => {

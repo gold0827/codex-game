@@ -26,10 +26,11 @@ type ThreatContext = {
   metrics: MutableMetrics;
   appendReplay: AppendReplay;
   addBelief: (officer: MutableOfficer, belief: OfficerBeliefSnapshot) => void;
+  advanceSpatial: () => void;
 };
 
 export function createThreats(context: ThreatContext) {
-  const { durationMs, readiness, state, officers, threats, objectives, units, metrics, appendReplay, addBelief } = context;
+  const { durationMs, readiness, state, officers, threats, objectives, units, metrics, appendReplay, addBelief, advanceSpatial } = context;
 
   const telegraphThreat = (threat: CampaignThreat, timeMs: number): void => {
     const objective = objectives[threats.length % Math.max(1, objectives.length)];
@@ -112,11 +113,7 @@ export function createThreats(context: ThreatContext) {
   const updateProgress = (stepMs: number): void => {
     const progressIncrement = (stepMs / durationMs) * readiness * 1.25;
     objectives.forEach((objective) => { objective.progress = clamp(objective.progress + progressIncrement); });
-    units.forEach((unit) => {
-      const officer = officers.find(({ id }) => id === unit.officerId);
-      const movementFactor = officer?.disposition === "action" ? 1.2 : 0.75;
-      unit.position = rounded(clamp(unit.position + (stepMs / durationMs) * movementFactor));
-    });
+    advanceSpatial();
     metrics.objectiveProgress = rounded(
       objectives.reduce((total, objective) => total + objective.progress, 0) / Math.max(1, objectives.length),
     );

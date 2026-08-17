@@ -225,6 +225,43 @@ function checkBeat(
   checkArray(beat, "threats", path, diagnostics, checkThreat);
 }
 
+function checkPosition(
+  value: unknown,
+  path: string,
+  diagnostics: CampaignParseDiagnostic[],
+): void {
+  const position = recordAt(value, path, diagnostics);
+  if (!position) return;
+  expectType(position, "x", "number", path, diagnostics);
+  expectType(position, "y", "number", path, diagnostics);
+}
+
+function checkMapTopology(
+  value: unknown,
+  path: string,
+  diagnostics: CampaignParseDiagnostic[],
+): void {
+  const topology = recordAt(value, path, diagnostics);
+  if (!topology) return;
+  expectType(topology, "width", "number", path, diagnostics);
+  expectType(topology, "height", "number", path, diagnostics);
+  checkArray(topology, "blocked", path, diagnostics, checkPosition);
+  checkArray(topology, "terrain", path, diagnostics, (value, itemPath) => {
+    const tile = recordAt(value, itemPath, diagnostics);
+    if (!tile) return;
+    checkPosition(tile.position, propertyPath(itemPath, "position"), diagnostics);
+    expectType(tile, "movementCost", "number", itemPath, diagnostics);
+  });
+  (["spawns", "destinations"] as const).forEach((collection) => {
+    checkArray(topology, collection, path, diagnostics, (value, itemPath) => {
+      const location = recordAt(value, itemPath, diagnostics);
+      if (!location) return;
+      expectType(location, "id", "string", itemPath, diagnostics);
+      checkPosition(location.position, propertyPath(itemPath, "position"), diagnostics);
+    });
+  });
+}
+
 function checkScene(
   value: unknown,
   path: string,
@@ -258,6 +295,14 @@ function checkScene(
       presentation,
       ["mapId", "backdropId", "soundtrackId", "accentColor"],
       presentationPath,
+      diagnostics,
+    );
+  }
+
+  if (scene.mapTopology !== undefined) {
+    checkMapTopology(
+      scene.mapTopology,
+      propertyPath(path, "mapTopology"),
       diagnostics,
     );
   }

@@ -29,6 +29,7 @@ import {
   createOperationRandomStreams,
   operationRandomStreamKey,
 } from "./randomStreams";
+import { createSpatialWorld } from "./spatial";
 
 function assertHarness(harness: HarnessConfiguration): void {
   const fields = ["informationReach", "authorityClarity", "verificationDepth", "feedbackCompression"] as const;
@@ -78,6 +79,10 @@ export function createOperationSimulation(
   const scene = clone(suppliedScene);
   const roster = clone(suppliedRoster);
   const harness = clone(suppliedHarness);
+  const mapTopology = scene.mapTopology;
+  if (!mapTopology) {
+    throw new RangeError("Operation simulation requires authored map topology.");
+  }
   const randomStreams = createOperationRandomStreams(
     deriveRandomStreamSeed(
       runSeed,
@@ -126,12 +131,27 @@ export function createOperationSimulation(
   const units: MutableUnit[] = roster.map((officer, index) => ({
     officerId: officer.id,
     lane: LANES[index % LANES.length] as ThreatLane,
-    position: 0,
-    route: [LANES[index % LANES.length] as ThreatLane],
     intent: intentAlternatives(officer.disposition)[0],
     health: 100,
     objectiveId: objectives[index % Math.max(1, objectives.length)]?.id ?? null,
   }));
+  if (mapTopology.spawns.length < roster.length ||
+      mapTopology.destinations.length < roster.length) {
+    throw new RangeError("Operation map requires one unique spawn and destination per officer.");
+  }
+  const spatialWorld = createSpatialWorld(
+    mapTopology,
+    roster.map((officer, index) => ({
+      actorId: officer.id,
+      position: mapTopology.spawns[index]!.position,
+    })),
+  );
+  roster.forEach((officer, index) => {
+    spatialWorld.execute({
+      actorId: officer.id,
+      destination: mapTopology.destinations[index]!.position,
+    });
+  });
   const metrics: MutableMetrics = {
     objectiveProgress: 0,
     civilianSafety: 100,
@@ -225,10 +245,12 @@ export function createOperationSimulation(
   const threatRuntime = createThreats({
     harness, durationMs, readiness, state, officers, threats, objectives, units, metrics, appendReplay,
     addBelief: signals.addBelief,
+    advanceSpatial: spatialWorld.advance,
   });
   const outcome = createOutcome({
     scene, harness, consequences, durationMs, readiness, compoundReplanRequired, state,
     officers, messages, threats, units, objectives, metrics, replayEntries, operationEvents, appendReplay,
+    spatialWorld,
   });
   const decisions = createDecisions({
     scene, roster, harness, durationMs, compoundReplanRequired, state, officers, messages, threats, units,

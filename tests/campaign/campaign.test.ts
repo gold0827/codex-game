@@ -31,6 +31,14 @@ function createScene(
       soundtrackId: `${id}-soundtrack`,
       accentColor: "#ffffff",
     },
+    mapTopology: {
+      width: 4,
+      height: 4,
+      blocked: [{ x: 2, y: 2 }],
+      terrain: [{ position: { x: 1, y: 2 }, movementCost: 2 }],
+      spawns: [{ id: "spawn", position: { x: 0, y: 0 } }],
+      destinations: [{ id: "destination", position: { x: 3, y: 3 } }],
+    },
     guidance: [
       {
         id: `${id}-guidance`,
@@ -131,6 +139,7 @@ describe("campaign definition", () => {
       "identity",
       "copy",
       "presentation",
+      "mapTopology",
       "guidance",
       "beats",
       "objectives",
@@ -174,6 +183,25 @@ describe("campaign definition", () => {
     expect(diagnosticFor(definition, "duplicate-officer-id")).toMatchObject({
       sceneId: "training-campaign",
       field: "officers[1].id",
+    });
+  });
+
+  it("rejects out-of-bounds and blocked map locations", () => {
+    const definition = createDefinition();
+    const topology = definition.scenes[0].mapTopology as unknown as {
+      blocked: Array<{ x: number; y: number }>;
+      spawns: Array<{ id: string; position: { x: number; y: number } }>;
+    };
+    topology.blocked.push({ x: 4, y: 0 });
+    topology.spawns[0]!.position = { x: 2, y: 2 };
+
+    expect(diagnosticFor(definition, "invalid-map-position")).toMatchObject({
+      sceneId: "tutorial",
+      field: "mapTopology.blocked[1]",
+    });
+    expect(diagnosticFor(definition, "blocked-map-location")).toMatchObject({
+      sceneId: "tutorial",
+      field: "mapTopology.spawns[0].position",
     });
   });
 
