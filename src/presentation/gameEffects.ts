@@ -55,8 +55,14 @@ export function createGameEffects(
     frameHandle = null;
     const elapsed = previousFrameTime === null ? 0 : Math.max(0, timestamp - previousFrameTime);
     previousFrameTime = timestamp;
+    const phaseBeforeAdvance = session.read().phase;
     if (elapsed > 0) session.advance(elapsed);
-    if (previousRenderTime === null || timestamp - previousRenderTime >= renderIntervalMs) {
+    const phaseChanged = session.read().phase !== phaseBeforeAdvance;
+    if (
+      phaseChanged ||
+      previousRenderTime === null ||
+      timestamp - previousRenderTime >= renderIntervalMs
+    ) {
       previousRenderTime = timestamp;
       render();
     }
