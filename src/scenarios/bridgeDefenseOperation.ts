@@ -260,8 +260,6 @@ export const bridgeDefenseOperation = {
   ],
   encounterParameters: {
     durationMs: 55_000,
-    threatBudget: 2,
-    reinforcementIntervalMs: 18_000,
   },
   gameplayTuning: {
     startingResources: 72,
@@ -292,8 +290,6 @@ const bridgeDefenseEpilogue = {
   transitions: [],
   encounterParameters: {
     durationMs: 1,
-    threatBudget: 0,
-    reinforcementIntervalMs: 1,
   },
   gameplayTuning: {
     startingResources: 0,

@@ -83,7 +83,6 @@ describe("campaign editor", () => {
 
     input<HTMLInputElement>("copy.title").value = "수정된 첫 장면";
     input<HTMLInputElement>("presentation.mapId").value = "edited-map";
-    input<HTMLInputElement>("encounterParameters.threatBudget").value = "11";
     const beats = structuredClone(completeCampaign.scenes[0]!.beats) as unknown as Array<{
       reports: Array<{ text: string }>;
     }>;
@@ -94,7 +93,8 @@ describe("campaign editor", () => {
     const changed = campaignDocument.scene(completeCampaign.scenes[0]!.identity.id)!;
     expect(changed.copy.title).toBe("수정된 첫 장면");
     expect(changed.presentation.mapId).toBe("edited-map");
-    expect(changed.encounterParameters.threatBudget).toBe(11);
+    expect(root.querySelector("[data-field='encounterParameters.threatBudget']")).toBeNull();
+    expect(root.querySelector("[data-field='encounterParameters.reinforcementIntervalMs']")).toBeNull();
     expect(changed.beats[0]!.reports[0]!.text).toBe("수정된 중첩 보고");
 
     const nextSelector = action("select-scene") as unknown as HTMLSelectElement;
@@ -150,9 +150,14 @@ describe("campaign editor", () => {
     action("export-campaign").click();
     const exchange = input<HTMLTextAreaElement>("campaign-json");
     const exported = JSON.parse(exchange.value) as {
-      scenes: Array<{ copy: { title: string } }>;
+      scenes: Array<{
+        copy: { title: string };
+        encounterParameters: Record<string, unknown>;
+      }>;
     };
     expect(exported.scenes[0]!.copy.title).toBe("저장될 제목");
+    expect(exported.scenes[0]!.encounterParameters).not.toHaveProperty("threatBudget");
+    expect(exported.scenes[0]!.encounterParameters).not.toHaveProperty("reinforcementIntervalMs");
     exported.scenes[0]!.copy.title = "가져온 제목";
     const importedBeats = exported.scenes[0] as unknown as {
       beats: Array<{ reports: Array<{ text: string }> }>;

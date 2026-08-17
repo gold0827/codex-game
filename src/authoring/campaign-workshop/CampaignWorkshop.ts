@@ -44,8 +44,6 @@ const presentationFields = [
 
 const encounterFields = [
   ["durationMs", "작전 시간(ms)"],
-  ["threatBudget", "위협 예산"],
-  ["reinforcementIntervalMs", "증원 간격(ms)"],
 ] as const;
 
 const tuningFields = [
@@ -184,11 +182,6 @@ export function mountCampaignWorkshop(
     }
 
     const durationMs = numberValue("encounterParameters.durationMs", diagnostics);
-    const threatBudget = numberValue("encounterParameters.threatBudget", diagnostics);
-    const reinforcementIntervalMs = numberValue(
-      "encounterParameters.reinforcementIntervalMs",
-      diagnostics,
-    );
     const startingResources = numberValue("gameplayTuning.startingResources", diagnostics);
     const interventionBudget = numberValue("gameplayTuning.interventionBudget", diagnostics);
     const simulationSpeed = numberValue("gameplayTuning.simulationSpeed", diagnostics);
@@ -225,8 +218,6 @@ export function mountCampaignWorkshop(
       transitions: transitions as CampaignScene["transitions"],
       encounterParameters: {
         durationMs: durationMs!,
-        threatBudget: threatBudget!,
-        reinforcementIntervalMs: reinforcementIntervalMs!,
       },
       gameplayTuning: {
         startingResources: startingResources!,

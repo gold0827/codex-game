@@ -185,8 +185,6 @@ export interface CampaignTransition {
 
 export interface CampaignEncounterParameters {
   readonly durationMs: number;
-  readonly threatBudget: number;
-  readonly reinforcementIntervalMs: number;
 }
 
 export interface CampaignGameplayTuning {
