@@ -20,15 +20,36 @@ Bootstrap rule — expires after 3 cycles under `catalog.md` § How a rule enter
 All project planning, implementation, coordination, verification, audit, and
 documentation use Codex only. Four distinct Codex sessions own these roles:
 
-- **Codex secretary.** Keeps the user-facing thread, selects one work item,
-  dispatches the issue worktree, and merges only after independent audit.
+- **Codex secretary.** Keeps the user-facing thread, dispatches independent
+  issue worktrees in parallel when their touch surfaces do not overlap, and
+  merges only after runtime verification and a final independent verdict.
 - **Codex liaison.** Runs beside the implementer in the issue worktree and is
-  its sole controller. The liaison does not implement, audit, or merge.
+  its sole controller. It enforces scope and transport without adding a design
+  approval gate. The liaison does not implement, audit, or merge.
 - **Codex implementer.** Owns issue → branch → PR, verification, and audit
-  responses under liaison control. The implementer does not audit or merge its
-  own work.
-- **Fresh Codex auditor.** Has no implementation or liaison role, receives no
-  liaison Run history, and returns a verdict without merging.
+  responses under liaison control. It implements first, exercises the result in
+  its real runtime, and fixes observed failures before requesting a verdict.
+  The implementer does not audit or merge its own work.
+- **Fresh Codex auditor.** Runs once after implementation and runtime evidence
+  are complete. It reproduces only acceptance-critical paths and returns a
+  fatal-only verdict without merging.
+
+## Runtime-first cycle
+
+Bootstrap rule — expires after 3 cycles under `catalog.md` § How a rule enters.
+
+1. Dispatch the declared touch surface without a pre-implementation design or
+   audit gate.
+2. Build the smallest runnable behavior.
+3. Exercise it through the real game, browser, CLI, or headless simulation that
+   players and maintainers will use.
+4. Fix failures observed in that execution, then run focused tests and the
+   repository check.
+5. Open the PR with runtime evidence. A fresh auditor performs one fatal-only
+   pass against the implemented behavior.
+6. A finding blocks merge only when it reproduces a declared acceptance failure,
+   data loss, security issue, or build/runtime break. Record improvements outside
+   the issue touch surface as later work instead of expanding the current cycle.
 
 ## Cycle continuity
 
