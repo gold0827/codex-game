@@ -1,16 +1,17 @@
 import {
-  createCampaignProgress,
+  createCampaignRun,
   type CampaignDefinition,
   type CampaignGuidanceStep,
+  type CampaignRun,
+  type CampaignRunSnapshot,
   type CampaignScene,
   type CampaignTilePosition,
 } from "../campaign";
-import { createOperationSimulation } from "../simulation/operationSimulation";
 import {
-  deriveRunSeed,
-  hashSeed,
-  type RandomSeed,
-} from "../simulation/seededRandom";
+  createCampaignOperation,
+  type CampaignOperation,
+} from "../application/campaign-operation";
+import { hashSeed, type RandomSeed } from "../simulation/seededRandom";
 import {
   BALANCED_HARNESS,
   type HarnessConfiguration,
@@ -131,14 +132,22 @@ export function createGameController(
   baseSeed: RandomSeed,
 ): GameController {
   hashSeed(baseSeed);
-  const progress = createCampaignProgress(suppliedDefinition);
-  const definition = progress.definition();
-  let scene = progress.currentScene();
+  const definition = clone(suppliedDefinition);
+  let run: CampaignRun = createCampaignRun(definition, baseSeed);
+  const sceneFromRun = (state: CampaignRunSnapshot): CampaignScene => {
+    if (state.launch) return state.launch.scene;
+    const current = definition.scenes.find(
+      ({ identity }) => identity.id === state.progress.currentSceneId,
+    );
+    if (!current) throw new Error("Campaign run references a missing scene.");
+    return clone(current);
+  };
+  let scene = sceneFromRun(run.read());
   let phase: GamePhase =
     scene.identity.kind === "epilogue" ? "epilogue" : "briefing";
-  let attemptNumber = 1;
   let harness: HarnessConfiguration = clone(BALANCED_HARNESS);
   let simulation: OperationSimulation | null = null;
+  let campaignOperation: CampaignOperation | null = null;
   let paused = false;
   let playerSpeed: PlayerSpeed = 1;
   let fractionalOperationMs = 0;
@@ -149,12 +158,11 @@ export function createGameController(
 
   assertAffordable(harness, scene);
 
-  const attemptSeed = (): RandomSeed =>
-    deriveRunSeed(
-      definition.id,
-      scene.identity.id,
-      baseSeed,
-    );
+  const attemptSeed = (): RandomSeed => {
+    const launch = run.read().launch;
+    if (!launch) return JSON.stringify([definition.id, scene.identity.id, typeof baseSeed, baseSeed]);
+    return launch.seed;
+  };
 
   const routeReportsExist = (): boolean => {
     if (!simulation) return false;
@@ -182,6 +190,7 @@ export function createGameController(
   };
 
   const snapshot = (): GameSnapshot => {
+    const campaign = run.read();
     const budget = harnessBudget(harness, scene.gameplayTuning.startingResources);
     const operation = simulation?.snapshot() ?? null;
     const briefing =
@@ -197,8 +206,9 @@ export function createGameController(
     return clone({
       phase,
       scene,
-      progress: progress.snapshot(),
-      attemptNumber,
+      progress: campaign.progress,
+      officerMemory: campaign.memory,
+      attemptNumber: campaign.attemptNumber,
       attemptSeed: attemptSeed(),
       harness,
       harnessBudget: budget,
@@ -262,13 +272,10 @@ export function createGameController(
       );
     }
 
-    const candidate = createOperationSimulation(
-      scene,
-      definition.officers,
-      attemptSeed(),
-      harness,
-    );
-    simulation = candidate;
+    const launch = run.read().launch;
+    if (!launch) throw new Error("Briefing phase requires an active campaign launch.");
+    campaignOperation = createCampaignOperation(launch, harness);
+    simulation = campaignOperation.simulation;
     phase = "operation";
     paused = false;
     playerSpeed = 1;
@@ -293,6 +300,7 @@ export function createGameController(
       status: operation.status,
       outcomeId: operation.outcomeId,
       copy: operation.status === "success" ? scene.copy.success : scene.copy.failure,
+      lessonChoices: campaignOperation?.result().lessonChoices ?? [],
     };
   };
 
@@ -433,6 +441,7 @@ export function createGameController(
 
   const clearAttemptState = (): void => {
     simulation = null;
+    campaignOperation = null;
     paused = false;
     playerSpeed = 1;
     fractionalOperationMs = 0;
@@ -444,27 +453,53 @@ export function createGameController(
 
   const continueCampaign = (): GameSnapshot => {
     requirePhase("debrief", "Continuing the campaign");
-    const completedOperation = simulation?.snapshot();
-    if (!completedOperation?.outcomeId) {
+    const completedOperation = campaignOperation?.result();
+    if (!completedOperation) {
       throw new Error("Debrief phase requires a completed operation.");
     }
-    const previousSceneId = scene.identity.id;
-    progress.recordOutcome(completedOperation.outcomeId);
-    scene = progress.currentScene();
-    const isRetry = scene.identity.id === previousSceneId;
-    attemptNumber = isRetry ? attemptNumber + 1 : 1;
-    if (!isRetry) harness = clone(BALANCED_HARNESS);
+    if (completedOperation.status === "success") {
+      throw new GameControllerError(
+        "invalid-phase",
+        "A successful operation requires a lesson choice before continuing.",
+      );
+    }
+    const campaign = run.resolve(completedOperation);
+    scene = sceneFromRun(campaign);
     clearAttemptState();
-    phase = scene.identity.kind === "epilogue" ? "epilogue" : "briefing";
+    phase = "briefing";
+    assertAffordable(harness, scene);
+    return snapshot();
+  };
+
+  const chooseLesson = (lessonId: string): GameSnapshot => {
+    requirePhase("debrief", "Choosing a lesson");
+    const completedOperation = campaignOperation?.result();
+    if (!completedOperation || completedOperation.status !== "success") {
+      throw new GameControllerError(
+        "invalid-phase",
+        "A lesson can only be chosen after a successful operation.",
+      );
+    }
+    if (!completedOperation.lessonChoices.some(({ id }) => id === lessonId)) {
+      throw new GameControllerError(
+        "invalid-target",
+        `Lesson choice "${lessonId}" was not offered.`,
+      );
+    }
+    run.resolve(completedOperation);
+    const campaign = run.decide({ lessonId });
+    scene = sceneFromRun(campaign);
+    harness = clone(BALANCED_HARNESS);
+    clearAttemptState();
+    phase = campaign.status === "complete" ? "epilogue" : "briefing";
     assertAffordable(harness, scene);
     return snapshot();
   };
 
   const reset = (): GameSnapshot => {
-    progress.reset();
-    scene = progress.currentScene();
+    run = createCampaignRun(definition, baseSeed);
+    scene = sceneFromRun(run.read());
     phase = scene.identity.kind === "epilogue" ? "epilogue" : "briefing";
-    attemptNumber = 1;
     harness = clone(BALANCED_HARNESS);
     clearAttemptState();
     assertAffordable(harness, scene);
@@ -486,6 +521,7 @@ export function createGameController(
     authorizeOfficer,
     prioritizeVerification,
     continueCampaign,
+    chooseLesson,
     reset,
   };
 }

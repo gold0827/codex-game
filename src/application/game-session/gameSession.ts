@@ -35,6 +35,7 @@ export type GameCommand =
   /** @deprecated Remove with route tutorial and legacy operation controls. */
   | Readonly<{ type: "prioritize-verification"; reportId: string }>
   | Readonly<{ type: "continue-campaign" }>
+  | Readonly<{ type: "choose-lesson"; lessonId: string }>
   | Readonly<{ type: "reset" }>;
 
 export type GameSession = Readonly<{
@@ -75,6 +76,8 @@ export function createGameSession(
         return controller.prioritizeVerification(command.reportId);
       case "continue-campaign":
         return controller.continueCampaign();
+      case "choose-lesson":
+        return controller.chooseLesson(command.lessonId);
       case "reset":
         return controller.reset();
     }

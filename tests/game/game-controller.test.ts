@@ -278,6 +278,12 @@ describe("game controller campaign flow", () => {
     controller.setHarness(BALANCED_HARNESS);
     playBalancedAttempt(controller);
     expect(controller.snapshot().debrief?.status).toBe("success");
+    expect(controller.snapshot().debrief?.lessonChoices).toHaveLength(
+      completeCampaign.officers.length,
+    );
+    const successfulDebrief = controller.snapshot();
+    expect(() => controller.chooseLesson("invented-lesson")).toThrow(GameControllerError);
+    expect(controller.snapshot()).toEqual(successfulDebrief);
   });
 
   it("plays all six operations through the authored epilogue and resets cleanly", () => {
@@ -298,7 +304,9 @@ describe("game controller campaign flow", () => {
         phase: "debrief",
         debrief: { status: "success", outcomeId: "success" },
       });
-      controller.continueCampaign();
+      const lesson = controller.snapshot().debrief?.lessonChoices[0];
+      if (!lesson) throw new Error("A successful operation must offer a lesson.");
+      controller.chooseLesson(lesson.id);
     }
 
     expect(playedSceneIds).toEqual(
@@ -312,6 +320,7 @@ describe("game controller campaign flow", () => {
       operation: null,
       progress: { completed: true },
     });
+    expect(controller.snapshot().officerMemory[0]?.lessons).toHaveLength(2);
     expect(() => controller.startAttempt()).toThrow(/briefing phase/);
 
     controller.reset();

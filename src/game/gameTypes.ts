@@ -1,5 +1,7 @@
 import type {
   CampaignGuidanceStep,
+  OfficerLesson,
+  OfficerLessonMemory,
   CampaignObjective,
   CampaignProgressSnapshot,
   CampaignScene,
@@ -48,6 +50,7 @@ export type GameDebriefSnapshot = Readonly<{
   status: Exclude<OperationStatus, "running">;
   outcomeId: string;
   copy: string;
+  lessonChoices: readonly OfficerLesson[];
 }>;
 
 export type InterventionResultSnapshot = Readonly<{
@@ -61,6 +64,7 @@ export type GameSnapshot = Readonly<{
   phase: GamePhase;
   scene: CampaignScene;
   progress: CampaignProgressSnapshot;
+  officerMemory: readonly OfficerLessonMemory[];
   attemptNumber: number;
   attemptSeed: RandomSeed;
   harness: HarnessConfiguration;
@@ -96,6 +100,7 @@ export type GameController = Readonly<{
   authorizeOfficer: (officerId: string) => GameSnapshot;
   prioritizeVerification: (reportId: string) => GameSnapshot;
   continueCampaign: () => GameSnapshot;
+  chooseLesson: (lessonId: string) => GameSnapshot;
   reset: () => GameSnapshot;
 }>;
 
