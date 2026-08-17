@@ -6,7 +6,6 @@ import type {
   CampaignThreat,
   OfficerDisposition,
   ThreatLane,
-  ThreatSeverity,
 } from "../campaign/types";
 import { createSeededRandom, type RandomSeed } from "./seededRandom";
 import {
@@ -31,6 +30,11 @@ import {
   type VerificationState,
 } from "./simulationTypes";
 import { projectOperationReplay, type OperationEvent } from "../domain/operation/operationEvent";
+import { confidenceFor as engineConfidenceFor, intentAlternatives as engineIntentAlternatives } from "../domain/operation/internal/decisions";
+import { orderBeats, dueBeats } from "../domain/operation/internal/timeline";
+import { deliveryDelay as signalDeliveryDelay, verificationDelay as signalVerificationDelay, reportReliability } from "../domain/operation/internal/signals";
+import { isThreatBlocked, threatDamage } from "../domain/operation/internal/threats";
+import { operationSucceeded } from "../domain/operation/internal/outcome";
 
 type MutableOfficer = {
   id: string;
@@ -94,19 +98,6 @@ type MutableMetrics = {
 };
 
 const lanes: readonly ThreatLane[] = ["north", "center", "south", "command"];
-const severityThreshold: Readonly<Record<ThreatSeverity, number>> = {
-  low: 0.3,
-  medium: 0.42,
-  high: 0.52,
-  critical: 0.58,
-};
-const severityDamage: Readonly<Record<ThreatSeverity, number>> = {
-  low: 4,
-  medium: 8,
-  high: 13,
-  critical: 19,
-};
-
 function clone<Value>(value: Value): Value {
   return JSON.parse(JSON.stringify(value)) as Value;
 }
@@ -248,48 +239,6 @@ function harnessReadiness(
   );
 }
 
-function confidenceFor(
-  disposition: OfficerDisposition,
-  harness: HarnessConfiguration,
-): number {
-  if (disposition === "action") {
-    return rounded(clamp(0.35 + harness.authorityClarity * 0.55));
-  }
-  if (disposition === "verification") {
-    return rounded(clamp(0.3 + harness.verificationDepth * 0.62));
-  }
-  return rounded(
-    clamp(
-      0.25 + harness.informationReach * 0.32 + harness.feedbackCompression * 0.3,
-    ),
-  );
-}
-
-function intentAlternatives(disposition: OfficerDisposition): readonly OfficerIntent[] {
-  if (disposition === "action") {
-    return [
-      "advance-locally",
-      "advance-locally",
-      "engage-threat",
-      "secure-objective",
-    ];
-  }
-  if (disposition === "verification") {
-    return [
-      "cross-check-report",
-      "cross-check-report",
-      "inspect-source",
-      "hold-for-evidence",
-    ];
-  }
-  return [
-    "route-report",
-    "route-report",
-    "broadcast-update",
-    "compress-feedback",
-  ];
-}
-
 export function createOperationSimulation(
   suppliedScene: CampaignScene,
   suppliedRoster: readonly CampaignOfficer[],
@@ -307,9 +256,7 @@ export function createOperationSimulation(
   const durationMs = scene.encounterParameters.durationMs;
   const consequences = detectConsequences(harness);
   const readiness = harnessReadiness(harness, consequences);
-  const orderedBeats = [...scene.beats].sort(
-    (left, right) => left.timeMs - right.timeMs,
-  );
+  const orderedBeats = orderBeats(scene.beats);
   const compoundReplanRequired =
     new Set(scene.beats.flatMap((beat) => beat.threats.map(({ kind }) => kind)))
       .size >= 3 &&
@@ -341,8 +288,8 @@ export function createOperationSimulation(
   const officers: MutableOfficer[] = roster.map((officer) => ({
     id: officer.id,
     disposition: officer.disposition,
-    intent: intentAlternatives(officer.disposition)[0],
-    confidence: confidenceFor(officer.disposition, harness),
+    intent: engineIntentAlternatives(officer.disposition)[0],
+    confidence: engineConfidenceFor(officer.disposition, harness),
     beliefs: [],
     pendingDecision: null,
     authorized:
@@ -356,7 +303,7 @@ export function createOperationSimulation(
     lane: lanes[index % lanes.length] as ThreatLane,
     position: 0,
     route: [lanes[index % lanes.length] as ThreatLane],
-    intent: intentAlternatives(officer.disposition)[0],
+    intent: engineIntentAlternatives(officer.disposition)[0],
     health: 100,
     objectiveId: objectives[index % Math.max(1, objectives.length)]?.id ?? null,
   }));
@@ -432,7 +379,7 @@ export function createOperationSimulation(
 
   const refreshDecisions = (reason: string, timeMs: number): void => {
     officers.forEach((officer) => {
-      const alternatives = intentAlternatives(officer.disposition);
+      const alternatives = engineIntentAlternatives(officer.disposition);
       let intent = selectAlternative(
         `${officer.id} ${officer.disposition} disposition`,
         alternatives,
@@ -508,31 +455,19 @@ export function createOperationSimulation(
     const queuedBefore = messages.filter(
       ({ deliveryState }) => deliveryState === "queued",
     ).length;
-    const deliveryDelayMs = Math.round(
-      600 +
-        harness.informationReach * 1_000 +
-        (1 - harness.feedbackCompression) * 1_200 +
-        queuedBefore * 120,
-    );
-    const reliability = rounded(
-      clamp(
-        0.52 +
-          harness.feedbackCompression * 0.28 +
-          (officers.find(({ id }) => id === report.officerId)?.disposition ===
-          "verification"
-            ? 0.1
-            : 0) -
-          (consequences.includes("information-saturation") ? 0.08 : 0),
-      ),
+    const deliveryDelayMs = signalDeliveryDelay(harness, queuedBefore);
+    const reliability = reportReliability(
+      harness,
+      officers.find(({ id }) => id === report.officerId)?.disposition === "verification",
+      consequences.includes("information-saturation"),
     );
     const verificationState: VerificationState =
       harness.verificationDepth >= 0.35 ? "pending" : "unverified";
     const deliveryAtMs = Math.min(durationMs, timeMs + deliveryDelayMs);
-    const verificationDelayMs = Math.round(
-      700 +
-        harness.verificationDepth * 1_500 +
-        (consequences.includes("verification-congestion") ? 3_000 : 0) +
-        queuedBefore * 80,
+    const verificationDelayMs = signalVerificationDelay(
+      harness,
+      queuedBefore,
+      consequences.includes("verification-congestion"),
     );
     const message: MutableMessage = {
       id: report.id,
@@ -633,13 +568,9 @@ export function createOperationSimulation(
   };
 
   const activateDueBeats = (): void => {
-    while (
-      nextBeatIndex < orderedBeats.length &&
-      (orderedBeats[nextBeatIndex]?.timeMs ?? Number.POSITIVE_INFINITY) <= elapsedMs
-    ) {
-      activateBeat(orderedBeats[nextBeatIndex] as CampaignEncounterBeat);
-      nextBeatIndex += 1;
-    }
+    const due = dueBeats(orderedBeats, nextBeatIndex, elapsedMs);
+    due.beats.forEach(activateBeat);
+    nextBeatIndex = due.nextIndex;
   };
 
   const updateBeliefVerification = (message: MutableMessage): void => {
@@ -811,7 +742,7 @@ export function createOperationSimulation(
       threat.kind === "misinformation" && crossChecked ? 0.22 : 0;
     const replanSupport = autonomousReplan ? 0.12 : 0;
     const defense = readiness + dispositionSupport + crossCheckSupport + replanSupport;
-    const blocked = defense >= severityThreshold[threat.severity];
+    const blocked = isThreatBlocked(defense, threat.severity);
 
     threat.state = "resolved";
     threat.result = blocked ? "blocked" : "damaged-objective";
@@ -820,7 +751,7 @@ export function createOperationSimulation(
       if (objective) objective.progress = clamp(objective.progress + 0.12);
       metrics.organizationTrust = clamp(metrics.organizationTrust + 1, 0, 100);
     } else {
-      const damage = severityDamage[threat.severity];
+      const damage = threatDamage(threat.severity);
       const objective = objectives.find(({ id }) => id === threat.target);
       if (objective) objective.progress = clamp(objective.progress - 0.18);
       metrics.civilianSafety = clamp(metrics.civilianSafety - damage, 0, 100);
@@ -884,12 +815,13 @@ export function createOperationSimulation(
     const requiredReplanSatisfied =
       !compoundReplanRequired ||
       (autonomousReplan && metrics.interventionCount === 0);
-    const succeeded =
-      readiness >= 0.52 &&
-      blockedRatio >= 0.6 &&
-      metrics.civilianSafety >= 65 &&
-      metrics.logistics >= 65 &&
-      requiredReplanSatisfied;
+    const succeeded = operationSucceeded(
+      readiness,
+      blockedRatio,
+      metrics.civilianSafety,
+      metrics.logistics,
+      requiredReplanSatisfied,
+    );
 
     const transition = succeeded
       ? scene.transitions.find(({ outcomeId }) => outcomeId !== "retry")
