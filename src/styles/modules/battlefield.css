@@ -33,7 +33,7 @@
   border: 1px solid var(--red);
   background: rgba(47, 12, 10, 0.94);
   color: #ffd1cd;
-  font-size: 8px;
+  font-size: calc(8px + var(--ui-font-step));
 }
 
 .battlefield-column {
@@ -110,12 +110,12 @@
   padding: 4px 6px;
   border: 1px solid rgba(238, 247, 232, 0.26);
   background: rgba(5, 13, 10, 0.86);
-  font-size: 8px;
+  font-size: calc(8px + var(--ui-font-step));
 }
 
 .unit-label small {
   color: var(--muted);
-  font-size: 7px;
+  font-size: calc(7px + var(--ui-font-step));
 }
 
 .threat-marker {
@@ -126,7 +126,7 @@
   transform: translate(-50%, -50%);
   border: 1px solid var(--red);
   background: rgba(47, 12, 10, 0.9);
-  font-size: 8px;
+  font-size: calc(8px + var(--ui-font-step));
 }
 
 .threat-marker::before {
@@ -224,7 +224,7 @@
 }
 
 .officer-roster {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .officer-roster-item {
@@ -240,14 +240,14 @@
 
 .selected-officer-name {
   color: var(--cyan);
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-step));
 }
 
 .decision-feedback {
   margin-top: 7px;
   padding-top: 7px;
   border-top: 1px solid #213b30;
-  font-size: 8px;
+  font-size: calc(8px + var(--ui-font-step));
 }
 
 .decision-action {
@@ -281,7 +281,7 @@
   grid-template-columns: 56px 1fr;
   gap: 3px 7px;
   margin: 7px 0;
-  font-size: 8px;
+  font-size: calc(8px + var(--ui-font-step));
   line-height: 1.35;
 }
 
@@ -301,7 +301,7 @@
 .report-card blockquote {
   margin: 6px 0;
   color: var(--ink);
-  font-size: 9px;
+  font-size: calc(9px + var(--ui-font-step));
   line-height: 1.45;
 }
 
@@ -309,7 +309,7 @@
 .report-detail {
   margin: 0;
   color: var(--dim);
-  font-size: 7px;
+  font-size: calc(7px + var(--ui-font-step));
 }
 
 .report-detail {
@@ -327,14 +327,14 @@
   min-width: 0;
   border: 1px solid var(--line);
   background: #07100e;
-  font-size: 8px;
+  font-size: calc(8px + var(--ui-font-step));
 }
 
 .report-actions .game-button,
 .selected-officer-detail > .game-button:last-child {
-  min-height: 25px;
+  min-height: 30px;
   padding: 4px 6px;
-  font-size: 8px;
+  font-size: calc(8px + var(--ui-font-step));
 }
 
 .officer-panel,
@@ -351,6 +351,6 @@
 
 .empty-copy {
   color: var(--dim);
-  font-size: 9px;
+  font-size: calc(9px + var(--ui-font-step));
 }
 

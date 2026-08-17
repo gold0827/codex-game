@@ -78,7 +78,14 @@ export function createBrowserAudio(
   let isMuted = false;
   let isUnlocked = false;
   let activeSoundtrackId: string | null = null;
+  let activeSoundtrackVolume = 0.16;
+  let masterVolume = 1;
+  let musicVolume = 1;
+  let effectsVolume = 1;
   let disposed = false;
+
+  const normalizedVolume = (volume: number): number =>
+    Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1;
 
   const safelyUseMusic = (operation: () => void): boolean => {
     try {
@@ -114,6 +121,12 @@ export function createBrowserAudio(
     }
   };
 
+  const applyMusicVolume = (): void => {
+    safelyUseMusic(() => {
+      music.volume = normalizedVolume(activeSoundtrackVolume * masterVolume * musicVolume);
+    });
+  };
+
   const setSoundtrack = (soundtrackId: string | null): void => {
     if (disposed || soundtrackId === activeSoundtrackId) return;
     const soundtrack = soundtrackId === null ? undefined : soundtrackById.get(soundtrackId);
@@ -124,14 +137,14 @@ export function createBrowserAudio(
     }
     safelyUseMusic(() => music.pause());
     const requestedVolume = soundtrack.volume ?? 0.16;
-    const volume = Number.isFinite(requestedVolume)
+    activeSoundtrackVolume = Number.isFinite(requestedVolume)
       ? Math.min(1, Math.max(0, requestedVolume))
       : 0.16;
     const configured = safelyUseMusic(() => {
       music.src = soundtrack.src;
       music.loop = true;
       music.preload = "auto";
-      music.volume = volume;
+      applyMusicVolume();
       music.muted = isMuted;
       music.currentTime = 0;
     });
@@ -161,7 +174,7 @@ export function createBrowserAudio(
         ? "square"
         : "sine";
       oscillator.frequency.setValueAtTime(frequency, startedAt);
-      gain.gain.setValueAtTime(volume, startedAt);
+      gain.gain.setValueAtTime(volume * masterVolume * effectsVolume, startedAt);
       gain.gain.exponentialRampToValueAtTime(0.0001, startedAt + duration);
       oscillator.connect(gain);
       gain.connect(context.destination);
@@ -185,6 +198,17 @@ export function createBrowserAudio(
       });
       if (muted) safelyUseMusic(() => music.pause());
       else playMusic();
+    },
+    setMasterVolume: (volume: number) => {
+      masterVolume = normalizedVolume(volume);
+      applyMusicVolume();
+    },
+    setMusicVolume: (volume: number) => {
+      musicVolume = normalizedVolume(volume);
+      applyMusicVolume();
+    },
+    setEffectsVolume: (volume: number) => {
+      effectsVolume = normalizedVolume(volume);
     },
     dispose: () => {
       if (disposed) return;

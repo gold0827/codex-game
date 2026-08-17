@@ -16,5 +16,8 @@ export type GameAudio = Readonly<{
   setSoundtrack: (soundtrackId: string | null) => void;
   muted: () => boolean;
   setMuted: (muted: boolean) => void;
+  setMasterVolume?: (volume: number) => void;
+  setMusicVolume?: (volume: number) => void;
+  setEffectsVolume?: (volume: number) => void;
   dispose: () => void;
 }>;

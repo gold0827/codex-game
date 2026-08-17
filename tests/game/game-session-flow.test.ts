@@ -501,6 +501,31 @@ describe("game session campaign flow", () => {
 });
 
 describe("game session isolation and command validation", () => {
+  it("resumes saved campaign progress at a safe briefing boundary", () => {
+    const firstScene = completeCampaign.scenes[0]!;
+    const nextScene = completeCampaign.scenes[1]!;
+    const officer = completeCampaign.officers[0]!;
+    const session = createGameSession(completeCampaign, "resume", {
+      progress: {
+        currentSceneId: nextScene.identity.id,
+        completedSceneIds: [firstScene.identity.id],
+        completed: false,
+      },
+      officerMemory: [{
+        officerId: officer.id,
+        lessons: [{ id: "saved-lesson", officerId: officer.id, summary: "저장된 교훈" }],
+      }],
+    });
+
+    expect(session.read()).toMatchObject({
+      phase: "briefing",
+      scene: { identity: { id: nextScene.identity.id } },
+      progress: { completedSceneIds: [firstScene.identity.id] },
+    });
+    expect(session.read().officerMemory.find(({ officerId }) => officerId === officer.id)?.lessons)
+      .toContainEqual(expect.objectContaining({ summary: "저장된 교훈" }));
+  });
+
   it("is deterministic for the same definition, seed, timing, and actions", () => {
     const first = createGameSession(completeCampaign, "replay");
     const second = createGameSession(completeCampaign, "replay");

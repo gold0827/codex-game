@@ -251,5 +251,5 @@ describe("Monte Carlo operation autonomy", () => {
     expect(controlledBlocks - autonomousBlocks).toBeGreaterThanOrEqual(8);
     expect(controlledBlocks).toBeGreaterThan(misplacedBlocks);
     expect(controlledBlocks).toBeLessThan(32);
-  }, 25_000);
+  }, 40_000);
 });

@@ -20,11 +20,12 @@ export function renderGameHeader(
     item.append(node("dt", undefined, term), node("dd", undefined, value));
     status.append(item);
   });
-  const mute = node("button", "game-button", audio.muted() ? "소리 켜기" : "음소거");
+  const mute = node("button", "game-button", "음소거");
   mute.type = "button";
   mute.dataset.action = "toggle-mute";
   mute.dataset.focusKey = "toggle-mute";
   mute.setAttribute("aria-pressed", String(audio.muted()));
+  mute.setAttribute("aria-label", audio.muted() ? "음소거 해제" : "음소거");
   mute.addEventListener("click", onToggleMute);
   header.append(identity, status, mute);
   return header;

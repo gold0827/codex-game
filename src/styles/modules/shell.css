@@ -7,6 +7,15 @@
 
 .game-workbench {
   position: relative;
+  --ui-font-step: 1px;
+}
+
+.game-workbench[data-ui-scale="compact"] {
+  --ui-font-step: 0px;
+}
+
+.game-workbench[data-ui-scale="large"] {
+  --ui-font-step: 2px;
 }
 
 .workbench-tools {
@@ -40,6 +49,7 @@
 }
 
 .workbench-manual,
+.workbench-settings,
 .workbench-editor {
   position: fixed;
   z-index: 50;
@@ -49,8 +59,175 @@
 }
 
 .workbench-manual[hidden],
+.workbench-settings[hidden],
 .workbench-editor[hidden] {
   display: none;
+}
+
+.settings-dialog {
+  width: min(680px, calc(100vw - 48px));
+  max-height: calc(100vh - 32px);
+  margin: 16px auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--mint);
+  background: #07100e;
+  box-shadow: 0 30px 100px #000;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--line);
+  background: #0c1c17;
+}
+
+.settings-header h1 {
+  margin: 2px 0 0;
+  font-size: 22px;
+}
+
+.settings-eyebrow {
+  margin: 0;
+  color: var(--mint);
+  font: 800 8px ui-monospace, monospace;
+  letter-spacing: 0.16em;
+}
+
+.settings-content {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 18px 20px 32px;
+  overflow-y: auto;
+}
+
+.settings-section {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  background: #0b1915;
+}
+
+.settings-section h2 {
+  margin: 0;
+  color: var(--mint);
+  font-size: 13px;
+}
+
+.settings-section p,
+.settings-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.settings-range,
+.settings-field,
+.settings-toggle-row {
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.settings-range > span,
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-range output {
+  color: var(--mint);
+  font: 800 11px ui-monospace, monospace;
+}
+
+.settings-range input {
+  width: 100%;
+  accent-color: var(--mint);
+}
+
+.settings-field select {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: #102019;
+  color: var(--ink);
+}
+
+.settings-toggle-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--mint);
+}
+
+.settings-danger {
+  grid-column: 1 / -1;
+  border-color: color-mix(in srgb, var(--red) 50%, var(--line));
+}
+
+.new-game-confirmation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--red);
+  background: rgba(240, 109, 99, 0.08);
+  color: #ffd1cd;
+  font-size: 11px;
+}
+
+.new-game-confirmation[hidden] {
+  display: none;
+}
+
+.new-game-confirmation > div {
+  display: flex;
+  gap: 7px;
+}
+
+.editor-button-danger {
+  border-color: var(--red);
+  color: #ffd1cd;
+}
+
+.game-workbench[data-reduced-motion="true"] *,
+.game-workbench[data-reduced-motion="true"] *::before,
+.game-workbench[data-reduced-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.001ms !important;
+}
+
+.game-workbench[data-show-tutorial="false"] .tutorial-guidance {
+  display: none;
+}
+
+.game-workbench[data-show-tutorial="false"] .guidance-target {
+  border-color: var(--line) !important;
+  box-shadow: none;
+  animation: none;
+}
+
+@media (max-width: 1100px) {
+  .settings-content {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-danger {
+    grid-column: auto;
+  }
 }
 
 .field-manual {
@@ -191,7 +368,7 @@
 .eyebrow {
   margin: 0 0 3px;
   color: var(--scene-accent);
-  font-size: 9px;
+  font-size: calc(9px + var(--ui-font-step));
   font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -211,7 +388,7 @@
   margin: 3px 0 0;
   overflow: hidden;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-step));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -230,23 +407,23 @@
 
 .hud-stat dt {
   color: var(--dim);
-  font-size: 8px;
+  font-size: calc(8px + var(--ui-font-step));
 }
 
 .hud-stat dd {
   margin: 3px 0 0;
   color: var(--ink);
-  font: 700 11px ui-monospace, monospace;
+  font: 700 calc(11px + var(--ui-font-step)) ui-monospace, monospace;
 }
 
 .game-button {
-  min-height: 30px;
+  min-height: 34px;
   padding: 6px 9px;
   border: 1px solid var(--line);
   border-radius: 2px;
   background: #102019;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-step));
   font-weight: 850;
   transition: 120ms ease;
 }
