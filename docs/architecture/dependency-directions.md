@@ -43,15 +43,14 @@ src/main.ts
       ├─ CampaignDocument + CampaignWorkshop   authoring
       │  └─ CampaignRepository                 domain/campaign seam
       ├─ GameSession                           application interface
-      │  └─ GameController                     application state machine
-      │     └─ CampaignRun                     campaign progress + lesson memory
-      │        └─ CampaignOperation            launch/result adapter
-      │           └─ operationEngine           domain/operation interface
-      │              ├─ timeline
-      │              ├─ signals + limited beliefs
-      │              ├─ decisions
-      │              ├─ threats + movement
-      │              └─ outcome + operation events
+      │  ├─ CampaignRun                        campaign progress + lesson memory
+      │  └─ CampaignOperation                  launch/result adapter
+      │     └─ operationEngine                 domain/operation interface
+      │        ├─ timeline
+      │        ├─ signals + limited beliefs
+      │        ├─ decisions
+      │        ├─ threats + movement
+      │        └─ outcome + operation events
       └─ GameApp                               presentation mount adapter
          ├─ GameEffects                        frame/focus/audio owner
          ├─ projectGameViewModel               snapshot projector
@@ -74,7 +73,7 @@ CampaignWorkshop, presentation과 platform adapter에만 있고 application과
 domain에는 없다.
 
 `CampaignRun`은 현재 장면, 시도 번호, 안정적인 작전 seed와 장교별 최근 교훈을
-단독 소유한다. `GameController`는 run이 내놓은 launch를 `CampaignOperation`에
+단독 소유한다. `GameSession`은 run이 내놓은 launch를 `CampaignOperation`에
 전달하고, 실패 결과는 같은 launch로 재시도하며 성공 결과는 플레이어가 교훈을
 선택한 뒤에만 다음 장면으로 진행한다.
 
@@ -110,7 +109,7 @@ game session이나 operation을 import하지 않는다.
 | --- | --- | --- |
 | `app` | production 조립, workbench 수명주기 | `src/main.ts`, `src/app/` |
 | `presentation` | DOM, view model, phase view, effect, style | `src/presentation/`, `src/ui/`, `src/styles/` |
-| `application` | command 처리와 campaign/operation 진행 | `src/application/`, `src/game/` |
+| `application` | command 처리와 campaign/operation 진행 | `src/application/` |
 | `platform` | browser frame, audio, localStorage adapter | `src/platform/` |
 | `authoring` | campaign document와 workshop | `src/authoring/` |
 | `content` | 실제 여섯 장면 | `src/scenarios/` |

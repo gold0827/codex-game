@@ -1,7 +1,9 @@
-export { createGameSession, type GameCommand, type GameSession } from "./gameSession";
 export {
-  GameControllerError as GameSessionError,
+  GameSessionError,
+  type GameCommand,
+  type GameSession,
   type GameSnapshot,
   type HarnessAxis,
   type PlayerSpeed,
-} from "../../game";
+} from "./gameTypes";
+export { createGameSession } from "./gameSession";

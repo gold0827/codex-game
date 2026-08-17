@@ -35,7 +35,7 @@ npm run check
 
 - `src/domain/operation`, `src/simulation`: 결정론적 작전 규칙과 simulation
 - `src/campaign`, `src/scenarios`: campaign model, 검증, 콘텐츠
-- `src/application`, `src/game`: 명령 처리와 진행 상태
+- `src/application`: 명령 처리와 campaign/operation 진행 상태
 - `src/presentation`, `src/ui`, `src/styles`: view model과 브라우저 표현
 - `src/app`, `src/platform`, `src/authoring`: 조립, browser adapter, campaign 편집
 
