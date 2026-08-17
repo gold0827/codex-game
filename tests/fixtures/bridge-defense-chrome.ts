@@ -192,6 +192,25 @@ const authoredOperationCopy = {
 };
 const selectedBridge = moveSelectionTo(canvas, { x: 11, y: 7 });
 action("issue-spatial-signal").click();
+const feedback = root.querySelector<HTMLElement>(".intervention-feedback");
+const interventionFeedback = {
+  visible: feedback !== null,
+  actionReadable: feedback?.textContent?.includes(
+    "조작 · 방어 공간 신호 · 강도 2 · 타일 11, 7",
+  ) ?? false,
+  costsReadable: feedback?.textContent?.includes(
+    "자율성 비용 15 · 군수 비용 2 · 누적 개입 1회",
+  ) ?? false,
+  internalIdsHidden: !(feedback?.textContent ?? "").match(
+    /issue-spatial-signal|captain-han|bridge-runner-route-report/,
+  ),
+  overlapsBattlefield: feedback
+    ? overlaps(feedback.getBoundingClientRect(), battlefield.getBoundingClientRect())
+    : true,
+  overflowsTray: feedback
+    ? feedback.scrollWidth > feedback.clientWidth || feedback.scrollHeight > feedback.clientHeight
+    : true,
+};
 action("resume").click();
 await nextFrame();
 const tutorialCompleted = root.querySelector(".tutorial-guidance") === null;
@@ -283,6 +302,7 @@ const result = {
   },
   threatMarkers,
   authoredOperationCopy,
+  interventionFeedback,
   completedFlow,
   errors,
 };
@@ -339,6 +359,12 @@ const passed = result.productionEntrypoint &&
   result.authoredOperationCopy.reportTone === "어조 · 확신" &&
   result.authoredOperationCopy.internalIdsHidden &&
   result.authoredOperationCopy.eventTextWrapped &&
+  result.interventionFeedback.visible &&
+  result.interventionFeedback.actionReadable &&
+  result.interventionFeedback.costsReadable &&
+  result.interventionFeedback.internalIdsHidden &&
+  !result.interventionFeedback.overlapsBattlefield &&
+  !result.interventionFeedback.overflowsTray &&
   errors.length === 0 &&
   (mapPreview || (
     result.completedFlow.debriefStatus === "success" &&

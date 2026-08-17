@@ -195,6 +195,20 @@ export function renderOperationView(
     node("div", undefined, "직접 개입 트레이"),
     node("strong", undefined, `개입 자원 ${operation.remainingAttention}`),
   );
+  if (operation.interventionFeedback) {
+    const feedback = node("div", "intervention-feedback");
+    feedback.setAttribute("role", "status");
+    feedback.setAttribute("aria-live", "polite");
+    feedback.append(
+      node("strong", "intervention-feedback-action", `조작 · ${operation.interventionFeedback.action}`),
+      node(
+        "span",
+        "intervention-feedback-costs",
+        `자율성 비용 ${operation.interventionFeedback.autonomyCost} · 군수 비용 ${operation.interventionFeedback.logisticsCost} · 누적 개입 ${operation.interventionFeedback.count}회`,
+      ),
+    );
+    interventionHeading.append(feedback);
+  }
   const interventionActions = node("div", "intervention-actions");
   const signalControls = node("div", "spatial-signal-controls");
   signalControls.dataset.region = "spatial-signal";

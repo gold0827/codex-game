@@ -149,6 +149,41 @@ describe("game presentation view model", () => {
     expect(fallbackView.tutorial?.target).not.toMatch(/missing-report-id|missing-officer-id/);
   });
 
+  it("projects the latest intervention costs with Korean action copy and reset semantics", () => {
+    const session = createGameSession(completeCampaign, "intervention-feedback-view-model");
+    session.dispatch({ type: "start-attempt" });
+    session.dispatch({
+      type: "route-report",
+      reportId: "school-baek-ready",
+      recipientOfficerId: "captain-han",
+    });
+
+    const routed = projectGameViewModel(session.read(), campaignView).operation
+      ?.interventionFeedback;
+    expect(routed).toEqual({
+      action: "보고 전달 · 대위 한확인 수신",
+      autonomyCost: 15,
+      logisticsCost: 2,
+      count: 1,
+    });
+    expect(JSON.stringify(routed)).not.toMatch(
+      /route-report|school-baek-ready|captain-han/,
+    );
+
+    session.dispatch({ type: "authorize-officer", officerId: "captain-han" });
+    expect(projectGameViewModel(session.read(), campaignView).operation?.interventionFeedback)
+      .toMatchObject({
+        action: "예외 권한 부여 · 대위 한확인",
+        count: 2,
+      });
+
+    session.dispatch({ type: "reset" });
+    session.dispatch({ type: "start-attempt" });
+    expect(session.read().lastIntervention).toBeNull();
+    expect(projectGameViewModel(session.read(), campaignView).operation?.interventionFeedback)
+      .toBeNull();
+  });
+
   it("keeps runtime and authored report identities separate after routing", () => {
     const campaign = structuredClone(completeCampaign) as CampaignDefinition;
     const scene = campaign.scenes[0];

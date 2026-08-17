@@ -374,6 +374,10 @@ describe("production game app", () => {
     });
     expect(session.read().operation?.metrics.attentionSpent).toBe(2);
     expect(root.querySelector("[data-region='interventions']")?.textContent).toContain("개입 자원 2");
+    const feedback = root.querySelector<HTMLElement>(".intervention-feedback");
+    expect(feedback?.textContent).toContain("조작 · 방어 공간 신호 · 강도 2 · 타일 12, 8");
+    expect(feedback?.textContent).toContain("자율성 비용 15 · 군수 비용 2 · 누적 개입 1회");
+    expect(feedback?.textContent).not.toContain("issue-spatial-signal");
     const refreshedStrength = root.querySelector<HTMLSelectElement>("[data-signal-strength]");
     if (!refreshedStrength) throw new Error("spatial signal strength must remain mounted");
     expect(refreshedStrength.querySelector<HTMLOptionElement>('option[value="3"]')?.disabled).toBe(true);

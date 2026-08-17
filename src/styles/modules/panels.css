@@ -328,9 +328,9 @@
 }
 
 .intervention-heading {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: baseline;
-  justify-content: space-between;
   gap: 8px;
   font-size: 11px;
   font-weight: 850;
@@ -339,6 +339,30 @@
 .intervention-heading strong {
   color: var(--gold);
   font: 850 10px ui-monospace, monospace;
+}
+
+.intervention-feedback {
+  min-width: 0;
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+  line-height: 1.2;
+}
+
+.intervention-feedback .intervention-feedback-action {
+  overflow: hidden;
+  color: var(--ink);
+  font: 800 8px system-ui, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intervention-feedback-costs {
+  color: var(--muted);
+  font: 700 7px ui-monospace, monospace;
+  white-space: nowrap;
 }
 
 .intervention-actions {
