@@ -267,6 +267,14 @@ export function projectHudViewModel(
             ...objective,
             label: `${objective.required ? "필수" : "선택"} · ${objective.description}`,
           })),
+          officerLessons: snapshot.officerMemory.flatMap((memory) => {
+            if (memory.lessons.length === 0) return [];
+            const officer = roster.get(memory.officerId);
+            return [{
+              officer: officer ? `${officer.rank} ${officer.name}` : "소속 장교",
+              lessons: memory.lessons.map(({ summary }) => summary),
+            }];
+          }),
         }
       : null,
     tutorial: guidance
@@ -300,6 +308,9 @@ export function projectHudViewModel(
           })),
           officers: operation.officers.map((officer) => {
             const authored = roster.get(officer.id);
+            const lessons = snapshot.officerMemory
+              .find(({ officerId }) => officerId === officer.id)
+              ?.lessons.map(({ summary }) => summary) ?? [];
             const unit = operation.units.find(({ officerId }) => officerId === officer.id);
             const commitment = officer.committedAction;
             return {
@@ -320,6 +331,7 @@ export function projectHudViewModel(
                   : "대기 중"],
                 ["체력", unit ? `${Math.round(unit.health)}%` : "배치 없음"],
                 ["권한", officer.authorized ? "예외 승인" : "기본 경계"],
+                ["축적 교훈", lessons.length > 0 ? lessons.join(" / ") : "없음"],
               ] as const,
               decision: commitment
                 ? {
