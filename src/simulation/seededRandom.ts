@@ -45,6 +45,18 @@ export function deriveRunSeed(
   return `${campaignId}:${sceneId}:${seedText(attemptSeed)}`;
 }
 
+export function deriveRandomStreamSeed(
+  runSeed: RandomSeed,
+  stableKey: string,
+): string {
+  if (typeof stableKey !== "string" || stableKey.length === 0) {
+    throw new TypeError("A random stream key must be a non-empty string.");
+  }
+
+  const root = seedText(runSeed);
+  return `${root.length}:${root}:${stableKey.length}:${stableKey}`;
+}
+
 export function createSeededRandom(seed: RandomSeed): SeededRandom {
   let state = hashSeed(seed);
 

@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { CampaignOfficer, CampaignScene } from "../../src/campaign";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import {
+  createOperationRandomStreams,
+  operationRandomStreamKey,
+} from "../../src/domain/operation/internal/randomStreams";
 import { createOperationSimulation } from "../../src/simulation/operationSimulation";
 import {
   createSeededRandom,
+  deriveRandomStreamSeed,
   deriveRunSeed,
 } from "../../src/simulation/seededRandom";
 import {
@@ -62,6 +67,39 @@ describe("seeded random", () => {
     expect(() => createSeededRandom("")).toThrow(TypeError);
     expect(() => createSeededRandom(1).integer(0)).toThrow(RangeError);
     expect(() => createSeededRandom(1).pick([])).toThrow(RangeError);
+  });
+
+  it("derives stable keyed stream seeds without delimiter collisions", () => {
+    expect(deriveRandomStreamSeed("campaign:scene:attempt-7", "signal:report-1")).toBe(
+      deriveRandomStreamSeed("campaign:scene:attempt-7", "signal:report-1"),
+    );
+    expect(deriveRandomStreamSeed("a:b", "c")).not.toBe(
+      deriveRandomStreamSeed("a", "b:c"),
+    );
+    expect(() => deriveRandomStreamSeed("valid", "")).toThrow(TypeError);
+  });
+
+  it("keeps stable actor and subsystem streams independent when one consumes extra draws", () => {
+    const control = createOperationRandomStreams("stream-isolation");
+    const perturbed = createOperationRandomStreams("stream-isolation");
+    const baekDecision = operationRandomStreamKey.officerDecision("major-baek");
+    const hanDecision = operationRandomStreamKey.officerDecision("captain-han");
+    const signal = operationRandomStreamKey.signal("school-baek-ready");
+
+    expect(baekDecision).toBe("officer:major-baek:decision");
+    expect(signal).toBe("signal:school-baek-ready");
+    expect(operationRandomStreamKey.encounter("school-channel-saturation")).toBe(
+      "encounter:school-channel-saturation",
+    );
+
+    Array.from({ length: 25 }, () => perturbed.stream(baekDecision).next());
+
+    expect(
+      Array.from({ length: 12 }, () => perturbed.stream(hanDecision).next()),
+    ).toEqual(Array.from({ length: 12 }, () => control.stream(hanDecision).next()));
+    expect(
+      Array.from({ length: 12 }, () => perturbed.stream(signal).next()),
+    ).toEqual(Array.from({ length: 12 }, () => control.stream(signal).next()));
   });
 });
 
@@ -135,6 +173,48 @@ describe("operation simulation determinism", () => {
     expect(
       first.replay().filter(({ kind }) => kind === "random-choice").length,
     ).toBeGreaterThan(0);
+  });
+
+  it("isolates distinct same-source report streams when one consumes an extra draw", () => {
+    const scene = structuredClone(playableScenes[0]) as CampaignScene;
+    const sourceReport = scene.beats[0]?.reports[0];
+    if (!sourceReport) throw new Error("Missing report stream isolation fixture");
+    const firstReport = { ...sourceReport, id: "stream-report-a" };
+    const laterReport = { ...sourceReport, id: "stream-report-b" };
+    const baseScene = {
+      ...scene,
+      beats: [{ ...scene.beats[0]!, reports: [firstReport, laterReport] }],
+    };
+    const perturbedScene = {
+      ...scene,
+      beats: [{
+        ...scene.beats[0]!,
+        reports: [firstReport, { ...firstReport }, laterReport],
+      }],
+    };
+
+    const base = createOperationSimulation(
+      baseScene,
+      completeCampaign.officers,
+      "audit-0",
+      BALANCED_HARNESS,
+    ).snapshot();
+    const perturbed = createOperationSimulation(
+      perturbedScene,
+      completeCampaign.officers,
+      "audit-0",
+      BALANCED_HARNESS,
+    ).snapshot();
+    const recipientsFor = (
+      snapshot: typeof base,
+      reportId: string,
+    ): readonly string[] | undefined => snapshot.messages.find(
+      ({ authoredReportId }) => authoredReportId === reportId,
+    )?.recipientOfficerIds;
+
+    expect(recipientsFor(perturbed, laterReport.id)).toEqual(
+      recipientsFor(base, laterReport.id),
+    );
   });
 
   it("allows seeds to vary plausible intents without changing dispositions", () => {
