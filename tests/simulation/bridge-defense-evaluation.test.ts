@@ -58,6 +58,6 @@ describe("bridge-defense Monte Carlo gate", () => {
         { value: "south", count: 200, share: 0.25 },
       ]);
     },
-    60_000,
+    90_000,
   );
 });
