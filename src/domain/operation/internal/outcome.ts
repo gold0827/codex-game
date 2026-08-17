@@ -9,6 +9,7 @@ import {
   type OperationObjectiveSnapshot,
   type OperationReplayEntry,
   type OperationSnapshot,
+  type OperationSpatialSignalSnapshot,
   type OperationUnitSnapshot,
 } from "../../../simulation/simulationTypes";
 import type { OperationEvent } from "../operationEvent";
@@ -19,6 +20,7 @@ import type {
   MutableMetrics,
   MutableObjective,
   MutableOfficer,
+  MutableSpatialSignal,
   MutableThreat,
   MutableUnit,
   OperationRuntimeState,
@@ -40,6 +42,7 @@ type OutcomeContext = {
   state: OperationRuntimeState;
   officers: MutableOfficer[];
   messages: MutableMessage[];
+  spatialSignals: MutableSpatialSignal[];
   threats: MutableThreat[];
   units: MutableUnit[];
   objectives: MutableObjective[];
@@ -53,7 +56,7 @@ type OutcomeContext = {
 export function createOutcome(context: OutcomeContext) {
   const {
     scene, harness, consequences, durationMs, readiness, compoundReplanRequired, state,
-    officers, messages, threats, units, objectives, metrics, replayEntries, operationEvents, appendReplay,
+    officers, messages, spatialSignals, threats, units, objectives, metrics, replayEntries, operationEvents, appendReplay,
     spatialWorld,
   } = context;
 
@@ -115,6 +118,8 @@ export function createOutcome(context: OutcomeContext) {
   });
   const messageSnapshots = (): OperationMessageSnapshot[] =>
     messages.map(({ verificationDueAtMs: _verificationDueAtMs, ...message }) => clone(message));
+  const signalSnapshots = (): OperationSpatialSignalSnapshot[] =>
+    spatialSignals.map((signal) => clone(signal));
   const objectiveSnapshots = (): OperationObjectiveSnapshot[] => objectives.map((objective) => ({ ...objective }));
   const unitSnapshots = (): OperationUnitSnapshot[] => {
     const spatial = spatialWorld.snapshot();
@@ -143,6 +148,7 @@ export function createOutcome(context: OutcomeContext) {
     harness,
     officers: officerSnapshots(),
     messages: messageSnapshots(),
+    signals: signalSnapshots(),
     threats,
     units: unitSnapshots(),
     spatial: spatialWorld.snapshot(),

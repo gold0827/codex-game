@@ -4,6 +4,8 @@ import type {
   HarnessConfiguration,
   OperationIntervention,
   OperationSnapshot,
+  SpatialSignalKind,
+  SpatialSignalStrength,
 } from "../../../simulation/simulationTypes";
 import type {
   AppendReplay,
@@ -11,6 +13,7 @@ import type {
   MutableMetrics,
   MutableObjective,
   MutableOfficer,
+  MutableSpatialSignal,
   MutableThreat,
   MutableUnit,
   OperationRuntimeState,
@@ -39,6 +42,7 @@ type DecisionContext = {
   state: OperationRuntimeState;
   officers: MutableOfficer[];
   messages: MutableMessage[];
+  spatialSignals: MutableSpatialSignal[];
   threats: MutableThreat[];
   units: MutableUnit[];
   objectives: MutableObjective[];
@@ -48,13 +52,19 @@ type DecisionContext = {
   decisionRandom: (officerId: string) => SeededRandom;
   updateBacklog: () => void;
   snapshot: () => OperationSnapshot;
+  issueSpatialSignal: (
+    signal: SpatialSignalKind,
+    strength: SpatialSignalStrength,
+    position: Readonly<{ x: number; y: number }>,
+    actorPositions: ReadonlyMap<string, Readonly<{ x: number; y: number }>>,
+  ) => MutableSpatialSignal;
 };
 
 export function createDecisions(context: DecisionContext) {
   const {
-    scene, roster, harness, durationMs, compoundReplanRequired, state, officers, messages,
+    scene, roster, harness, durationMs, compoundReplanRequired, state, officers, messages, spatialSignals,
     threats, units, objectives, metrics, appendReplay, spatialWorld, decisionRandom,
-    updateBacklog, snapshot,
+    updateBacklog, snapshot, issueSpatialSignal,
   } = context;
 
   const minds = new Map(officers.map((officer) => {
@@ -87,6 +97,9 @@ export function createDecisions(context: DecisionContext) {
       .reduce((risk, threat) => Math.max(risk, severityRisk[threat.severity]), 0);
     const targetObjective = objectives.find(({ id }) => id === unit?.objectiveId) ?? objectives[0];
     const supportOfficer = officers.find(({ id }) => id !== officer.id) ?? officer;
+    const acceptedSignal = [...spatialSignals].reverse().find((signal) =>
+      signal.recipients.some(({ officerId, response }) => officerId === officer.id && response === "accepted")
+    );
     return {
       objectiveId: targetObjective?.id ?? "local-objective",
       positionId: actor?.destination
@@ -98,6 +111,9 @@ export function createDecisions(context: DecisionContext) {
       risk: localRisk,
       memoryPressure: clamp(officer.memory.entries.length / officer.profile.memoryCapacity),
       signalLoad: clamp(metrics.signalBacklog / Math.max(1, roster.length * 2)),
+      signalDirective: acceptedSignal?.kind ?? null,
+      signalStrength: acceptedSignal?.strength ?? 0,
+      signalPositionId: acceptedSignal ? `${acceptedSignal.position.x},${acceptedSignal.position.y}` : null,
     };
   };
 
@@ -144,6 +160,7 @@ export function createDecisions(context: DecisionContext) {
         target: action.target.id,
         targetKind: action.target.kind,
         topReason: commitment.trace.topReason,
+        utility: commitment.trace.utility,
         abandonedAction: commitment.trace.abandonedAlternative.action.kind,
         commitmentEndsAtMs: commitment.endsAtMs,
         cadenceMs: mind.cadenceMs,
@@ -202,6 +219,13 @@ export function createDecisions(context: DecisionContext) {
     metrics.logistics = clamp(metrics.logistics - 2, 0, 100);
     appendReplay("intervention", state.elapsedMs, description, {
       command: command.kind,
+      ...(command.kind === "issue-spatial-signal" ? {
+        event: "signal-issued",
+        signal: command.signal,
+        strength: command.strength,
+        x: command.position.x,
+        y: command.position.y,
+      } : {}),
       autonomyCost: 15,
       logisticsCost: 2,
       interventionCount: metrics.interventionCount,
@@ -210,11 +234,30 @@ export function createDecisions(context: DecisionContext) {
 
   const intervene = (suppliedCommand: OperationIntervention): OperationSnapshot => {
     if (state.status !== "running") return snapshot();
-    if (metrics.interventionCount >= scene.gameplayTuning.interventionBudget) {
-      throw new RangeError("The authored intervention budget is exhausted.");
-    }
     const command = clone(suppliedCommand);
-    if (command.kind === "route-report") {
+    const attentionCost = command.kind === "issue-spatial-signal" ? command.strength : 1;
+    if (metrics.attentionSpent + attentionCost > scene.gameplayTuning.interventionBudget) {
+      throw new RangeError("The authored attention budget is exhausted.");
+    }
+    if (command.kind === "issue-spatial-signal") {
+      if (!["investigate", "defend", "avoid"].includes(command.signal)) {
+        throw new RangeError(`Unknown spatial signal "${command.signal}".`);
+      }
+      if (![1, 2, 3].includes(command.strength)) {
+        throw new RangeError("Spatial signal strength must be 1, 2, or 3.");
+      }
+      const topology = spatialWorld.snapshot().topology;
+      if (!Number.isSafeInteger(command.position.x) || !Number.isSafeInteger(command.position.y) ||
+          command.position.x < 0 || command.position.y < 0 ||
+          command.position.x >= topology.width || command.position.y >= topology.height) {
+        throw new RangeError("Spatial signal position must be an in-bounds integer tile.");
+      }
+      const actorPositions = new Map(
+        spatialWorld.snapshot().actors.map(({ actorId, position }) => [actorId, position] as const),
+      );
+      issueSpatialSignal(command.signal, command.strength, command.position, actorPositions);
+      recordInterventionCost(command, `Player issued a strength ${command.strength} ${command.signal} signal.`);
+    } else if (command.kind === "route-report") {
       const source = messages.find(({ id, authoredReportId }) => id === command.reportId || authoredReportId === command.reportId);
       if (!source) throw new RangeError(`Unknown report "${command.reportId}".`);
       if (!officers.some(({ id }) => id === command.recipientOfficerId)) throw new RangeError(`Unknown officer "${command.recipientOfficerId}".`);
@@ -241,6 +284,7 @@ export function createDecisions(context: DecisionContext) {
       if (message.verificationState === "pending") message.verificationDueAtMs = Math.min(durationMs, state.elapsedMs + 100);
       recordInterventionCost(command, `Player prioritized verification for report ${message.authoredReportId}.`);
     }
+    metrics.attentionSpent += attentionCost;
     updateBacklog();
     return snapshot();
   };

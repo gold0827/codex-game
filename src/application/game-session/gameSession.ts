@@ -7,6 +7,8 @@ import {
 } from "../../game";
 import type { RandomSeed } from "../../simulation/seededRandom";
 import type { HarnessConfiguration } from "../../simulation/simulationTypes";
+import type { CampaignTilePosition } from "../../campaign";
+import type { SpatialSignalKind, SpatialSignalStrength } from "../../simulation/simulationTypes";
 
 export type GameCommand =
   | Readonly<{ type: "configure-harness"; axis: HarnessAxis; value: number }>
@@ -17,11 +19,20 @@ export type GameCommand =
   | Readonly<{ type: "resume" }>
   | Readonly<{ type: "inspect-officer"; officerId: string }>
   | Readonly<{
+      type: "issue-spatial-signal";
+      signal: SpatialSignalKind;
+      strength: SpatialSignalStrength;
+      position: CampaignTilePosition;
+    }>
+  /** @deprecated Remove with route tutorial and legacy operation controls. */
+  | Readonly<{
       type: "route-report";
       reportId: string;
       recipientOfficerId: string;
     }>
+  /** @deprecated Remove with route tutorial and legacy operation controls. */
   | Readonly<{ type: "authorize-officer"; officerId: string }>
+  /** @deprecated Remove with route tutorial and legacy operation controls. */
   | Readonly<{ type: "prioritize-verification"; reportId: string }>
   | Readonly<{ type: "continue-campaign" }>
   | Readonly<{ type: "reset" }>;
@@ -54,6 +65,8 @@ export function createGameSession(
         return controller.resume();
       case "inspect-officer":
         return controller.inspectOfficer(command.officerId);
+      case "issue-spatial-signal":
+        return controller.issueSpatialSignal(command.signal, command.strength, command.position);
       case "route-report":
         return controller.routeReport(command.reportId, command.recipientOfficerId);
       case "authorize-officer":

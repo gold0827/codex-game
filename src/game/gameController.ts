@@ -3,6 +3,7 @@ import {
   type CampaignDefinition,
   type CampaignGuidanceStep,
   type CampaignScene,
+  type CampaignTilePosition,
 } from "../campaign";
 import { createOperationSimulation } from "../simulation/operationSimulation";
 import {
@@ -15,6 +16,8 @@ import {
   type HarnessConfiguration,
   type OperationIntervention,
   type OperationSimulation,
+  type SpatialSignalKind,
+  type SpatialSignalStrength,
 } from "../simulation/simulationTypes";
 import {
   GameControllerError,
@@ -410,6 +413,17 @@ export function createGameController(
     return snapshot().phase === result.phase ? snapshot() : result;
   };
 
+  const issueSpatialSignal = (
+    signal: SpatialSignalKind,
+    strength: SpatialSignalStrength,
+    position: CampaignTilePosition,
+  ): GameSnapshot => intervene({
+    kind: "issue-spatial-signal",
+    signal,
+    strength,
+    position,
+  });
+
   const authorizeOfficer = (officerId: string): GameSnapshot =>
     intervene({ kind: "authorize-officer", officerId });
 
@@ -466,6 +480,7 @@ export function createGameController(
     pause,
     resume,
     inspectOfficer,
+    issueSpatialSignal,
     routeReport,
     authorizeOfficer,
     prioritizeVerification,

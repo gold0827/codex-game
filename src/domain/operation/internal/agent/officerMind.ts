@@ -1,6 +1,7 @@
 import type { AgentProfile } from "../../../../campaign/types";
 import type { SeededRandom } from "../../../../simulation/seededRandom";
 import type { Perception } from "./perception";
+import type { SpatialSignalKind, SpatialSignalStrength } from "../../../../simulation/simulationTypes";
 import {
   type ActionCommitment,
   type DecisionTrace,
@@ -17,6 +18,9 @@ export type OfficerMindContext = Readonly<{
   risk: number;
   memoryPressure: number;
   signalLoad: number;
+  signalDirective?: SpatialSignalKind | null;
+  signalStrength?: SpatialSignalStrength | 0;
+  signalPositionId?: string | null;
 }>;
 
 export type OfficerMindInput = Readonly<{
@@ -52,6 +56,10 @@ function targetFor(
   perception: Perception,
   context: OfficerMindContext,
 ): OfficerAction["target"] {
+  const directedAction = context.signalDirective === "avoid" ? "retreat" : context.signalDirective ?? null;
+  if (context.signalPositionId && kind === directedAction) {
+    return { kind: "position", id: context.signalPositionId };
+  }
   const uncertainBelief = [...perception.beliefs]
     .sort((left, right) => left.confidence - right.confidence)[0];
   const latestBelief = perception.beliefs.at(-1);
@@ -117,14 +125,25 @@ function scoreCandidates(
   };
 
   return (Object.keys(components) as OfficerActionKind[]).map((kind) => {
-    const values = components[kind];
+    const directedAction = context.signalDirective === "avoid" ? "retreat" : context.signalDirective ?? null;
+    const signalStrength = context.signalStrength ?? 0;
+    const directiveComponent: UtilityComponent | null = kind === directedAction
+      ? {
+          value: signalStrength / 3 * 0.72,
+          reason: `strength ${signalStrength} ${context.signalDirective} signal was accepted`,
+        }
+      : null;
+    const values = directiveComponent ? [...components[kind], directiveComponent] : components[kind];
     const memoryFactor = kind === "investigate" || kind === "verify"
       ? context.memoryPressure * 0.08
       : 0;
     const noise = (random.next() - 0.5) * 0.12;
     return {
       action: { kind, target: targetFor(kind, perception, context) },
-      utility: rounded(clamp(0.08 + values.reduce((total, component) => total + component.value, 0) + memoryFactor + noise)),
+      utility: rounded(clamp(
+        0.08 + values.reduce((total, component) => total + component.value, 0) + memoryFactor + noise -
+        (directedAction !== null && kind !== directedAction ? signalStrength * 0.08 : 0),
+      )),
       topReason: strongest(values).reason,
     };
   });

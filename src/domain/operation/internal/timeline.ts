@@ -38,6 +38,7 @@ type TimelineContext = {
   telegraphThreat: (threat: CampaignThreat, timeMs: number) => void;
   refreshDecisions: (reason: string, timeMs: number) => void;
   processMessages: () => void;
+  processSpatialSignals: () => void;
   processCrossCheckAndReplan: () => void;
   processThreats: () => void;
   updateProgress: (stepMs: number) => void;
@@ -48,7 +49,7 @@ type TimelineContext = {
 export function createTimeline(context: TimelineContext) {
   const {
     durationMs, orderedBeats, state, appendReplay, queueReport, telegraphThreat, refreshDecisions,
-    processMessages, processCrossCheckAndReplan, processThreats, updateProgress, finishOperation, snapshot,
+    processMessages, processSpatialSignals, processCrossCheckAndReplan, processThreats, updateProgress, finishOperation, snapshot,
   } = context;
 
   const activateBeat = (beat: CampaignEncounterBeat): void => {
@@ -69,6 +70,7 @@ export function createTimeline(context: TimelineContext) {
     state.elapsedMs += stepMs;
     activateDueBeats();
     processMessages();
+    processSpatialSignals();
     processCrossCheckAndReplan();
     processThreats();
     updateProgress(stepMs);
