@@ -66,6 +66,19 @@ describe("seeded random", () => {
 });
 
 describe("operation simulation determinism", () => {
+  it("records deterministic structured events and projects legacy replay descriptions", () => {
+    const scene = playableScenes[1] as CampaignScene;
+    const first = runToEnd(scene, "event-seed");
+    const second = runToEnd(scene, "event-seed");
+
+    expect(first.events()).toEqual(second.events());
+    expect(first.events().every((event, index) => event.id === `${scene.identity.id}:event-${index}`)).toBe(true);
+    expect(first.events().every((event) => !Object.prototype.hasOwnProperty.call(event.data, "description"))).toBe(true);
+    expect(first.replay().map(({ description }) => description)).toContain(
+      `Operation ${scene.identity.id} started.`,
+    );
+  });
+
   it("is invariant to one advance or many irregular advances with the same total", () => {
     const scene = playableScenes[3] as CampaignScene;
     const single = createOperationSimulation(
