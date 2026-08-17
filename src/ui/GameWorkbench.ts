@@ -1,6 +1,6 @@
 import type { CampaignDefinition } from "../campaign";
+import { createGameSession, type GameSession } from "../application/game-session";
 import { createCampaignDocument, type CampaignStorage } from "../editor";
-import { createGameController, type GameController } from "../game";
 import { mountCampaignEditor, type CampaignEditor } from "./CampaignEditor";
 import {
   mountGameApp,
@@ -20,7 +20,7 @@ export type GameWorkbenchOptions = Readonly<{
 
 export type GameWorkbench = Readonly<{
   document: ReturnType<typeof createCampaignDocument>;
-  controller: () => GameController;
+  session: () => GameSession;
   openManual: () => void;
   closeManual: () => void;
   openEditor: () => void;
@@ -137,8 +137,8 @@ export function mountGameWorkbench(
     const snapshot = structuredClone(campaignDocument.snapshot());
     const seed = `${String(options.seed ?? "production-campaign")}:restart-${generation}`;
     generation += 1;
-    const controller = createGameController(snapshot, seed);
-    return mountGameApp(gameRoot, snapshot, controller, gameOptions());
+    const session = createGameSession(snapshot, seed);
+    return mountGameApp(gameRoot, snapshot, session, gameOptions());
   };
 
   const restartGame = (): void => {
@@ -155,8 +155,8 @@ export function mountGameWorkbench(
     editorRoot.hidden = true;
     shell.classList.remove("editor-open");
     tools.hidden = false;
-    if (pausedForEditor && gameApp.controller.snapshot().phase === "operation") {
-      gameApp.controller.resume();
+    if (pausedForEditor && gameApp.session.read().phase === "operation") {
+      gameApp.session.dispatch({ type: "resume" });
       gameApp.render();
     }
     pausedForEditor = false;
@@ -168,8 +168,8 @@ export function mountGameWorkbench(
     manualRoot.hidden = true;
     shell.classList.remove("manual-open");
     tools.hidden = false;
-    if (pausedForManual && gameApp.controller.snapshot().phase === "operation") {
-      gameApp.controller.resume();
+    if (pausedForManual && gameApp.session.read().phase === "operation") {
+      gameApp.session.dispatch({ type: "resume" });
       gameApp.render();
     }
     pausedForManual = false;
@@ -178,9 +178,9 @@ export function mountGameWorkbench(
   const openEditor = (): void => {
     if (editorOpen || destroyed) return;
     if (manualOpen) closeManual();
-    const snapshot = gameApp.controller.snapshot();
+    const snapshot = gameApp.session.read();
     if (snapshot.phase === "operation" && !snapshot.paused) {
-      gameApp.controller.pause();
+      gameApp.session.dispatch({ type: "pause" });
       gameApp.render();
       pausedForEditor = true;
     }
@@ -194,9 +194,9 @@ export function mountGameWorkbench(
   const openManual = (): void => {
     if (manualOpen || destroyed) return;
     if (editorOpen) closeEditor();
-    const snapshot = gameApp.controller.snapshot();
+    const snapshot = gameApp.session.read();
     if (snapshot.phase === "operation" && !snapshot.paused) {
-      gameApp.controller.pause();
+      gameApp.session.dispatch({ type: "pause" });
       gameApp.render();
       pausedForManual = true;
     }
@@ -232,7 +232,7 @@ export function mountGameWorkbench(
 
   return {
     document: campaignDocument,
-    controller: () => gameApp.controller,
+    session: () => gameApp.session,
     openManual,
     closeManual,
     openEditor,
