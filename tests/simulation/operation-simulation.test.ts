@@ -45,6 +45,39 @@ function runToEnd(
 }
 
 describe("operation spatial execution", () => {
+  it("derives threat count and activation solely from authored beats", () => {
+    const scene = playableScenes[0] as CampaignScene;
+    const legacyScene = structuredClone(scene) as CampaignScene & {
+      encounterParameters: CampaignScene["encounterParameters"] & {
+        threatBudget: number;
+        reinforcementIntervalMs: number;
+      };
+    };
+    legacyScene.encounterParameters.threatBudget = 999_999;
+    legacyScene.encounterParameters.reinforcementIntervalMs = 1;
+    const standard = createOperationSimulation(
+      scene,
+      completeCampaign.officers,
+      "authored-beats-only",
+      BALANCED_HARNESS,
+    );
+    const withLegacyKnobs = createOperationSimulation(
+      legacyScene,
+      completeCampaign.officers,
+      "authored-beats-only",
+      BALANCED_HARNESS,
+    );
+
+    standard.advance(scene.encounterParameters.durationMs);
+    withLegacyKnobs.advance(scene.encounterParameters.durationMs);
+
+    expect(withLegacyKnobs.snapshot()).toEqual(standard.snapshot());
+    expect(withLegacyKnobs.events()).toEqual(standard.events());
+    expect(standard.snapshot().threats.map(({ id }) => id)).toEqual(
+      scene.beats.flatMap(({ threats }) => threats.map(({ id }) => id)),
+    );
+  });
+
   it("executes the deterministic 24x16 fixture through the operation runtime", () => {
     const run = () => {
       const simulation = createOperationSimulation(

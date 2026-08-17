@@ -372,9 +372,7 @@ function checkScene(
   const encounterPath = propertyPath(path, "encounterParameters");
   const encounter = recordAt(scene.encounterParameters, encounterPath, diagnostics);
   if (encounter) {
-    ["durationMs", "threatBudget", "reinforcementIntervalMs"].forEach((key) =>
-      expectType(encounter, key, "number", encounterPath, diagnostics),
-    );
+    expectType(encounter, "durationMs", "number", encounterPath, diagnostics);
   }
 
   const tuningPath = propertyPath(path, "gameplayTuning");
@@ -404,6 +402,11 @@ export function parseCampaignValue(value: unknown): CampaignParseResult {
   let campaign: CampaignDefinition;
   try {
     campaign = structuredClone(value) as CampaignDefinition;
+    campaign.scenes.forEach((scene) => {
+      const encounter = scene.encounterParameters as unknown as Record<string, unknown>;
+      delete encounter.threatBudget;
+      delete encounter.reinforcementIntervalMs;
+    });
     const validation = validateCampaignDefinition(campaign);
     if (!validation.valid) {
       return {

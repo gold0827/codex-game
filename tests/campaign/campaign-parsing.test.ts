@@ -44,6 +44,28 @@ describe("campaign parsing", () => {
     expect(result.value.scenes[0].guidance[0]).toEqual(guidance);
   });
 
+  it("imports legacy encounter knobs but removes them from the normalized campaign", () => {
+    const source = structuredClone(completeCampaign) as unknown as {
+      scenes: Array<{
+        encounterParameters: Record<string, unknown>;
+      }>;
+    };
+    source.scenes.forEach(({ encounterParameters }, index) => {
+      encounterParameters.threatBudget = index * 1_000;
+      encounterParameters.reinforcementIntervalMs = index === 0 ? "legacy" : -1;
+    });
+
+    const result = parseCampaignValue(source);
+
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) throw new Error("Expected legacy campaign JSON to parse.");
+    result.value.scenes.forEach(({ encounterParameters }) => {
+      expect(encounterParameters).toEqual({ durationMs: encounterParameters.durationMs });
+      expect(encounterParameters).not.toHaveProperty("threatBudget");
+      expect(encounterParameters).not.toHaveProperty("reinforcementIntervalMs");
+    });
+  });
+
   it("rejects an unknown spatial signal kind at the shape boundary", () => {
     const source = structuredClone(completeCampaign) as CampaignDefinition;
     (source.scenes[0].guidance as unknown as Array<Record<string, unknown>>)[0] = {

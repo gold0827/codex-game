@@ -202,8 +202,6 @@ export const completeCampaign = {
       ],
       encounterParameters: {
         durationMs: 45_000,
-        threatBudget: 2,
-        reinforcementIntervalMs: 18_000,
       },
       gameplayTuning: {
         startingResources: 80,
@@ -311,8 +309,6 @@ export const completeCampaign = {
       ],
       encounterParameters: {
         durationMs: 72_000,
-        threatBudget: 5,
-        reinforcementIntervalMs: 16_000,
       },
       gameplayTuning: {
         startingResources: 74,
@@ -420,8 +416,6 @@ export const completeCampaign = {
       ],
       encounterParameters: {
         durationMs: 78_000,
-        threatBudget: 7,
-        reinforcementIntervalMs: 15_000,
       },
       gameplayTuning: {
         startingResources: 68,
@@ -529,8 +523,6 @@ export const completeCampaign = {
       ],
       encounterParameters: {
         durationMs: 84_000,
-        threatBudget: 8,
-        reinforcementIntervalMs: 14_000,
       },
       gameplayTuning: {
         startingResources: 62,
@@ -638,8 +630,6 @@ export const completeCampaign = {
       ],
       encounterParameters: {
         durationMs: 90_000,
-        threatBudget: 9,
-        reinforcementIntervalMs: 13_000,
       },
       gameplayTuning: {
         startingResources: 56,
@@ -767,8 +757,6 @@ export const completeCampaign = {
       ],
       encounterParameters: {
         durationMs: 108_000,
-        threatBudget: 14,
-        reinforcementIntervalMs: 11_000,
       },
       gameplayTuning: {
         startingResources: 48,
@@ -834,8 +822,6 @@ export const completeCampaign = {
       transitions: [],
       encounterParameters: {
         durationMs: 0,
-        threatBudget: 0,
-        reinforcementIntervalMs: 0,
       },
       gameplayTuning: {
         startingResources: 0,

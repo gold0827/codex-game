@@ -102,8 +102,6 @@ function createScene(
     transitions,
     encounterParameters: {
       durationMs: kind !== "epilogue" ? 60_000 : 0,
-      threatBudget: kind === "operation" ? 10 : 0,
-      reinforcementIntervalMs: kind === "operation" ? 5_000 : 0,
     },
     gameplayTuning: {
       startingResources: kind === "operation" ? 100 : 0,
