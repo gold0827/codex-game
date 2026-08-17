@@ -151,6 +151,18 @@ describe("production game app", () => {
     });
   });
 
+  it("keeps operation controls mounted between visual projection intervals", () => {
+    startAttempt();
+    const pause = action("pause");
+
+    advanceRealTime(16);
+
+    expect(action("pause")).toBe(pause);
+    pause.click();
+    expect(session.read().paused).toBe(true);
+    expect(action("resume").getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("presents pending decisions without simulation diagnostics", () => {
     startAttempt();
     const snapshot = session.read();
