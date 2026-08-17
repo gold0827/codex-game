@@ -57,5 +57,6 @@ export type BattlefieldFrame = Readonly<{
   map: BattlefieldMapFrame;
   actors: readonly BattlefieldActorFrame[];
   effects: readonly EffectSample[];
+  guidedTile?: WorldPosition | null;
 }>;
 import type { EffectSample } from "../effects/effectTrack";

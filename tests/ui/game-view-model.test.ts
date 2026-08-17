@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createGameSession } from "../../src/application/game-session";
+import type { CampaignDefinition } from "../../src/campaign";
 import { projectGameViewModel } from "../../src/presentation/gameViewModel";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 
@@ -47,6 +48,43 @@ describe("game presentation view model", () => {
     expect(view.operation?.recipients[0]?.label).toContain(completeCampaign.officers[0]?.name);
     expect(view.operation?.events.length).toBeGreaterThan(0);
     expect(view.operation?.events.every(({ label }) => !/[A-Za-z]{4}/.test(label))).toBe(true);
+  });
+
+  it("projects a spatial signal tutorial as one Korean battlefield target", () => {
+    const campaign = structuredClone(completeCampaign) as CampaignDefinition;
+    const scene = campaign.scenes[0];
+    if (!scene) throw new Error("Expected a tutorial scene.");
+    (scene as { guidance: CampaignDefinition["scenes"][number]["guidance"] }).guidance = [{
+      id: "defend-crossing",
+      instruction: "교량에 방어 신호를 보낸다.",
+      action: "signal",
+      target: {
+        kind: "spatial-signal",
+        signal: "defend",
+        strength: 2,
+        position: { x: 12, y: 8 },
+      },
+      completionEvent: "spatial-signal-issued",
+    }];
+    const session = createGameSession(campaign, "signal-view-model");
+    session.dispatch({ type: "start-attempt" });
+
+    const view = projectGameViewModel(session.read(), {
+      title: campaign.title,
+      sceneCount: campaign.scenes.length,
+      officers: campaign.officers,
+    });
+
+    expect(view.tutorial).toMatchObject({
+      action: "signal",
+      target: "방어 신호 · 강도 2 · 타일 12, 8",
+      signal: {
+        kind: "defend",
+        label: "방어",
+        strength: 2,
+        position: { x: 12, y: 8 },
+      },
+    });
   });
 
   it("projects structured operation failures into player-facing debrief guidance", () => {

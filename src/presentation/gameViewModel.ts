@@ -51,6 +51,12 @@ const actionLabels = {
   retreat: "후퇴",
 } as const;
 
+const spatialSignalLabels = {
+  investigate: "조사",
+  defend: "방어",
+  avoid: "회피",
+} as const;
+
 const decisionReasonLabels: Readonly<Record<string, string>> = {
   "initiative favors moving": "주도성이 현장 이동을 뒷받침했습니다.",
   "the objective is still distant": "목표까지 거리가 남아 있습니다.",
@@ -153,6 +159,9 @@ function guidanceTargetLabel(step: NonNullable<GameSnapshot["tutorial"]["current
   if (step.action === "pause") return "작전 일시정지";
   if (step.action === "resume") return "작전 재개";
   if (step.action === "inspect") return `장교 ${step.target.officerId}`;
+  if (step.action === "signal") {
+    return `${spatialSignalLabels[step.target.signal]} 신호 · 강도 ${step.target.strength} · 타일 ${step.target.position.x}, ${step.target.position.y}`;
+  }
   return `보고 ${step.target.reportId} → ${step.target.recipientOfficerId}`;
 }
 
@@ -264,6 +273,14 @@ export function projectGameViewModel(
           position: `${snapshot.tutorial.currentStepIndex + 1}/${snapshot.scene.guidance.length}`,
           instruction: guidance.instruction,
           target: guidanceTargetLabel(guidance),
+          signal: guidance.action === "signal"
+            ? {
+                kind: guidance.target.signal,
+                label: spatialSignalLabels[guidance.target.signal],
+                strength: guidance.target.strength,
+                position: { ...guidance.target.position },
+              }
+            : null,
         }
       : null,
     operation: operation

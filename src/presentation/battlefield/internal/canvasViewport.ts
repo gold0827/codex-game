@@ -119,6 +119,7 @@ export function createCanvasBattlefieldViewport(
   const mapImageSlot: AtlasImageSlot = { image: null, url: "" };
   let selectedActorId: string | null = null;
   let selectedTile: WorldPosition | null = null;
+  let guidedTile: WorldPosition | null = null;
   let activeEffectLabels: readonly string[] = [];
   let mapDrawList: BattlefieldMapDrawList | null = null;
   let followingSelected = true;
@@ -133,6 +134,7 @@ export function createCanvasBattlefieldViewport(
         ? `식별된 효과: ${activeEffectLabels.join(", ")}`
         : null,
       selectedTile ? `선택 타일 ${selectedTile.x}, ${selectedTile.y}` : null,
+      guidedTile ? `훈련 목표 타일 ${guidedTile.x}, ${guidedTile.y}` : null,
     ].filter((detail): detail is string => detail !== null);
     canvas.setAttribute(
       "aria-label",
@@ -288,6 +290,25 @@ export function createCanvasBattlefieldViewport(
       mapAtlas.skin(current.frame.map.id),
     );
     for (const tile of currentMapDrawList.tiles) drawMapAsset(tile.kind, tile.position, scale);
+
+    if (guidedTile) {
+      const center = camera.project(guidedTile);
+      const halfWidth = (ISOMETRIC_TILE_SIZE.width * camera.read().zoom) / 2;
+      const halfHeight = (ISOMETRIC_TILE_SIZE.height * camera.read().zoom) / 2;
+      context.save();
+      context.fillStyle = "rgba(115, 185, 162, 0.28)";
+      context.strokeStyle = "#f4d77d";
+      context.lineWidth = 3;
+      context.beginPath();
+      context.moveTo(center.x, center.y - halfHeight);
+      context.lineTo(center.x + halfWidth, center.y);
+      context.lineTo(center.x, center.y + halfHeight);
+      context.lineTo(center.x - halfWidth, center.y);
+      context.closePath();
+      context.fill();
+      context.stroke();
+      context.restore();
+    }
 
     if (selectedTile) {
       const center = camera.project(selectedTile);
@@ -503,10 +524,13 @@ export function createCanvasBattlefieldViewport(
       const nextSelectedId = nextSelected?.id ?? null;
       if (nextSelectedId !== selectedActorId) followingSelected = true;
       selectedActorId = nextSelectedId;
+      guidedTile = frame.guidedTile ? { ...frame.guidedTile } : null;
       activeEffectLabels = [...new Set(frame.effects.map(({ label }) => label))];
       mapDrawList = createBattlefieldMapDrawList(frame.map, mapAtlas.skin(frame.map.id));
       canvas.dataset.mapTileCount = String(mapDrawList.tiles.length);
       canvas.dataset.mapPropCount = String(mapDrawList.props.length);
+      if (guidedTile) canvas.dataset.guidanceTile = `${guidedTile.x},${guidedTile.y}`;
+      else delete canvas.dataset.guidanceTile;
       updateCanvasDescription();
       if (followingSelected && nextSelected) camera.follow(nextSelected.position);
       previous = current;

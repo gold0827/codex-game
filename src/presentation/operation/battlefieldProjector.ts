@@ -119,6 +119,10 @@ export function projectBattlefieldFrame(
   return {
     map: projectMap(snapshot),
     actors,
+    guidedTile:
+      snapshot.tutorial.active && snapshot.tutorial.currentStep?.action === "signal"
+        ? { ...snapshot.tutorial.currentStep.target.position }
+        : null,
     effects: sampleEffectTrack(
       options.effectTrack ?? projectEffectTrack(snapshot),
       operation.elapsedMs,
