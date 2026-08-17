@@ -289,6 +289,39 @@ describe("production game app", () => {
     expect(session.read().tutorial.currentStep).toBeNull();
   });
 
+  it("renders the terminal phase even when it lands inside the render interval", () => {
+    app.destroy();
+    const campaign = structuredClone(flowCampaign) as CampaignDefinition;
+    const scene = campaign.scenes[0];
+    if (!scene || scene.identity.kind === "epilogue") {
+      throw new Error("Expected a playable flow scene.");
+    }
+    Object.assign(scene, {
+      guidance: [],
+      beats: [],
+      objectives: [],
+      encounterParameters: {
+        ...scene.encounterParameters,
+        durationMs: 50,
+      },
+      gameplayTuning: {
+        ...scene.gameplayTuning,
+        simulationSpeed: 1,
+      },
+    });
+    session = createGameSession(campaign, "terminal-frame-render");
+    app = mountGameApp(root, campaign, session, {
+      frameScheduler: scheduler,
+      audio: silentAudio(),
+    });
+
+    startAttempt();
+    advanceRealTime(50);
+
+    expect(session.read().phase).toBe("debrief");
+    expect(root.querySelector("[data-phase='debrief']")).not.toBeNull();
+  });
+
   it("releases the persistent battlefield frame loop when destroyed", () => {
     startAttempt();
     expect(scheduler.pending()).toBeGreaterThan(0);
