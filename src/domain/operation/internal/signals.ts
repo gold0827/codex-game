@@ -61,6 +61,7 @@ export function createSignals(context: SignalContext) {
     roster, harness, consequences, durationMs, state, officers, messages, spatialSignals,
     metrics, appendReplay, selectAlternative,
   } = context;
+  const autonomousBroadcasts = new Set<string>();
 
   const updateBacklog = (): void => {
     const reportBacklog = messages.filter(
@@ -84,6 +85,8 @@ export function createSignals(context: SignalContext) {
               confidence: belief.reliability,
               sourceOfficerId: belief.sourceOfficerId,
               verificationState: belief.verificationState,
+              threatKind: belief.threatKind,
+              threatSeverity: belief.threatSeverity,
             }]
           : [],
       },
@@ -97,6 +100,8 @@ export function createSignals(context: SignalContext) {
             receivedAtMs: belief.receivedAtMs,
             reliability: belief.reliability,
             verificationState: belief.verificationState,
+            threatKind: belief.threatKind,
+            threatSeverity: belief.threatSeverity,
           }]
         : [],
       profile: officer.profile,
@@ -176,6 +181,47 @@ export function createSignals(context: SignalContext) {
       verificationState,
     });
     updateBacklog();
+  };
+
+  const broadcastBelief = (sourceOfficerId: string, subjectId: string, timeMs: number): void => {
+    const source = officers.find(({ id }) => id === sourceOfficerId);
+    const belief = source?.memory.entries.find((entry) => entry.subjectId === subjectId);
+    if (!source || !belief) return;
+    const recipients = recipientIdsFor(sourceOfficerId, timeMs);
+    const reached: string[] = [];
+    recipients.forEach((recipientId) => {
+      const broadcastId = `${sourceOfficerId}:${subjectId}:${recipientId}`;
+      if (autonomousBroadcasts.has(broadcastId)) return;
+      const recipient = officers.find(({ id }) => id === recipientId);
+      if (!recipient) return;
+      autonomousBroadcasts.add(broadcastId);
+      reached.push(recipientId);
+      const reliability = rounded(clamp(
+        belief.reliability *
+          (0.55 + harness.feedbackCompression * 0.3 + source.profile.cooperation * 0.15),
+      ));
+      addBelief(recipient, {
+        subjectId: belief.subjectId,
+        category: belief.category,
+        assertion: belief.assertion,
+        origin: "received",
+        sourceOfficerId,
+        receivedAtMs: timeMs,
+        reliability,
+        confidence: reliability,
+        verificationState: belief.verificationState,
+        threatKind: belief.threatKind,
+        threatSeverity: belief.threatSeverity,
+      });
+    });
+    if (reached.length > 0) {
+      appendReplay("report-delivered", timeMs, `${sourceOfficerId} autonomously broadcast ${subjectId}.`, {
+        reportId: subjectId,
+        sourceOfficerId,
+        recipientOfficerIds: reached,
+        autonomous: true,
+      });
+    }
   };
 
   const updateSourceTrust = (officer: MutableOfficer, sourceOfficerId: string, verified: boolean): void => {
@@ -346,7 +392,7 @@ export function createSignals(context: SignalContext) {
   };
 
   return {
-    addBelief, recipientIdsFor, queueReport, updateBeliefVerification, processMessages,
+    addBelief, recipientIdsFor, queueReport, broadcastBelief, updateBeliefVerification, processMessages,
     issueSpatialSignal, processSpatialSignals, updateBacklog,
   };
 }

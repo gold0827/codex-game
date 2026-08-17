@@ -7,6 +7,7 @@ import {
 import type { GameSession } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import { productionSoundtrackCatalog } from "../../src/app/musicCatalog";
+import { flowCampaign } from "../fixtures/flow-campaign";
 import type { GameAudio } from "../../src/ui/GameAudio";
 import type { GameFrameScheduler } from "../../src/ui/GameApp";
 import {
@@ -135,6 +136,14 @@ describe("game workbench", () => {
   });
 
   it("keeps the field manual available in every game phase", () => {
+    workbench.destroy();
+    storage = new MemoryStorage();
+    workbench = mountGameWorkbench(root, flowCampaign, {
+      repository: createLocalStorageCampaignRepository(flowCampaign, storage),
+      frameScheduler: scheduler,
+      audioFactory,
+      seed: "workbench-flow",
+    });
     const expectManualOpens = (): void => {
       expect(action("open-manual").hidden).toBe(false);
       action("open-manual").click();
@@ -151,7 +160,7 @@ describe("game workbench", () => {
     expect(workbench.session().read().phase).toBe("debrief");
     expectManualOpens();
 
-    const operationCount = completeCampaign.scenes.filter(
+    const operationCount = flowCampaign.scenes.filter(
       ({ identity }) => identity.kind !== "epilogue",
     ).length;
     let completedOperations = 1;

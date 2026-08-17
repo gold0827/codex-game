@@ -1,4 +1,5 @@
 import type { CampaignThreat, ThreatSeverity } from "../../../campaign/types";
+import type { SeededRandom } from "../../../simulation/seededRandom";
 import type { OfficerBeliefSnapshot, ReplayDataValue } from "../../../simulation/simulationTypes";
 import type { EncounterEvent, EncounterSimulation } from "./encounterTypes";
 import type {
@@ -30,6 +31,8 @@ type ThreatContext = {
   spatialWorld: SpatialWorld;
   encounter: EncounterSimulation;
   threatActorId: (threatId: string) => string;
+  noticeThreat: (officer: MutableOfficer, threat: CampaignThreat) => boolean;
+  resolutionRandom: (threatId: string) => SeededRandom;
 };
 
 function encounterEventData(event: EncounterEvent): Readonly<Record<string, ReplayDataValue>> {
@@ -80,7 +83,7 @@ function encounterEventData(event: EncounterEvent): Readonly<Record<string, Repl
 export function createThreats(context: ThreatContext) {
   const {
     durationMs, state, officers, threats, objectives, units, metrics, appendReplay, appendWorldEvent,
-    addBelief, spatialWorld, encounter, threatActorId,
+    addBelief, spatialWorld, encounter, threatActorId, noticeThreat, resolutionRandom,
   } = context;
 
   const recordEncounterEvents = (events: readonly EncounterEvent[]): void => {
@@ -132,11 +135,13 @@ export function createThreats(context: ThreatContext) {
       state: "telegraphed",
       result: null,
     });
+    const observedByOfficerIds: string[] = [];
     officers.forEach((officer) => {
       const unit = units.find(({ officerId }) => officerId === officer.id);
       const locallyVisible = unit?.lane === threat.lane ||
         (threat.lane === "command" && officer.disposition === "communication");
-      if (locallyVisible) {
+      if (locallyVisible && noticeThreat(officer, threat)) {
+        observedByOfficerIds.push(officer.id);
         addBelief(officer, {
           subjectId: threat.id,
           category: "threat",
@@ -147,6 +152,8 @@ export function createThreats(context: ThreatContext) {
           reliability: 1,
           confidence: 1,
           verificationState: "verified",
+          threatKind: threat.kind,
+          threatSeverity: threat.severity,
         });
       }
     });
@@ -157,6 +164,7 @@ export function createThreats(context: ThreatContext) {
       severity: threat.severity,
       target: objective?.id ?? threat.lane,
       telegraphEndsAtMs,
+      observedByOfficerIds,
     });
   };
 
@@ -165,13 +173,53 @@ export function createThreats(context: ThreatContext) {
     const encounterActors = encounter.snapshot().actors;
     const hostile = encounterActors.find(({ id }) => id === hostileId);
     if (!hostile) throw new Error(`Missing hostile encounter actor "${hostileId}".`);
-    const actionPriority = { defend: 0, move: 1, support: 2 } as const;
-    const candidates = officers
+    const signalReach = Math.max(2, Math.floor(spatialWorld.snapshot().topology.height / 4));
+    const knowsThreat = (officer: MutableOfficer): boolean => officer.memory.entries.some((entry) => {
+      if (entry.subjectId === threat.id) return true;
+      const match = entry.category === "signal"
+        ? /^defend@(\d+),(\d+)$/.exec(entry.assertion)
+        : null;
+      if (!match) return false;
+      const signalPosition = { x: Number(match[1]), y: Number(match[2]) };
+      return Math.abs(signalPosition.x - hostile.position.x) +
+        Math.abs(signalPosition.y - hostile.position.y) <= signalReach;
+    });
+    const canAct = (officer: MutableOfficer): boolean =>
+      (units.find(({ officerId }) => officerId === officer.id)?.health ?? 0) > 0 &&
+      units.find(({ officerId }) => officerId === officer.id)?.panicReaction === null;
+    let engagingOfficerId = "";
+    let blocked = false;
+
+    if (threat.kind === "misinformation" || threat.kind === "communications") {
+      const responseKinds = threat.kind === "misinformation"
+        ? new Set(["verify", "investigate"])
+        : new Set(["broadcast", "support"]);
+      const responders = officers.filter((officer) => {
+        const action = officer.committedAction?.trace.selectedAction.kind;
+        return action !== undefined && responseKinds.has(action) && knowsThreat(officer) && canAct(officer);
+      });
+      const random = resolutionRandom(threat.id);
+      for (const officer of responders) {
+        const action = officer.committedAction?.trace.selectedAction.kind;
+        const skill = threat.kind === "misinformation"
+          ? officer.profile.discipline
+          : officer.profile.cooperation;
+        const chance = clamp(
+          0.2 + skill * 0.5 + (action === "verify" || action === "broadcast" ? 0.12 : 0),
+        );
+        if (random.next() < chance) {
+          engagingOfficerId = officer.id;
+          blocked = true;
+          break;
+        }
+      }
+    } else {
+      const actionPriority = { defend: 0, move: 1, support: 2 } as const;
+      const candidates = officers
       .filter((officer) =>
         officer.committedAction !== null &&
-        officer.committedAction.trace.selectedAction.kind !== "retreat" &&
-        (units.find(({ officerId }) => officerId === officer.id)?.health ?? 0) > 0 &&
-        units.find(({ officerId }) => officerId === officer.id)?.panicReaction === null
+        officer.committedAction.trace.selectedAction.kind in actionPriority &&
+        knowsThreat(officer) && canAct(officer)
       )
       .sort((left, right) => {
         const leftUnit = units.find(({ officerId }) => officerId === left.id);
@@ -186,16 +234,21 @@ export function createThreats(context: ThreatContext) {
         };
         return priority(left) - priority(right) || left.id.localeCompare(right.id);
       });
-    let engagingOfficerId = "";
-    for (const officer of candidates) {
-      engagingOfficerId = officer.id;
-      const events = encounter.execute({ kind: "attack", actorId: officer.id, targetId: hostileId });
-      recordEncounterEvents(events);
-      if (encounter.snapshot().actors.find(({ id }) => id === hostileId)?.health === 0) break;
+      const officer = candidates[0];
+      if (officer) {
+        engagingOfficerId = officer.id;
+        const action = officer.committedAction?.trace.selectedAction.kind;
+        const attempts = action === "defend" ? 3 : 1;
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+          const events = encounter.execute({ kind: "attack", actorId: officer.id, targetId: hostileId });
+          recordEncounterEvents(events);
+          if (encounter.snapshot().actors.find(({ id }) => id === hostileId)?.health === 0) break;
+        }
+      }
+      blocked = encounter.snapshot().actors.find(({ id }) => id === hostileId)?.health === 0;
     }
-
-    const blocked = encounter.snapshot().actors.find(({ id }) => id === hostileId)?.health === 0;
-    if (!blocked) {
+    const informationalThreat = threat.kind === "misinformation" || threat.kind === "communications";
+    if (!blocked && !informationalThreat) {
       const livingUnits = units.filter(({ health }) => health > 0);
       const target = livingUnits.find(({ lane }) => lane === threat.lane) ?? livingUnits[0];
       if (target) {
@@ -215,11 +268,16 @@ export function createThreats(context: ThreatContext) {
       metrics.organizationTrust = clamp(metrics.organizationTrust + 1, 0, 100);
     } else {
       const damage = threatDamage(threat.severity);
-      const objective = objectives.find(({ id }) => id === threat.target);
-      if (objective) objective.progress = clamp(objective.progress - 0.18);
-      metrics.civilianSafety = clamp(metrics.civilianSafety - damage, 0, 100);
-      metrics.logistics = clamp(metrics.logistics - Math.ceil(damage * 0.7), 0, 100);
-      metrics.organizationTrust = clamp(metrics.organizationTrust - Math.ceil(damage * 0.6), 0, 100);
+      if (informationalThreat) {
+        metrics.logistics = clamp(metrics.logistics - Math.ceil(damage * 0.25), 0, 100);
+        metrics.organizationTrust = clamp(metrics.organizationTrust - damage, 0, 100);
+      } else {
+        const objective = objectives.find(({ id }) => id === threat.target);
+        if (objective) objective.progress = clamp(objective.progress - 0.18);
+        metrics.civilianSafety = clamp(metrics.civilianSafety - damage, 0, 100);
+        metrics.logistics = clamp(metrics.logistics - Math.ceil(damage * 0.7), 0, 100);
+        metrics.organizationTrust = clamp(metrics.organizationTrust - Math.ceil(damage * 0.6), 0, 100);
+      }
     }
     appendReplay("threat-resolved", threat.resolutionTimeMs, `Threat ${threat.id} ${blocked ? "was blocked" : "damaged its objective"} after its telegraph ended.`, {
       threatId: threat.id,

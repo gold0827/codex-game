@@ -1,6 +1,8 @@
 import type {
   AgentProfile,
   OfficerDisposition,
+  ThreatKind,
+  ThreatSeverity,
 } from "../../../../campaign/types";
 import type { VerificationState } from "../../../../simulation/simulationTypes";
 import {
@@ -20,6 +22,8 @@ export interface ObservedFact {
   readonly confidence: number;
   readonly sourceOfficerId?: string | null;
   readonly verificationState?: VerificationState;
+  readonly threatKind?: ThreatKind;
+  readonly threatSeverity?: ThreatSeverity;
 }
 
 export interface WorldObservation {
@@ -36,6 +40,8 @@ export interface ReceivedReport {
   readonly receivedAtMs: number;
   readonly reliability: number;
   readonly verificationState: VerificationState;
+  readonly threatKind?: ThreatKind;
+  readonly threatSeverity?: ThreatSeverity;
 }
 
 export interface PerceptionMemoryEntry extends MemoryEntry {
@@ -47,6 +53,8 @@ export interface PerceptionMemoryEntry extends MemoryEntry {
   readonly receivedAtMs: number;
   readonly reliability: number;
   readonly verificationState: VerificationState;
+  readonly threatKind?: ThreatKind;
+  readonly threatSeverity?: ThreatSeverity;
 }
 
 export interface PerceivedBelief {
@@ -59,6 +67,8 @@ export interface PerceivedBelief {
   readonly reliability: number;
   readonly confidence: number;
   readonly verificationState: VerificationState;
+  readonly threatKind?: ThreatKind;
+  readonly threatSeverity?: ThreatSeverity;
 }
 
 export interface Perception {
@@ -135,6 +145,8 @@ export function perceive(input: PerceptionInput): Perception {
       receivedAtMs: observation.observedAtMs,
       reliability: fact.confidence,
       verificationState: fact.verificationState ?? "verified",
+      threatKind: fact.threatKind,
+      threatSeverity: fact.threatSeverity,
     };
   });
   const receivedEntries = receivedReports.map((report): PerceptionMemoryEntry => {
@@ -150,6 +162,8 @@ export function perceive(input: PerceptionInput): Perception {
       receivedAtMs: report.receivedAtMs,
       reliability: report.reliability,
       verificationState: report.verificationState,
+      threatKind: report.threatKind,
+      threatSeverity: report.threatSeverity,
     };
   });
   const normalizedMemory = createBoundedMemory(
@@ -169,6 +183,8 @@ export function perceive(input: PerceptionInput): Perception {
       reliability: entry.reliability,
       confidence: confidenceAt(entry, profile, nowMs),
       verificationState: entry.verificationState,
+      threatKind: entry.threatKind,
+      threatSeverity: entry.threatSeverity,
     })),
   };
 }

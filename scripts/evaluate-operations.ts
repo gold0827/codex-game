@@ -63,15 +63,29 @@ function main(): void {
   if (!scene) {
     throw new RangeError(`Unknown playable scene ${options.sceneId}.`);
   }
-  const firstOfficer = completeCampaign.officers[0];
-  if (!firstOfficer) throw new RangeError("Operation evaluation requires an officer.");
-
-  const scriptedPolicy = createScriptedPolicy("scripted-authority", [
+  const firstThreatBeat = scene.beats.find(({ threats }) => threats.length > 0);
+  const firstThreat = firstThreatBeat?.threats[0];
+  const laneIndex = firstThreat?.lane === "south" ? 2 : firstThreat?.lane === "center" ? 1 : 0;
+  const signalPosition = scene.mapTopology?.destinations[laneIndex]?.position;
+  if (!firstThreatBeat || !firstThreat || !signalPosition) {
+    throw new RangeError("Operation evaluation requires a spatially authored threat.");
+  }
+  if (options.mode !== "none" && scene.gameplayTuning.interventionBudget < 1) {
+    throw new RangeError("Paired operation evaluation requires at least one intervention point.");
+  }
+  const signalAtMs = Math.max(0, firstThreatBeat.timeMs - 1_000);
+  const signalStrength = Math.min(
+    3,
+    Math.max(1, Math.floor(scene.gameplayTuning.interventionBudget)),
+  ) as 1 | 2 | 3;
+  const scriptedPolicy = createScriptedPolicy("scripted-spatial-control", [
     {
-      atMs: 0,
+      atMs: signalAtMs,
       intervention: {
-        kind: "authorize-officer",
-        officerId: firstOfficer.id,
+        kind: "issue-spatial-signal",
+        signal: firstThreat.kind === "misinformation" ? "investigate" : "defend",
+        strength: signalStrength,
+        position: signalPosition,
       },
     },
   ]);

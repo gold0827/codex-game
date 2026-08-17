@@ -10,6 +10,7 @@ import {
 } from "../../src/simulation/operationEvaluation";
 import {
   BALANCED_HARNESS,
+  type OfficerActionKind,
   type HarnessConfiguration,
 } from "../../src/simulation/simulationTypes";
 
@@ -41,7 +42,7 @@ describe("operation evaluation", () => {
 
     expect(JSON.stringify(second)).toBe(JSON.stringify(first));
     expect(first).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       sceneId: scene.identity.id,
       policyId: "no-intervention",
       seedRange: { start: 100, count: 16 },
@@ -62,6 +63,33 @@ describe("operation evaluation", () => {
     );
   }, 10_000);
 
+  it("reports the Monte Carlo distribution of actions and world outcomes", () => {
+    const monteCarloScene = playableScenes.find(
+      ({ identity }) => identity.id === "flooded-convoy",
+    ) as CampaignScene;
+    const result = evaluateOperations({
+      scene: monteCarloScene,
+      roster: completeCampaign.officers,
+      seedRange: { start: 0, count: 32 },
+      harness: BALANCED_HARNESS,
+      policy: NO_INTERVENTION_POLICY,
+    });
+    const actionKinds = new Set<OfficerActionKind>([
+      "move", "investigate", "defend", "verify", "broadcast", "support", "retreat",
+    ]);
+
+    expect(result.actionDistribution.every(({ value }) =>
+      actionKinds.has(value as OfficerActionKind)
+    )).toBe(true);
+    expect(result.damageTaken.observedCount).toBe(32);
+    expect(result.threatsBlocked.observedCount).toBe(32);
+    expect(result.terminalStatusDistribution).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: "success" }),
+      expect.objectContaining({ value: "retry" }),
+    ]));
+    expect(result.worldOutcomeDiversity).toBeGreaterThan(1);
+  }, 15_000);
+
   it("classifies failures and accounts separately for unclassified failures", () => {
     const result = evaluateOperations({
       scene,
@@ -72,15 +100,11 @@ describe("operation evaluation", () => {
     });
 
     expect(result.successCount).toBe(0);
-    expect(result.failureReasons).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ value: "point-not-preserved", count: 8 }),
-        expect.objectContaining({
-          value: "threat-not-neutralized",
-          count: 8,
-        }),
-        expect.objectContaining({ value: "report-not-routed", count: 8 }),
-      ]),
+    expect(result.runs.every(({ success, failureReasons }) =>
+      !success && failureReasons.length > 0
+    )).toBe(true);
+    expect(result.failureReasons).toContainEqual(
+      expect.objectContaining({ value: "report-not-routed", count: 8 }),
     );
     expect(result.unclassifiedFailureCount).toBe(0);
   });

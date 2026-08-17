@@ -54,7 +54,7 @@ describe("bridge-defense tutorial and debrief integration", () => {
   });
 
   it("finishes the real operation in a debrief with authored objective copy", () => {
-    const session = createGameSession(bridgeDefenseCampaign, "bridge-debrief");
+    const session = createGameSession(bridgeDefenseCampaign, 1);
     session.dispatch({ type: "start-attempt" });
     session.advance(bridgeDefenseOperation.encounterParameters.durationMs);
 

@@ -272,8 +272,8 @@ export function createOperationSimulation(
       profile: runtimeOfficer.profile,
       weapon: {
         range: encounterRange,
-        accuracy: readiness >= 0.52 ? clamp(0.55 + readiness * 0.7) : readiness * 0.6,
-        damage: 100,
+        accuracy: clamp(0.32 + readiness * 0.55, 0.2, 0.82),
+        damage: 55,
         suppression: 0.4,
       },
     };
@@ -292,6 +292,7 @@ export function createOperationSimulation(
       memoryCapacity: 1,
       sourceTrust: [],
     },
+    health: ({ low: 35, medium: 55, high: 90, critical: 110 } as const)[threat.severity],
     weapon: {
       range: Math.hypot(mapTopology.width, mapTopology.height),
       accuracy: ({ low: 0.55, medium: 0.65, high: 0.75, critical: 0.85 } as const)[threat.severity],
@@ -404,6 +405,19 @@ export function createOperationSimulation(
     spatialWorld,
     encounter,
     threatActorId,
+    noticeThreat: (officer, threat) => {
+      const severity = { low: 0.25, medium: 0.5, high: 0.75, critical: 1 } as const;
+      const probability = clamp(
+        0.3 + officer.profile.discipline * 0.24 + officer.profile.caution * 0.16 +
+          severity[threat.severity] * 0.16,
+      );
+      return randomStreams.stream(
+        operationRandomStreamKey.threatAwareness(officer.id, threat.id),
+      ).next() < probability;
+    },
+    resolutionRandom: (threatId) => randomStreams.stream(
+      operationRandomStreamKey.threatResolution(threatId),
+    ),
   });
   const outcome = createOutcome({
     scene, harness, consequences, durationMs, state,
@@ -416,6 +430,7 @@ export function createOperationSimulation(
     decisionRandom: (officerId) => randomStreams.stream(operationRandomStreamKey.officerDecision(officerId)),
     updateBacklog: signals.updateBacklog, snapshot: outcome.snapshot,
     issueSpatialSignal: signals.issueSpatialSignal,
+    broadcastBelief: signals.broadcastBelief,
   });
   const timeline = createTimeline({
     sceneId: scene.identity.id,

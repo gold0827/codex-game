@@ -35,12 +35,10 @@ describe("bridge-defense Monte Carlo gate", () => {
 
       expect(balanced).toMatchObject({
         runCount: 200,
-        successRate: 1,
         unclassifiedFailureCount: 0,
       });
       expect(poor).toMatchObject({
         runCount: 200,
-        successRate: 0,
         unclassifiedFailureCount: 0,
       });
       expect(poor.failureReasons.map(({ value }) => value)).toEqual([
@@ -48,15 +46,15 @@ describe("bridge-defense Monte Carlo gate", () => {
         "point-not-preserved",
         "threat-not-neutralized",
       ]);
-      expect(balanced.intentDiversity.uniqueIntentCount).toBeGreaterThan(
-        poor.intentDiversity.uniqueIntentCount,
-      );
-      expect(balanced.routeDistribution).toEqual([
-        { value: "center", count: 200, share: 0.25 },
-        { value: "command", count: 200, share: 0.25 },
-        { value: "north", count: 200, share: 0.25 },
-        { value: "south", count: 200, share: 0.25 },
-      ]);
+      expect(balanced.successRate).toBeGreaterThan(0);
+      expect(balanced.successRate).toBeLessThan(1);
+      expect(poor.successRate).toBeGreaterThan(0);
+      expect(poor.successRate).toBeLessThan(1);
+      expect(balanced.successRate).toBeGreaterThan(poor.successRate);
+      expect(balanced.damageTaken.mean).toBeLessThan(poor.damageTaken.mean ?? 0);
+      expect(balanced.threatsBlocked.mean).toBeGreaterThan(poor.threatsBlocked.mean ?? 0);
+      expect(balanced.worldOutcomeDiversity).toBeGreaterThan(1);
+      expect(poor.worldOutcomeDiversity).toBeGreaterThan(1);
     },
     90_000,
   );

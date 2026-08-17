@@ -16,6 +16,10 @@ function stableId(kind: string, id: string, suffix = ""): string {
 export const operationRandomStreamKey = Object.freeze({
   officerDecision: (officerId: string): string =>
     stableId("officer", officerId, ":decision"),
+  threatAwareness: (officerId: string, threatId: string): string =>
+    stableId("officer", officerId, `:awareness:${threatId}`),
+  threatResolution: (threatId: string): string =>
+    stableId("threat", threatId, ":resolution"),
   signal: (signalId: string): string => stableId("signal", signalId),
   encounter: (encounterId: string): string =>
     stableId("encounter", encounterId),

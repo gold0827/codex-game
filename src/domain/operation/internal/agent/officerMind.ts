@@ -21,6 +21,7 @@ export type OfficerMindContext = Readonly<{
   signalDirective?: SpatialSignalKind | null;
   signalStrength?: SpatialSignalStrength | 0;
   signalPositionId?: string | null;
+  broadcastBeliefId?: string | null;
 }>;
 
 export type OfficerMindInput = Readonly<{
@@ -69,7 +70,10 @@ function targetFor(
   }
   if (kind === "defend") return { kind: "objective", id: context.objectiveId };
   if (kind === "broadcast") {
-    return { kind: "belief", id: latestBelief?.subjectId ?? "local-status" };
+    return {
+      kind: "belief",
+      id: context.broadcastBeliefId ?? latestBelief?.subjectId ?? "local-status",
+    };
   }
   if (kind === "support") return { kind: "officer", id: context.supportOfficerId };
   return { kind: "area", id: context.fallbackAreaId };
@@ -86,31 +90,50 @@ function scoreCandidates(
     : perception.beliefs.reduce((total, belief) => total + belief.confidence, 0) /
       perception.beliefs.length;
   const uncertainty = 1 - averageConfidence;
+  const severity = { low: 0.25, medium: 0.5, high: 0.75, critical: 1 } as const;
+  const threatBeliefs = perception.beliefs.filter(({ category }) => category === "threat");
+  const physicalDanger = threatBeliefs
+    .filter(({ threatKind }) => threatKind !== "misinformation" && threatKind !== "communications")
+    .reduce((risk, belief) => Math.max(
+      risk,
+      belief.confidence * (belief.threatSeverity ? severity[belief.threatSeverity] : 0.5),
+    ), 0);
+  const misinformation = threatBeliefs
+    .filter(({ threatKind }) => threatKind === "misinformation")
+    .reduce((risk, belief) => Math.max(risk, belief.confidence), 0);
+  const communicationDisruption = threatBeliefs
+    .filter(({ threatKind }) => threatKind === "communications")
+    .reduce((risk, belief) => Math.max(risk, belief.confidence), 0);
   const components: Record<OfficerActionKind, readonly UtilityComponent[]> = {
     move: [
       { value: profile.initiative * 0.52, reason: "initiative favors moving" },
       { value: context.normalizedDistance * 0.24, reason: "the objective is still distant" },
       { value: (1 - context.risk * profile.caution) * 0.12, reason: "the route risk is acceptable" },
+      { value: (1 - physicalDanger) * 0.12, reason: "no physical threat blocks the route" },
     ],
     investigate: [
       { value: profile.caution * 0.3, reason: "caution favors investigation" },
       { value: profile.discipline * 0.2, reason: "discipline favors gathering evidence" },
       { value: uncertainty * 0.36, reason: "belief confidence is low" },
+      { value: misinformation * 0.45, reason: "misinformation requires investigation" },
     ],
     defend: [
       { value: profile.caution * 0.24, reason: "caution favors holding ground" },
       { value: profile.discipline * 0.2, reason: "discipline favors protecting the objective" },
       { value: context.risk * 0.42, reason: "local threat risk is high" },
+      { value: physicalDanger * 0.65, reason: "an imminent physical threat requires a defensive posture" },
     ],
     verify: [
       { value: profile.caution * 0.3, reason: "caution favors verification" },
       { value: profile.discipline * 0.25, reason: "discipline favors cross-checking" },
       { value: uncertainty * 0.38, reason: "available evidence is uncertain" },
+      { value: misinformation * 0.7, reason: "misinformation requires independent verification" },
     ],
     broadcast: [
       { value: profile.cooperation ** 2 * 0.8, reason: "cooperation favors sharing information" },
       { value: averageConfidence * 0.22, reason: "a credible belief is ready to share" },
       { value: (1 - context.signalLoad) * 0.18, reason: "the signal channel has capacity" },
+      { value: communicationDisruption * 0.4, reason: "communications disruption requires a fresh broadcast" },
     ],
     support: [
       { value: profile.cooperation * 0.48, reason: "cooperation favors supporting a peer" },

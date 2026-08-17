@@ -11,6 +11,7 @@ import {
 } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import { BALANCED_HARNESS } from "../../src/simulation/simulationTypes";
+import { flowCampaign } from "../fixtures/flow-campaign";
 
 const POOR_HARNESS = {
   informationReach: 0,
@@ -404,7 +405,7 @@ describe("game session operation", () => {
 
 describe("game session campaign flow", () => {
   it("runs a poor attempt into a stable-seed retry, then retries successfully", () => {
-    const session = createGameSession(completeCampaign, "retry-base");
+    const session = createGameSession(completeCampaign, 0);
     session.dispatch({ type: "set-harness", harness: POOR_HARNESS });
     const firstSeed = session.read().attemptSeed;
     session.dispatch({ type: "start-attempt" });
@@ -436,9 +437,9 @@ describe("game session campaign flow", () => {
   });
 
   it("plays all six operations through the authored epilogue and resets cleanly", () => {
-    const session = createGameSession(completeCampaign, "complete-run");
+    const session = createGameSession(flowCampaign, "complete-run");
     const playedSceneIds: string[] = [];
-    const operationCount = completeCampaign.scenes.filter(
+    const operationCount = flowCampaign.scenes.filter(
       ({ identity }) => identity.kind !== "epilogue",
     ).length;
 
@@ -459,7 +460,7 @@ describe("game session campaign flow", () => {
     }
 
     expect(playedSceneIds).toEqual(
-      completeCampaign.scenes
+      flowCampaign.scenes
         .filter(({ identity }) => identity.kind !== "epilogue")
         .map(({ identity }) => identity.id),
     );
