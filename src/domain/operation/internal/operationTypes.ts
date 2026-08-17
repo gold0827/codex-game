@@ -16,6 +16,7 @@ import type {
 
 export type MutableOfficer = {
   id: string;
+  experienceLevel: number;
   disposition: OfficerDisposition;
   intent: OfficerIntent;
   confidence: number;
