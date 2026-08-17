@@ -346,7 +346,8 @@ export function projectGameViewModel(
             };
           }),
           reports: [...operation.messages].reverse().map((report) => ({
-            id: report.authoredReportId,
+            id: report.id,
+            authoredReportId: report.authoredReportId,
             guided: isGuidanceTarget("route", report.authoredReportId),
             meta: `${formatGameTime(report.createdAtMs)} · ${roster.get(report.sourceOfficerId)?.name ?? report.sourceOfficerId} · ${report.deliveryState === "delivered" ? "전달됨" : "대기"}`,
             text: report.text,

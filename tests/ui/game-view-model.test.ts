@@ -50,6 +50,41 @@ describe("game presentation view model", () => {
     expect(view.operation?.events.every(({ label }) => !/[A-Za-z]{4}/.test(label))).toBe(true);
   });
 
+  it("keeps runtime and authored report identities separate after routing", () => {
+    const campaign = structuredClone(completeCampaign) as CampaignDefinition;
+    const scene = campaign.scenes[0];
+    if (!scene || scene.identity.kind === "epilogue") {
+      throw new Error("Expected a playable report scene.");
+    }
+    (scene as { guidance: CampaignDefinition["scenes"][number]["guidance"] }).guidance = [];
+    const session = createGameSession(campaign, "runtime-report-view-model");
+    session.dispatch({ type: "start-attempt" });
+    const original = session.read().operation?.messages[0];
+    if (!original) throw new Error("Expected an authored report message.");
+    session.dispatch({
+      type: "route-report",
+      reportId: original.id,
+      recipientOfficerId: "captain-han",
+    });
+
+    const view = projectGameViewModel(session.read(), {
+      title: campaign.title,
+      sceneCount: campaign.scenes.length,
+      officers: campaign.officers,
+    });
+    const reports = view.operation?.reports.filter(
+      ({ authoredReportId }) => authoredReportId === original.authoredReportId,
+    );
+
+    expect(reports).toHaveLength(2);
+    expect(reports?.map(({ id }) => id)).toEqual([
+      expect.stringMatching(/^intervention-route-/),
+      original.id,
+    ]);
+    expect(reports?.every(({ authoredReportId }) => authoredReportId === original.authoredReportId))
+      .toBe(true);
+  });
+
   it("projects a spatial signal tutorial as one Korean battlefield target", () => {
     const campaign = structuredClone(completeCampaign) as CampaignDefinition;
     const scene = campaign.scenes[0];
