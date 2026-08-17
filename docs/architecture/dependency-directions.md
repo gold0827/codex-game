@@ -73,6 +73,20 @@ project한 `GameViewModel`로 나온다. 브라우저 전역은 app/workbench,
 CampaignWorkshop, presentation과 platform adapter에만 있고 application과
 domain에는 없다.
 
+실시간 전장의 map은 같은 snapshot 흐름을 벗어나지 않는다.
+
+```text
+GameSnapshot.scene.mapTopology + presentation.mapId
+  ─→ BattlefieldFrame.map
+  ─→ Canvas battlefield map renderer
+  ─→ generated map atlas manifest
+```
+
+`mapTopology`은 이동 규칙의 원본이고 `mapId`는 외형만 선택한다. presentation의
+map atlas module이 SVG 경로, atlas 좌표와 skin 배치를 숨기므로 campaign과
+operation domain은 asset 파일을 알지 않는다. Canvas 카메라 범위는 각
+`BattlefieldFrame.map`의 실제 width와 height를 따른다.
+
 `CampaignRun`은 현재 장면, 시도 번호, 안정적인 작전 seed와 장교별 최근 교훈을
 단독 소유한다. `GameSession`은 run이 내놓은 launch를 `CampaignOperation`에
 전달하고, 실패 결과는 같은 launch로 재시도하며 성공 결과는 플레이어가 교훈을

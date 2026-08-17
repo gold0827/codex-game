@@ -2,7 +2,7 @@ import type { WorldPosition } from "./battlefieldFrame";
 
 export type BattlefieldRenderable = Readonly<{
   id: string;
-  kind: "actor" | "prop";
+  kind: "effect" | "actor" | "prop";
   position: WorldPosition;
   depthOffset?: number;
 }>;
@@ -21,7 +21,10 @@ export function orderBattlefieldRenderables<T extends BattlefieldRenderable>(
   return [...renderables].sort((left, right) => {
     const depthDifference = battlefieldDepth(left) - battlefieldDepth(right);
     if (depthDifference !== 0) return depthDifference;
-    if (left.kind !== right.kind) return left.kind === "actor" ? -1 : 1;
+    if (left.kind !== right.kind) {
+      const kindDepth = { effect: 0, actor: 1, prop: 2 } as const;
+      return kindDepth[left.kind] - kindDepth[right.kind];
+    }
     return left.id.localeCompare(right.id);
   });
 }

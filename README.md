@@ -21,18 +21,22 @@ npm run check
 `npm run check`는 asset 산출물 일치, TypeScript build, 전체 test, module 의존
 방향 검사를 실행합니다.
 
-## 전장 sprite 생성
+## 전장 asset 생성
 
-장교 atlas는 외부 계정이나 유료 도구 없이 recipe에서 결정론적으로 생성됩니다.
+장교 sprite와 아이소메트릭 map atlas는 외부 계정이나 유료 도구 없이 recipe에서
+결정론적으로 생성됩니다.
 
 ```sh
 npm run assets:sprites
+npm run assets:maps
 npm run check:assets
 ```
 
-색상, frame 수와 재생 시간은
-`scripts/assets/officer-sprites.recipe.json`에서 바꿉니다. runtime은 생성된
-`public/assets/visual/sprites/officers/manifest.json`만 읽습니다.
+장교 색상, frame 수와 재생 시간은 `scripts/assets/officer-sprites.recipe.json`,
+맵 색상은 `scripts/assets/battlefield-map.recipe.json`에서 바꿉니다. 해인교의 강,
+교량과 landmark 배치는 scenario의 `bridgeDefenseMapSkin`이 원본입니다. runtime은
+`public/assets/visual/` 아래에 생성된 manifest만 읽으며, asset을 불러오지 못하면
+식별 가능한 Canvas 표식으로 폴백합니다.
 
 ## 게임 루프
 

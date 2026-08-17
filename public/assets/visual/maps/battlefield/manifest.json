@@ -1,0 +1,318 @@
+{
+  "version": 1,
+  "image": "atlas.svg",
+  "size": {
+    "width": 256,
+    "height": 288
+  },
+  "frames": {
+    "ground-a": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "ground-b": {
+      "rect": {
+        "x": 64,
+        "y": 0,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "rough": {
+      "rect": {
+        "x": 128,
+        "y": 0,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "blocked": {
+      "rect": {
+        "x": 192,
+        "y": 0,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "water": {
+      "rect": {
+        "x": 0,
+        "y": 96,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "bridge": {
+      "rect": {
+        "x": 64,
+        "y": 96,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "ford": {
+      "rect": {
+        "x": 128,
+        "y": 96,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "spawn": {
+      "rect": {
+        "x": 192,
+        "y": 96,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "destination": {
+      "rect": {
+        "x": 0,
+        "y": 192,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "command-post": {
+      "rect": {
+        "x": 64,
+        "y": 192,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "civilian-shelter": {
+      "rect": {
+        "x": 128,
+        "y": 192,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    }
+  },
+  "skins": {
+    "haein-river-bridge-dusk": {
+      "tiles": [
+        {
+          "id": "haein-water-0",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 0
+          }
+        },
+        {
+          "id": "haein-water-1",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 1
+          }
+        },
+        {
+          "id": "haein-water-2",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 2
+          }
+        },
+        {
+          "id": "haein-water-3",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 3
+          }
+        },
+        {
+          "id": "haein-water-4",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 4
+          }
+        },
+        {
+          "id": "haein-water-5",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 5
+          }
+        },
+        {
+          "id": "haein-water-6",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 6
+          }
+        },
+        {
+          "id": "haein-water-7",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 7
+          }
+        },
+        {
+          "id": "haein-water-8",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 8
+          }
+        },
+        {
+          "id": "haein-water-9",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 9
+          }
+        },
+        {
+          "id": "haein-water-10",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 10
+          }
+        },
+        {
+          "id": "haein-water-11",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 11
+          }
+        },
+        {
+          "id": "haein-water-12",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 12
+          }
+        },
+        {
+          "id": "haein-water-13",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 13
+          }
+        },
+        {
+          "id": "haein-water-14",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 14
+          }
+        },
+        {
+          "id": "haein-water-15",
+          "kind": "water",
+          "position": {
+            "x": 11,
+            "y": 15
+          }
+        },
+        {
+          "id": "north-ford",
+          "kind": "ford",
+          "position": {
+            "x": 11,
+            "y": 3
+          }
+        },
+        {
+          "id": "haein-bridge",
+          "kind": "bridge",
+          "position": {
+            "x": 11,
+            "y": 7
+          }
+        },
+        {
+          "id": "south-farm-track",
+          "kind": "ford",
+          "position": {
+            "x": 11,
+            "y": 13
+          }
+        }
+      ],
+      "props": [
+        {
+          "id": "west-command-post",
+          "kind": "command-post",
+          "position": {
+            "x": 2,
+            "y": 2
+          }
+        },
+        {
+          "id": "east-civilian-shelter",
+          "kind": "civilian-shelter",
+          "position": {
+            "x": 21,
+            "y": 13
+          }
+        }
+      ]
+    }
+  }
+}

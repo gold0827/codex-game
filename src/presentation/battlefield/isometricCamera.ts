@@ -33,6 +33,7 @@ export type IsometricCamera = Readonly<{
   panBy: (screenDelta: ScreenPosition) => IsometricCameraSnapshot;
   setZoom: (zoom: number, anchor?: ScreenPosition) => IsometricCameraSnapshot;
   resize: (viewport: ViewportSize) => IsometricCameraSnapshot;
+  setBounds: (bounds: WorldBounds) => IsometricCameraSnapshot;
 }>;
 
 export type CanvasViewport = Readonly<{
@@ -121,11 +122,12 @@ export function createIsometricCamera(options: Readonly<{
   assertBounds(options.bounds);
   assertViewport(options.viewport);
 
+  let bounds = { ...options.bounds };
   let viewport = { ...options.viewport };
   let center = clampCenter(options.center ?? {
-    x: (options.bounds.minX + options.bounds.maxX) / 2,
-    y: (options.bounds.minY + options.bounds.maxY) / 2,
-  }, options.bounds);
+    x: (bounds.minX + bounds.maxX) / 2,
+    y: (bounds.minY + bounds.maxY) / 2,
+  }, bounds);
   let zoom = clamp(Number.isFinite(options.zoom) ? (options.zoom ?? 1) : 1, MIN_ZOOM, MAX_ZOOM);
 
   const read = (): IsometricCameraSnapshot => ({ center: { ...center }, viewport: { ...viewport }, zoom });
@@ -150,7 +152,7 @@ export function createIsometricCamera(options: Readonly<{
 
   const follow = (position: WorldPosition): IsometricCameraSnapshot => {
     assertFinitePoint(position, "Follow position");
-    center = clampCenter(position, options.bounds);
+    center = clampCenter(position, bounds);
     return read();
   };
 
@@ -160,7 +162,7 @@ export function createIsometricCamera(options: Readonly<{
       x: -screenDelta.x / zoom,
       y: -screenDelta.y / zoom,
     });
-    center = clampCenter({ x: center.x + worldDelta.x, y: center.y + worldDelta.y }, options.bounds);
+    center = clampCenter({ x: center.x + worldDelta.x, y: center.y + worldDelta.y }, bounds);
     return read();
   };
 
@@ -178,7 +180,7 @@ export function createIsometricCamera(options: Readonly<{
         x: anchorProjection.x - (anchor.x - viewport.width / 2) / clampedZoom,
         y: anchorProjection.y - (anchor.y - viewport.height / 2) / clampedZoom,
       };
-      center = clampCenter(unprojectIsometric(nextCenterProjection), options.bounds);
+      center = clampCenter(unprojectIsometric(nextCenterProjection), bounds);
     }
     zoom = clampedZoom;
     return read();
@@ -190,7 +192,14 @@ export function createIsometricCamera(options: Readonly<{
     return read();
   };
 
-  return { read, project, unproject, follow, panBy, setZoom, resize };
+  const setBounds = (nextBounds: WorldBounds): IsometricCameraSnapshot => {
+    assertBounds(nextBounds);
+    bounds = { ...nextBounds };
+    center = clampCenter(center, bounds);
+    return read();
+  };
+
+  return { read, project, unproject, follow, panBy, setZoom, resize, setBounds };
 }
 
 export function configureCanvasViewport(

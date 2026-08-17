@@ -9,7 +9,16 @@ import { mountGameApp } from "../../src/ui/GameApp";
 const root = document.querySelector<HTMLElement>("#fixture-root");
 if (!root) throw new Error("Chrome fixture root is missing.");
 
+async function waitForFrameCondition(condition: () => boolean): Promise<boolean> {
+  for (let frame = 0; frame < 120; frame += 1) {
+    if (condition()) return true;
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+  return condition();
+}
+
 const session = createGameSession(bridgeDefenseCampaign, "chrome-fixture");
+const mapPreview = new URLSearchParams(window.location.search).has("map-preview");
 const app = mountGameApp(root, bridgeDefenseCampaign, session, {
   frameScheduler: {
     request: (callback) => window.requestAnimationFrame(callback),
@@ -20,32 +29,40 @@ const app = mountGameApp(root, bridgeDefenseCampaign, session, {
 root.querySelector<HTMLButtonElement>('[data-action="start-attempt"]')?.click();
 await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-
 const grid = root.querySelector<HTMLElement>(".operation-grid");
 const battlefield = root.querySelector<HTMLElement>("[data-region='battlefield']");
 const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
+const mapImageReady = mapPreview && canvas
+  ? await waitForFrameCondition(() => canvas.dataset.mapImage === "ready")
+  : false;
 const gridWidth = grid?.getBoundingClientRect().width ?? 0;
 const battlefieldWidth = battlefield?.getBoundingClientRect().width ?? 0;
 const centralShare = gridWidth === 0 ? 0 : battlefieldWidth / gridWidth;
 
-root.querySelector<HTMLButtonElement>('[data-action="pause"]')?.click();
-root.querySelector<HTMLElement>('[data-officer-id="captain-han"]')
-  ?.querySelector<HTMLButtonElement>('[data-action="inspect-officer"]')
-  ?.click();
-root.querySelector<HTMLButtonElement>('[data-action="resume"]')?.click();
+if (!mapPreview) {
+  root.querySelector<HTMLButtonElement>('[data-action="pause"]')?.click();
+  root.querySelector<HTMLElement>('[data-officer-id="captain-han"]')
+    ?.querySelector<HTMLButtonElement>('[data-action="inspect-officer"]')
+    ?.click();
+  root.querySelector<HTMLButtonElement>('[data-action="resume"]')?.click();
+  const remainingMs = (session.read().operation?.durationMs ?? 0) -
+    (session.read().operation?.elapsedMs ?? 0);
+  session.advance(remainingMs);
+  app.render();
+}
 const tutorialCompleted = session.read().tutorial.currentStep === null;
-const remainingMs = (session.read().operation?.durationMs ?? 0) -
-  (session.read().operation?.elapsedMs ?? 0);
-session.advance(remainingMs);
-app.render();
 
 const result = {
+  mapPreview,
   phase: session.read().phase,
   sceneId: session.read().scene.identity.id,
   mapId: battlefield?.dataset.mapId ?? null,
   centralShare: Math.round(centralShare * 1_000) / 1_000,
   canvasWidth: canvas?.width ?? 0,
   canvasHeight: canvas?.height ?? 0,
+  mapImageReady,
+  mapTileCount: Number(canvas?.dataset.mapTileCount ?? 0),
+  mapPropCount: Number(canvas?.dataset.mapPropCount ?? 0),
   officerCount: session.read().operation?.officers.length ?? 0,
   tutorialCompleted,
   debriefStatus: session.read().debrief?.status ?? null,
@@ -53,16 +70,21 @@ const result = {
     bridgeDefenseCampaign.scenes[0].copy.success,
   ) ?? false,
 };
-const passed = result.phase === "debrief" &&
-  result.sceneId === "haein-bridge-defense" &&
+const passed = result.sceneId === "haein-bridge-defense" &&
   result.mapId === bridgeDefenseMapSkin.id &&
   result.centralShare >= 0.7 &&
   result.canvasWidth > 0 &&
   result.canvasHeight > 0 &&
   result.officerCount === 4 &&
-  result.tutorialCompleted &&
-  result.debriefStatus === "success" &&
-  result.debriefCopyVisible;
+  (mapPreview
+    ? result.phase === "operation" &&
+      result.mapImageReady &&
+      result.mapTileCount > 24 * 16 &&
+      result.mapPropCount === bridgeDefenseMapSkin.landmarks.length
+    : result.phase === "debrief" &&
+      result.tutorialCompleted &&
+      result.debriefStatus === "success" &&
+      result.debriefCopyVisible);
 
 const output = document.createElement("pre");
 output.id = "fixture-result";

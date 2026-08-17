@@ -5,6 +5,7 @@ import type {
   BattlefieldCue,
   BattlefieldFacing,
   BattlefieldFrame,
+  BattlefieldMapFrame,
   WorldPosition,
 } from "../battlefield/battlefieldFrame";
 import { projectEffectTrack } from "../effects/effectCueProjector";
@@ -58,6 +59,42 @@ function cues(unit: Unit, moving: boolean): readonly BattlefieldCue[] {
   return values;
 }
 
+function projectMap(snapshot: GameSnapshot): BattlefieldMapFrame {
+  const topology = snapshot.scene.mapTopology;
+  if (!topology) {
+    throw new Error(`Operation scene "${snapshot.scene.identity.id}" has no battlefield map.`);
+  }
+  return {
+    id: snapshot.scene.presentation.mapId,
+    width: topology.width,
+    height: topology.height,
+    tiles: [
+      ...topology.blocked.map((position) => ({
+        kind: "blocked" as const,
+        position: { ...position },
+      })),
+      ...topology.terrain
+        .filter(({ movementCost }) => movementCost > 1)
+        .map(({ position }) => ({
+          kind: "rough" as const,
+          position: { ...position },
+        })),
+    ],
+    locations: [
+      ...topology.spawns.map(({ id, position }) => ({
+        id,
+        kind: "spawn" as const,
+        position: { ...position },
+      })),
+      ...topology.destinations.map(({ id, position }) => ({
+        id,
+        kind: "destination" as const,
+        position: { ...position },
+      })),
+    ],
+  };
+}
+
 export function projectBattlefieldFrame(
   snapshot: GameSnapshot,
   options: Readonly<{ reducedMotion?: boolean; effectTrack?: EffectTrack }> = {},
@@ -80,6 +117,7 @@ export function projectBattlefieldFrame(
     };
   });
   return {
+    map: projectMap(snapshot),
     actors,
     effects: sampleEffectTrack(
       options.effectTrack ?? projectEffectTrack(snapshot),
