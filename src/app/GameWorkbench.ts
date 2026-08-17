@@ -3,8 +3,8 @@ import {
   createCampaignDocument,
   mountCampaignWorkshop,
   type CampaignDefinition,
-  type CampaignEditor,
   type CampaignRepository,
+  type CampaignWorkshop,
 } from "../authoring/campaign-workshop";
 import {
   mountGameApp,
@@ -122,7 +122,7 @@ export function mountGameWorkbench(
 
   let generation = 0;
   let gameApp: GameApp;
-  let editor: CampaignEditor;
+  let workshop: CampaignWorkshop;
   let manualOpen = false;
   let pausedForManual = false;
   let editorOpen = false;
@@ -189,7 +189,7 @@ export function mountGameWorkbench(
     editorRoot.hidden = false;
     shell.classList.add("editor-open");
     tools.hidden = true;
-    editor.render();
+    workshop.render();
   };
 
   const openManual = (): void => {
@@ -218,7 +218,7 @@ export function mountGameWorkbench(
   };
 
   gameApp = createFreshGame();
-  editor = mountCampaignWorkshop(editorRoot, campaignDocument, {
+  workshop = mountCampaignWorkshop(editorRoot, campaignDocument, {
     onClose: closeEditor,
     onRestart: restartGame,
   });
@@ -229,7 +229,7 @@ export function mountGameWorkbench(
     ?.addEventListener("click", closeManual);
   document.addEventListener("keydown", handleKeyDown);
 
-  if (!loadResult.ok) editor.showDiagnostics(loadResult.diagnostics);
+  if (!loadResult.ok) workshop.showDiagnostics(loadResult.diagnostics);
 
   return {
     document: campaignDocument,
@@ -243,7 +243,7 @@ export function mountGameWorkbench(
       if (destroyed) return;
       destroyed = true;
       gameApp.destroy();
-      editor.destroy();
+      workshop.destroy();
       document.removeEventListener("keydown", handleKeyDown);
       root.replaceChildren();
     },

@@ -159,7 +159,7 @@ export function createOperationSimulation(
     operationEvents.push(event);
     const projected = projectOperationReplay({ ...event, data: { ...event.data, description } });
     const projectedDescription = projected.description;
-    const { description: _legacyDescription, ...projectedEvent } = projected;
+    const { description: _projectedDescription, ...projectedEvent } = projected;
     replayEntries.push({
       sequence: projectedEvent.sequence,
       timeMs: projectedEvent.timeMs,

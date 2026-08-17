@@ -4,13 +4,13 @@ import {
   type CampaignDocumentDiagnostic,
 } from "./CampaignDocument";
 
-export type CampaignEditorOptions = Readonly<{
+export type CampaignWorkshopOptions = Readonly<{
   onClose: () => void;
   onRestart: () => void;
   onDocumentChange?: () => void;
 }>;
 
-export type CampaignEditor = Readonly<{
+export type CampaignWorkshop = Readonly<{
   render: () => void;
   showDiagnostics: (diagnostics: readonly CampaignDocumentDiagnostic[]) => void;
   destroy: () => void;
@@ -87,11 +87,11 @@ function diagnosticCategory(diagnostic: CampaignDocumentDiagnostic): string {
   return "장면 오류";
 }
 
-export function mountCampaignEditor(
+export function mountCampaignWorkshop(
   root: HTMLElement,
   campaignDocument: CampaignDocument,
-  options: CampaignEditorOptions,
-): CampaignEditor {
+  options: CampaignWorkshopOptions,
+): CampaignWorkshop {
   let selectedSceneId = campaignDocument.listScenes()[0]?.identity.id ?? "";
   let notice: Readonly<{ kind: NoticeKind; lines: readonly string[] }> | null = null;
   let exchangeSource = "";

@@ -104,7 +104,7 @@ describe("seeded random", () => {
 });
 
 describe("operation simulation determinism", () => {
-  it("records deterministic structured events and projects legacy replay descriptions", () => {
+  it("records deterministic structured events and projects readable replay descriptions", () => {
     const scene = playableScenes[1] as CampaignScene;
     const first = runToEnd(scene, "event-seed");
     const second = runToEnd(scene, "event-seed");
