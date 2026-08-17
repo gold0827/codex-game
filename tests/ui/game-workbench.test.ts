@@ -337,6 +337,50 @@ describe("game workbench", () => {
     );
   });
 
+  it("pauses behind persisted player settings and hides production authoring", () => {
+    workbench.destroy();
+    let savedSettings: unknown = {
+      muted: false,
+      masterVolume: 0.9,
+      musicVolume: 0.6,
+      effectsVolume: 0.7,
+      reducedMotion: false,
+      showTutorial: true,
+      uiScale: "standard",
+    };
+    workbench = mountGameWorkbench(root, completeCampaign, {
+      frameScheduler: scheduler,
+      audioFactory,
+      editorEnabled: false,
+      settingsStore: {
+        load: () => savedSettings,
+        save: (settings) => { savedSettings = structuredClone(settings); },
+      },
+    });
+
+    expect(root.querySelector('[data-action="open-editor"]')).toBeNull();
+    action("start-attempt").click();
+    action("open-settings").click();
+    expect(workbench.session().read().paused).toBe(true);
+    expect(root.querySelector<HTMLElement>(".workbench-game")?.inert).toBe(true);
+
+    const uiScale = root.querySelector<HTMLSelectElement>('[data-setting="uiScale"]')!;
+    uiScale.value = "large";
+    uiScale.dispatchEvent(new Event("change", { bubbles: true }));
+    const reducedMotion = root.querySelector<HTMLInputElement>(
+      '[data-setting="reducedMotion"]',
+    )!;
+    reducedMotion.checked = true;
+    reducedMotion.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(savedSettings).toMatchObject({ uiScale: "large", reducedMotion: true });
+    expect(root.querySelector<HTMLElement>(".game-workbench")?.dataset.uiScale).toBe("large");
+    action("close-settings").click();
+    expect(workbench.session().read().paused).toBe(false);
+    expect(root.querySelector<HTMLElement>(".workbench-game")?.inert).toBe(false);
+    expect(document.activeElement).toBe(action("open-settings"));
+  });
+
   it("destroys frame and audio resources and clears the mount", () => {
     action("start-attempt").click();
     workbench.destroy();

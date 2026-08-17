@@ -29,7 +29,8 @@ export type { GameFrameScheduler } from "../presentation/gameEffects";
 export type GameAppOptions = Readonly<{
   frameScheduler?: GameFrameScheduler;
   audio?: GameAudio;
-  reducedMotion?: boolean;
+  reducedMotion?: boolean | (() => boolean);
+  onMutedChange?: (muted: boolean) => void;
 }>;
 
 export type GameApp = Readonly<{
@@ -107,7 +108,12 @@ export function mountGameApp(
   let destroyed = false;
   let battlefield: MountedCanvasBattlefield | null = null;
   let selectedSignalPosition: Readonly<{ x: number; y: number }> | null = null;
-  const reducedMotion = options.reducedMotion ?? globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  const prefersReducedMotion = (): boolean => {
+    if (typeof options.reducedMotion === "function") return options.reducedMotion();
+    return options.reducedMotion
+      ?? globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      ?? false;
+  };
 
   const dispatch: CommandDispatcher = (command: GameCommand, cue = "click", focusKey) => {
     try {
@@ -130,7 +136,7 @@ export function mountGameApp(
     const snapshot = session.read();
     effects.observe(snapshot);
     const battlefieldFrame = projectBattlefieldFrame(snapshot, {
-      reducedMotion,
+      reducedMotion: prefersReducedMotion(),
       effectTrack: effects.effectTrack,
     });
     if (battlefieldFrame) {
@@ -148,10 +154,12 @@ export function mountGameApp(
     }
     const view = projectGameViewModel(snapshot, campaignView);
     const shell = node("div", "game-shell");
+    shell.dataset.reducedMotion = String(prefersReducedMotion());
     shell.style.setProperty("--scene-accent", view.accentColor);
     shell.dataset.phase = view.phase;
     shell.append(renderGameHeader(view, audio, () => {
       audio.setMuted(!audio.muted());
+      options.onMutedChange?.(audio.muted());
       render();
       effects.restoreFocus("toggle-mute");
     }));

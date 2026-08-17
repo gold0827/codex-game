@@ -30,8 +30,9 @@
 ```
 
 브리핑, 디브리핑, 졸업은 같은 header와 shell 안에서 각 phase view만 교체한다.
-`작전 교범`과 `장면 편집`은 workbench가 소유하며 동시에 열리지 않는다. 진행 중인
-작전에서 둘 중 하나를 열면 작전을 멈추고, 닫으면 필요한 경우 재개한다.
+`작전 교범`, `설정`, 개발용 `장면 편집`은 workbench가 소유하며 동시에 열리지
+않는다. 진행 중인 작전에서 하나를 열면 작전을 멈추고, 닫으면 필요한 경우
+재개한다. 프로덕션 기본 화면에서는 교범과 설정만 표시한다.
 
 ## 실행 배선
 
@@ -41,6 +42,9 @@ src/main.ts
    ├─ CC0 music catalog                        app asset composition
    ├─ browser frame/audio/localStorage adapter platform
    └─ mountGameWorkbench                       app
+      ├─ PlayerSettingsPanel                   app settings interface
+      │  ├─ PlayerSettingsStore                browser/in-memory adapter seam
+      │  └─ GameAudio                          volume + mute interface
       ├─ CampaignDocument + CampaignWorkshop   authoring
       │  └─ CampaignRepository                 domain/campaign seam
       ├─ GameSession                           application interface
@@ -57,6 +61,20 @@ src/main.ts
          ├─ projectGameViewModel               snapshot projector
          └─ phase views → DOM
 ```
+
+설정 동작은 workbench에 흩어지지 않고 다음 작은 interface 뒤에 있다.
+
+```text
+설정 button
+  ─→ GameWorkbench: 작전 pause/resume + overlay 상호 배제
+  ─→ PlayerSettingsPanel
+       ├─ read/open/close/connectAudio/setMuted/destroy
+       ├─ 값 정규화 + control/focus/fullscreen + shell 적용
+       └─ PlayerSettingsStore ─→ browser localStorage
+```
+
+`GameWorkbench`는 설정 필드, JSON 형식, audio volume 계산을 알지 않는다.
+테스트도 같은 `PlayerSettingsPanel` interface에서 저장·DOM·audio 결과를 확인한다.
 
 입력과 출력은 서로 반대 방향으로 흐른다.
 
