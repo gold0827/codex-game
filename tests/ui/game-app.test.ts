@@ -150,7 +150,7 @@ describe("production game app", () => {
     expect(action("pause").textContent).toBe("일시정지");
     expect(root.querySelectorAll("[data-action^='speed-']")).toHaveLength(3);
     expect(root.querySelector("[data-region='event-flow']")).not.toBeNull();
-    expect(root.querySelector("[data-region='interventions']")?.textContent).toContain("회 남음");
+    expect(root.querySelector("[data-region='interventions']")?.textContent).toContain("개입 자원");
     expect(root.querySelector(".operation-grid")?.children[1]?.getAttribute("data-region")).toBeNull();
     expect(root.querySelector(".operation-grid")?.children[1]?.querySelector("[data-region='battlefield']")).not.toBeNull();
   });
@@ -188,6 +188,39 @@ describe("production game app", () => {
     action("pause").click();
     expect(session.read().paused).toBe(true);
     expect(action("resume").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("issues a spatial signal at the battlefield tile selected by the player", () => {
+    startAttempt();
+    const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
+    if (!canvas) throw new Error("battlefield canvas must be mounted");
+
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 320, clientY: 180 }));
+    canvas.dispatchEvent(new MouseEvent("pointerup", { button: 0, clientX: 320, clientY: 180 }));
+
+    const controls = root.querySelector<HTMLElement>("[data-region='spatial-signal']");
+    const kind = controls?.querySelector<HTMLSelectElement>("[data-signal-kind]");
+    const strength = controls?.querySelector<HTMLSelectElement>("[data-signal-strength]");
+    expect(controls?.textContent).toContain("선택 타일 12, 8");
+    if (!kind || !strength) throw new Error("spatial signal controls must be mounted");
+    kind.value = "defend";
+    strength.value = "2";
+    strength.dispatchEvent(new Event("change", { bubbles: true }));
+    action("issue-spatial-signal").click();
+
+    expect(session.read().operation?.signals.at(-1)).toMatchObject({
+      kind: "defend",
+      strength: 2,
+      position: { x: 12, y: 8 },
+    });
+    expect(session.read().operation?.metrics.attentionSpent).toBe(2);
+    expect(root.querySelector("[data-region='interventions']")?.textContent).toContain("개입 자원 2");
+    const refreshedStrength = root.querySelector<HTMLSelectElement>("[data-signal-strength]");
+    if (!refreshedStrength) throw new Error("spatial signal strength must remain mounted");
+    expect(refreshedStrength.querySelector<HTMLOptionElement>('option[value="3"]')?.disabled).toBe(true);
+    refreshedStrength.value = "3";
+    refreshedStrength.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(action("issue-spatial-signal").disabled).toBe(true);
   });
 
   it("releases the persistent battlefield frame loop when destroyed", () => {
@@ -268,6 +301,12 @@ describe("production game app", () => {
       playedScenes.push(session.read().scene.identity.id);
       startAttempt();
       if (session.read().scene.identity.kind === "tutorial") completeTutorial();
+      if (session.read().scene.identity.id === "orchard-siege") {
+        const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
+        canvas?.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 320, clientY: 180 }));
+        canvas?.dispatchEvent(new MouseEvent("pointerup", { button: 0, clientX: 320, clientY: 180 }));
+        expect(action("issue-spatial-signal").disabled).toBe(true);
+      }
       completeSharedBeliefObjective();
 
       const snapshot = session.read();

@@ -1,9 +1,10 @@
 import { loadSpriteAtlas, type SpriteAtlasRuntime } from "../../spriteAtlas";
-import type { BattlefieldFrame } from "../battlefieldFrame";
+import type { BattlefieldFrame, WorldPosition } from "../battlefieldFrame";
 import { orderBattlefieldRenderables } from "../drawOrder";
 import {
   configureCanvasViewport,
   createIsometricCamera,
+  ISOMETRIC_TILE_SIZE,
   type IsometricCameraSnapshot,
 } from "../isometricCamera";
 import { createBattlefieldDrawList } from "./drawList";
@@ -31,6 +32,7 @@ type CanvasViewportOptions = Readonly<{
   now?: () => number;
   fetchManifest?: typeof fetch;
   resizeObserver?: typeof ResizeObserver;
+  onTileSelected?: (position: WorldPosition) => void;
 }>;
 
 type TimedFrame = Readonly<{
@@ -76,7 +78,7 @@ export function createCanvasBattlefieldViewport(
   const canvas = document.createElement("canvas");
   canvas.className = "battlefield-canvas";
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", "실시간 전장. 자율 장교의 위치와 상태를 표시합니다.");
+  canvas.tabIndex = 0;
   canvas.textContent = "실시간 전장을 표시할 수 없습니다.";
   const assetStatus = document.createElement("p");
   assetStatus.className = "battlefield-asset-status";
@@ -98,9 +100,36 @@ export function createCanvasBattlefieldViewport(
   let atlasImage: HTMLImageElement | null = null;
   let atlasImageUrl = "";
   let selectedActorId: string | null = null;
+  let selectedTile: WorldPosition | null = null;
+  let activeEffectLabels: readonly string[] = [];
   let followingSelected = true;
   let panStart: Readonly<{ x: number; y: number }> | null = null;
+  let pointerOrigin: Readonly<{ x: number; y: number }> | null = null;
+  let pointerMoved = false;
   const abortController = new AbortController();
+
+  const updateCanvasDescription = (): void => {
+    const details = [
+      activeEffectLabels.length > 0
+        ? `식별된 효과: ${activeEffectLabels.join(", ")}`
+        : null,
+      selectedTile ? `선택 타일 ${selectedTile.x}, ${selectedTile.y}` : null,
+    ].filter((detail): detail is string => detail !== null);
+    canvas.setAttribute(
+      "aria-label",
+      `실시간 전장. 자율 장교의 위치와 상태를 표시합니다.${details.length > 0 ? ` ${details.join(". ")}.` : ""} 방향키로 신호 타일을 선택할 수 있습니다.`,
+    );
+  };
+
+  const selectTile = (position: WorldPosition): void => {
+    selectedTile = { x: position.x, y: position.y };
+    canvas.dataset.selectedTile = `${position.x},${position.y}`;
+    updateCanvasDescription();
+    options.onTileSelected?.(selectedTile);
+    schedule();
+  };
+
+  updateCanvasDescription();
 
   const showAssetStatus = (message: string | null): void => {
     assetStatus.hidden = message === null;
@@ -166,6 +195,25 @@ export function createCanvasBattlefieldViewport(
       context.moveTo(Math.round(start.x), Math.round(start.y));
       context.lineTo(Math.round(end.x), Math.round(end.y));
       context.stroke();
+    }
+
+    if (selectedTile) {
+      const center = camera.project(selectedTile);
+      const halfWidth = (ISOMETRIC_TILE_SIZE.width * camera.read().zoom) / 2;
+      const halfHeight = (ISOMETRIC_TILE_SIZE.height * camera.read().zoom) / 2;
+      context.save();
+      context.fillStyle = "rgba(230, 207, 114, 0.18)";
+      context.strokeStyle = "#e6cf72";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(center.x, center.y - halfHeight);
+      context.lineTo(center.x + halfWidth, center.y);
+      context.lineTo(center.x, center.y + halfHeight);
+      context.lineTo(center.x - halfWidth, center.y);
+      context.closePath();
+      context.fill();
+      context.stroke();
+      context.restore();
     }
 
     for (const effect of current.frame.effects) {
@@ -243,23 +291,43 @@ export function createCanvasBattlefieldViewport(
     const rect = canvas.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
+  const tileAt = (position: Readonly<{ x: number; y: number }>): WorldPosition | null => {
+    const world = camera.unproject(position);
+    const tile = { x: Math.round(world.x), y: Math.round(world.y) };
+    return tile.x >= 0 && tile.x < WORLD_WIDTH && tile.y >= 0 && tile.y < WORLD_HEIGHT
+      ? tile
+      : null;
+  };
   const onPointerDown = (event: PointerEvent): void => {
     if (destroyed || event.button !== 0) return;
     panStart = pointerPosition(event);
+    pointerOrigin = panStart;
+    pointerMoved = false;
     canvas.setPointerCapture?.(event.pointerId);
   };
   const onPointerMove = (event: PointerEvent): void => {
     if (destroyed || !panStart) return;
     const next = pointerPosition(event);
+    if (pointerOrigin && Math.hypot(next.x - pointerOrigin.x, next.y - pointerOrigin.y) > 4) {
+      pointerMoved = true;
+    }
     camera.panBy({ x: next.x - panStart.x, y: next.y - panStart.y });
     followingSelected = false;
     panStart = next;
     schedule();
   };
-  const stopPan = (event: PointerEvent): void => {
+  const stopPan = (event: PointerEvent, select: boolean): void => {
+    if (select && panStart && !pointerMoved) {
+      const tile = tileAt(pointerPosition(event));
+      if (tile) selectTile(tile);
+    }
     panStart = null;
+    pointerOrigin = null;
+    pointerMoved = false;
     if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   };
+  const onPointerUp = (event: PointerEvent): void => stopPan(event, true);
+  const onPointerCancel = (event: PointerEvent): void => stopPan(event, false);
   const onWheel = (event: WheelEvent): void => {
     if (destroyed) return;
     event.preventDefault();
@@ -268,11 +336,30 @@ export function createCanvasBattlefieldViewport(
     camera.setZoom(nextZoom, followingSelected ? undefined : anchor);
     schedule();
   };
+  const onKeyDown = (event: KeyboardEvent): void => {
+    const delta = ({
+      ArrowLeft: { x: -1, y: 0 },
+      ArrowRight: { x: 1, y: 0 },
+      ArrowUp: { x: 0, y: -1 },
+      ArrowDown: { x: 0, y: 1 },
+    } as const)[event.key as "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown"];
+    if (!delta) return;
+    event.preventDefault();
+    const start = selectedTile ?? {
+      x: Math.round(camera.read().center.x),
+      y: Math.round(camera.read().center.y),
+    };
+    selectTile({
+      x: Math.max(0, Math.min(WORLD_WIDTH - 1, start.x + delta.x)),
+      y: Math.max(0, Math.min(WORLD_HEIGHT - 1, start.y + delta.y)),
+    });
+  };
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
-  canvas.addEventListener("pointerup", stopPan);
-  canvas.addEventListener("pointercancel", stopPan);
+  canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerCancel);
   canvas.addEventListener("wheel", onWheel, { passive: false });
+  canvas.addEventListener("keydown", onKeyDown);
 
   const viewport: CanvasBattlefieldViewport = {
     update: (frame) => {
@@ -281,13 +368,8 @@ export function createCanvasBattlefieldViewport(
       const nextSelectedId = nextSelected?.id ?? null;
       if (nextSelectedId !== selectedActorId) followingSelected = true;
       selectedActorId = nextSelectedId;
-      const effectLabels = [...new Set(frame.effects.map(({ label }) => label))];
-      canvas.setAttribute(
-        "aria-label",
-        effectLabels.length > 0
-          ? `실시간 전장. 식별된 효과: ${effectLabels.join(", ")}.`
-          : "실시간 전장. 자율 장교의 위치와 상태를 표시합니다.",
-      );
+      activeEffectLabels = [...new Set(frame.effects.map(({ label }) => label))];
+      updateCanvasDescription();
       if (followingSelected && nextSelected) camera.follow(nextSelected.position);
       previous = current;
       current = { frame, receivedAt: now() };
@@ -322,9 +404,10 @@ export function createCanvasBattlefieldViewport(
       observer?.disconnect();
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
-      canvas.removeEventListener("pointerup", stopPan);
-      canvas.removeEventListener("pointercancel", stopPan);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("keydown", onKeyDown);
       previous = null;
       current = null;
       if (atlasImage) {

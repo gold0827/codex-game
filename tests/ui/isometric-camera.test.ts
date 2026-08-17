@@ -37,6 +37,7 @@ describe("isometric camera runtime", () => {
     });
     const target = { x: 4, y: 2 };
     const anchor = camera.project(target);
+    expect(camera.unproject(anchor)).toEqual(target);
 
     expect(camera.setZoom(10, anchor).zoom).toBe(2);
     expect(camera.project(target).x).toBeCloseTo(anchor.x);

@@ -170,9 +170,9 @@ export function projectHudViewModel(
   const roster = new Map(campaign.officers.map((officer) => [officer.id, officer]));
   const operation = snapshot.operation;
   const guidance = snapshot.tutorial.active ? snapshot.tutorial.currentStep : null;
-  const remainingInterventions = Math.max(
+  const remainingAttention = Math.max(
     0,
-    snapshot.scene.gameplayTuning.interventionBudget - (operation?.metrics.interventionCount ?? 0),
+    snapshot.scene.gameplayTuning.interventionBudget - (operation?.metrics.attentionSpent ?? 0),
   );
   const isGuidanceTarget = (action: "pause" | "resume" | "inspect" | "route", targetId?: string) => {
     if (!guidance || guidance.action !== action) return false;
@@ -231,7 +231,7 @@ export function projectHudViewModel(
           speed: snapshot.playerSpeed,
           speeds: [0.5, 1, 2] as readonly PlayerSpeed[],
           pauseGuided: isGuidanceTarget(snapshot.paused ? "resume" : "pause"),
-          remainingInterventions,
+          remainingAttention,
           metrics: [
             ["목표 진척", operation.metrics.objectiveProgress],
             ["민간 안전", operation.metrics.civilianSafety],
@@ -255,7 +255,7 @@ export function projectHudViewModel(
               selected: snapshot.selectedOfficerId === officer.id,
               guided: isGuidanceTarget("inspect", officer.id),
               authorized: officer.authorized,
-              canAuthorize: remainingInterventions > 0 && !officer.authorized,
+              canAuthorize: remainingAttention > 0 && !officer.authorized,
               facts: [
                 ["성향", dispositionLabels[officer.disposition]],
                 ["의도", intentLabels[officer.intent]],
@@ -291,8 +291,8 @@ export function projectHudViewModel(
               guidance?.action === "route" && guidance.target.reportId === report.authoredReportId
                 ? guidance.target.recipientOfficerId
                 : campaign.officers[0]?.id ?? "",
-            canIntervene: remainingInterventions > 0,
-            canVerify: remainingInterventions > 0 && !report.prioritized,
+            canIntervene: remainingAttention > 0,
+            canVerify: remainingAttention > 0 && !report.prioritized,
           })),
           events: snapshot.replay.slice(-6).reverse().map((event) => ({
             sequence: event.sequence,
