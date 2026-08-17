@@ -215,6 +215,27 @@ function recentReplayEvents(
   return [latestBeat, ...recent];
 }
 
+function interventionLabel(
+  intervention: NonNullable<GameSnapshot["lastIntervention"]>,
+  roster: ReadonlyMap<string, Readonly<{ id: string; rank: string; name: string }>>,
+): string {
+  const command = intervention.command;
+  const officer = (id: string): string => {
+    const authored = roster.get(id);
+    return authored ? `${authored.rank} ${authored.name}` : "소속 미상 장교";
+  };
+  if (command.kind === "issue-spatial-signal") {
+    return `${spatialSignalLabels[command.signal]} 공간 신호 · 강도 ${command.strength} · 타일 ${command.position.x}, ${command.position.y}`;
+  }
+  if (command.kind === "route-report") {
+    return `보고 전달 · ${officer(command.recipientOfficerId)} 수신`;
+  }
+  if (command.kind === "authorize-officer") {
+    return `예외 권한 부여 · ${officer(command.officerId)}`;
+  }
+  return "보고 검증 우선";
+}
+
 function projectDebrief(
   snapshot: GameSnapshot,
   roster: ReadonlyMap<string, Readonly<{ id: string; rank: string; name: string }>>,
@@ -352,6 +373,14 @@ export function projectGameViewModel(
           speeds: [0.5, 1, 2] as readonly PlayerSpeed[],
           pauseGuided: isGuidanceTarget(snapshot.paused ? "resume" : "pause"),
           remainingAttention,
+          interventionFeedback: snapshot.lastIntervention
+            ? {
+                action: interventionLabel(snapshot.lastIntervention, roster),
+                autonomyCost: snapshot.lastIntervention.autonomyCost,
+                logisticsCost: snapshot.lastIntervention.logisticsCost,
+                count: snapshot.lastIntervention.interventionCount,
+              }
+            : null,
           metrics: [
             ["목표 진척", operation.metrics.objectiveProgress],
             ["민간 안전", operation.metrics.civilianSafety],
