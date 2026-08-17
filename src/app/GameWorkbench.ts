@@ -23,6 +23,11 @@ import {
   type PlayerSettingsStore,
 } from "./PlayerSettings";
 import type { CampaignCheckpoint } from "./CampaignCheckpoint";
+import {
+  createWorkbenchOverlays,
+  type WorkbenchOverlayName,
+  type WorkbenchOverlays,
+} from "./WorkbenchOverlays";
 
 export type { PlayerSettings, PlayerSettingsStore, PlayerUiScale } from "./PlayerSettings";
 
@@ -48,12 +53,8 @@ export type GameWorkbenchOptions = Readonly<{
 export type GameWorkbench = Readonly<{
   document: ReturnType<typeof createCampaignDocument>;
   session: () => GameSession;
-  openManual: () => void;
-  closeManual: () => void;
-  openSettings: () => void;
-  closeSettings: () => void;
-  openEditor: () => void;
-  closeEditor: () => void;
+  openTool: (name: WorkbenchOverlayName) => void;
+  closeTool: (name: WorkbenchOverlayName) => void;
   restartGame: () => void;
   destroy: () => void;
 }>;
@@ -187,13 +188,16 @@ export function mountGameWorkbench(
   let activeAudio: GameAudio | null = null;
   let settingsPanel: PlayerSettingsPanel;
   let workshop: CampaignWorkshop;
-  let manualOpen = false;
-  let pausedForManual = false;
-  let settingsOpen = false;
-  let pausedForSettings = false;
-  let editorOpen = false;
-  let pausedForEditor = false;
+  let overlays: WorkbenchOverlays;
   let destroyed = false;
+
+  const openTool = (name: WorkbenchOverlayName): void => {
+    if (!destroyed) overlays.open(name);
+  };
+
+  const closeTool = (name: WorkbenchOverlayName): void => {
+    if (!destroyed) overlays.close(name);
+  };
 
   const gameOptions = (audio: GameAudio | undefined): GameAppOptions => ({
     frameScheduler: options.frameScheduler,
@@ -219,122 +223,16 @@ export function mountGameWorkbench(
     options.checkpoint?.clear();
     gameApp.destroy();
     gameApp = createFreshGame();
-    pausedForManual = false;
-    pausedForSettings = false;
-    pausedForEditor = false;
-  };
-
-  const closeEditor = (): void => {
-    if (!editorOpen || destroyed) return;
-    editorOpen = false;
-    editorRoot.hidden = true;
-    shell.classList.remove("editor-open");
-    tools.hidden = false;
-    if (pausedForEditor && gameApp.session.read().phase === "operation") {
-      gameApp.session.dispatch({ type: "resume" });
-      gameApp.render();
-    }
-    pausedForEditor = false;
-    gameRoot.inert = false;
-    editorToggle.focus();
-  };
-
-  const closeManual = (): void => {
-    if (!manualOpen || destroyed) return;
-    manualOpen = false;
-    manualRoot.hidden = true;
-    shell.classList.remove("manual-open");
-    tools.hidden = false;
-    if (pausedForManual && gameApp.session.read().phase === "operation") {
-      gameApp.session.dispatch({ type: "resume" });
-      gameApp.render();
-    }
-    pausedForManual = false;
-    gameRoot.inert = false;
-    manualToggle.focus();
-  };
-
-  const closeSettings = (): void => {
-    if (!settingsOpen || destroyed) return;
-    settingsOpen = false;
-    settingsPanel.close();
-    shell.classList.remove("settings-open");
-    tools.hidden = false;
-    if (pausedForSettings && gameApp.session.read().phase === "operation") {
-      gameApp.session.dispatch({ type: "resume" });
-      gameApp.render();
-    }
-    pausedForSettings = false;
-    gameRoot.inert = false;
-    settingsToggle.focus();
-  };
-
-  const openEditor = (): void => {
-    if (!editorEnabled || editorOpen || destroyed) return;
-    if (manualOpen) closeManual();
-    if (settingsOpen) closeSettings();
-    const snapshot = gameApp.session.read();
-    if (snapshot.phase === "operation" && !snapshot.paused) {
-      gameApp.session.dispatch({ type: "pause" });
-      gameApp.render();
-      pausedForEditor = true;
-    }
-    editorOpen = true;
-    editorRoot.hidden = false;
-    shell.classList.add("editor-open");
-    tools.hidden = true;
-    gameRoot.inert = true;
-    workshop.render();
-  };
-
-  const openManual = (): void => {
-    if (manualOpen || destroyed) return;
-    if (editorOpen) closeEditor();
-    if (settingsOpen) closeSettings();
-    const snapshot = gameApp.session.read();
-    if (snapshot.phase === "operation" && !snapshot.paused) {
-      gameApp.session.dispatch({ type: "pause" });
-      gameApp.render();
-      pausedForManual = true;
-    }
-    manualOpen = true;
-    manualRoot.hidden = false;
-    shell.classList.add("manual-open");
-    tools.hidden = true;
-    gameRoot.inert = true;
-    const manualContent = manualRoot.querySelector<HTMLElement>(".field-manual-content");
-    if (manualContent) manualContent.scrollTop = 0;
-    manualRoot.querySelector<HTMLButtonElement>('[data-action="close-manual"]')?.focus();
-  };
-
-  const openSettings = (): void => {
-    if (settingsOpen || destroyed) return;
-    if (manualOpen) closeManual();
-    if (editorOpen) closeEditor();
-    const snapshot = gameApp.session.read();
-    if (snapshot.phase === "operation" && !snapshot.paused) {
-      gameApp.session.dispatch({ type: "pause" });
-      gameApp.render();
-      pausedForSettings = true;
-    }
-    settingsOpen = true;
-    settingsPanel.open();
-    shell.classList.add("settings-open");
-    tools.hidden = true;
-    gameRoot.inert = true;
+    overlays.resetPauseOwnership();
   };
 
   const handleKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === "Escape") {
-      if (manualOpen) closeManual();
-      else if (settingsOpen) closeSettings();
-      else if (editorOpen) closeEditor();
-    }
+    if (event.key === "Escape") overlays.closeActive();
   };
 
   settingsPanel = mountPlayerSettingsPanel(shell, shell, {
     store: options.settingsStore,
-    onRequestClose: closeSettings,
+    onRequestClose: () => closeTool("settings"),
     onChange: () => {
       if (generation > 0) gameApp.render();
     },
@@ -347,7 +245,7 @@ export function mountGameWorkbench(
     },
     onNewGame: () => {
       restartGame();
-      closeSettings();
+      closeTool("settings");
     },
   });
   const restored = options.checkpoint?.restore();
@@ -370,15 +268,58 @@ export function mountGameWorkbench(
     shell.append(notice);
   }
   workshop = mountCampaignWorkshop(editorRoot, campaignDocument, {
-    onClose: closeEditor,
+    onClose: () => closeTool("editor"),
     onRestart: restartGame,
   });
-  manualToggle.addEventListener("click", openManual);
-  settingsToggle.addEventListener("click", openSettings);
-  if (editorEnabled) editorToggle.addEventListener("click", openEditor);
+  overlays = createWorkbenchOverlays({
+    shell,
+    gameRoot,
+    tools,
+    adapters: {
+      manual: {
+        show: () => {
+          manualRoot.hidden = false;
+          const manualContent = manualRoot.querySelector<HTMLElement>(".field-manual-content");
+          if (manualContent) manualContent.scrollTop = 0;
+          manualRoot.querySelector<HTMLButtonElement>('[data-action="close-manual"]')?.focus();
+        },
+        hide: () => { manualRoot.hidden = true; },
+        focusTrigger: () => { manualToggle.focus(); },
+      },
+      settings: {
+        show: () => { settingsPanel.open(); },
+        hide: () => { settingsPanel.close(); },
+        focusTrigger: () => { settingsToggle.focus(); },
+      },
+      ...(editorEnabled ? {
+        editor: {
+          show: () => {
+            editorRoot.hidden = false;
+            workshop.render();
+          },
+          hide: () => { editorRoot.hidden = true; },
+          focusTrigger: () => { editorToggle.focus(); },
+        },
+      } : {}),
+    },
+    operation: {
+      read: () => gameApp.session.read(),
+      pause: () => {
+        gameApp.session.dispatch({ type: "pause" });
+        gameApp.render();
+      },
+      resume: () => {
+        gameApp.session.dispatch({ type: "resume" });
+        gameApp.render();
+      },
+    },
+  });
+  manualToggle.addEventListener("click", () => openTool("manual"));
+  settingsToggle.addEventListener("click", () => openTool("settings"));
+  if (editorEnabled) editorToggle.addEventListener("click", () => openTool("editor"));
   manualRoot
     .querySelector<HTMLButtonElement>('[data-action="close-manual"]')
-    ?.addEventListener("click", closeManual);
+    ?.addEventListener("click", () => closeTool("manual"));
   document.addEventListener("keydown", handleKeyDown);
 
   if (!loadResult.ok) workshop.showDiagnostics(loadResult.diagnostics);
@@ -386,12 +327,8 @@ export function mountGameWorkbench(
   return {
     document: campaignDocument,
     session: () => gameApp.session,
-    openManual,
-    closeManual,
-    openSettings,
-    closeSettings,
-    openEditor,
-    closeEditor,
+    openTool,
+    closeTool,
     restartGame,
     destroy: () => {
       if (destroyed) return;
