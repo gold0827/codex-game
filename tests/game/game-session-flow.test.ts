@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { CampaignDefinition } from "../../src/campaign";
+import type {
+  CampaignDefinition,
+  CampaignGuidanceStep,
+} from "../../src/campaign";
 import {
   createGameSession,
   GameSessionError,
@@ -22,6 +25,56 @@ function advanceToOperationTime(
 ): void {
   const simulationSpeed = session.read().scene.gameplayTuning.simulationSpeed;
   session.advance(operationElapsedMs / simulationSpeed);
+}
+
+const SIGNAL_TARGET = { x: 12, y: 8 } as const;
+
+function campaignWithSpatialGuidance(): CampaignDefinition {
+  const definition = structuredClone(completeCampaign) as CampaignDefinition;
+  const firstScene = definition.scenes[0];
+  if (!firstScene) throw new Error("Complete campaign requires a first scene.");
+  const guidance: CampaignGuidanceStep[] = [
+    {
+      id: "signal-pause",
+      instruction: "작전 시간을 멈춘다.",
+      action: "pause",
+      target: { kind: "operation-clock" },
+      completionEvent: "operation-paused",
+    },
+    {
+      id: "signal-inspect",
+      instruction: "백돌격 소령을 살핀다.",
+      action: "inspect",
+      target: { kind: "officer", officerId: "major-baek" },
+      completionEvent: "officer-inspected",
+    },
+    {
+      id: "signal-defend",
+      instruction: "선택 지점에 방어 신호를 보낸다.",
+      action: "signal",
+      target: {
+        kind: "spatial-signal",
+        signal: "defend",
+        strength: 2,
+        position: SIGNAL_TARGET,
+      },
+      completionEvent: "spatial-signal-issued",
+    },
+    {
+      id: "signal-resume",
+      instruction: "작전 시간을 다시 흐르게 한다.",
+      action: "resume",
+      target: { kind: "operation-clock" },
+      completionEvent: "operation-resumed",
+    },
+  ];
+  return {
+    ...definition,
+    scenes: [
+      { ...firstScene, guidance },
+      ...definition.scenes.slice(1),
+    ],
+  };
 }
 
 function completeTutorial(session: GameSession): void {
@@ -211,7 +264,7 @@ describe("game session operation", () => {
   it("activates and completes authored tutorial guidance only in exact order", () => {
     const session = createGameSession(completeCampaign, 9);
     session.dispatch({ type: "start-attempt" });
-    expect(session.read().tutorial.active).toBe(false);
+    expect(session.read().tutorial.active).toBe(true);
     session.dispatch({ type: "inspect-officer", officerId: "captain-han" });
     expect(session.read().tutorial.currentStepIndex).toBe(0);
 
@@ -238,6 +291,75 @@ describe("game session operation", () => {
       currentStep: null,
     });
   });
+
+  it("waits only when the current guidance step needs an authored report", () => {
+    const session = createGameSession(completeCampaign, "current-report-step");
+    session.dispatch({ type: "start-attempt" });
+
+    expect(session.read().tutorial).toMatchObject({
+      active: true,
+      currentStep: { action: "pause" },
+    });
+    session.dispatch({ type: "pause" });
+    session.dispatch({ type: "inspect-officer", officerId: "major-baek" });
+
+    expect(session.read().tutorial).toMatchObject({
+      active: false,
+      currentStep: { action: "route" },
+      completedStepIds: ["tutorial-pause", "tutorial-inspect"],
+    });
+  });
+
+  it.each([
+    ["kind", { signal: "avoid", strength: 2, position: SIGNAL_TARGET }],
+    ["strength", { signal: "defend", strength: 1, position: SIGNAL_TARGET }],
+    ["position", { signal: "defend", strength: 2, position: { x: 12, y: 9 } }],
+  ] as const)(
+    "advances spatial guidance only after the exact %s matches",
+    (_mismatch, wrongSignal) => {
+      const session = createGameSession(
+        campaignWithSpatialGuidance(),
+        `spatial-guidance-${_mismatch}`,
+      );
+      session.dispatch({ type: "start-attempt" });
+      session.dispatch({ type: "pause" });
+      session.dispatch({ type: "inspect-officer", officerId: "major-baek" });
+
+      session.dispatch({
+        type: "issue-spatial-signal",
+        ...wrongSignal,
+      });
+      expect(session.read().tutorial).toMatchObject({
+        currentStep: { id: "signal-defend", action: "signal" },
+        completedStepIds: ["signal-pause", "signal-inspect"],
+      });
+      expect(session.read().operation?.signals).toHaveLength(1);
+
+      session.dispatch({
+        type: "issue-spatial-signal",
+        signal: "defend",
+        strength: 2,
+        position: SIGNAL_TARGET,
+      });
+      expect(session.read().tutorial.currentStep).toMatchObject({
+        id: "signal-resume",
+        action: "resume",
+      });
+      expect(session.read().operation?.signals).toHaveLength(2);
+      session.dispatch({ type: "resume" });
+
+      expect(session.read().tutorial).toMatchObject({
+        active: false,
+        currentStep: null,
+        completedStepIds: [
+          "signal-pause",
+          "signal-inspect",
+          "signal-defend",
+          "signal-resume",
+        ],
+      });
+    },
+  );
 
   it("delegates every intervention and exposes its resource consequences", () => {
     const session = createGameSession(completeCampaign, 10);
@@ -430,6 +552,12 @@ describe("game session isolation and command validation", () => {
     expect(() => session.dispatch({
       type: "inspect-officer",
       officerId: "major-baek",
+    })).toThrow(/operation phase/);
+    expect(() => session.dispatch({
+      type: "issue-spatial-signal",
+      signal: "defend",
+      strength: 2,
+      position: SIGNAL_TARGET,
     })).toThrow(/operation phase/);
     expect(session.read()).toEqual(briefing);
 
