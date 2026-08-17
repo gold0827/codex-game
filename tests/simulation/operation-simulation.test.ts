@@ -175,6 +175,48 @@ describe("operation simulation determinism", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("isolates distinct same-source report streams when one consumes an extra draw", () => {
+    const scene = structuredClone(playableScenes[0]) as CampaignScene;
+    const sourceReport = scene.beats[0]?.reports[0];
+    if (!sourceReport) throw new Error("Missing report stream isolation fixture");
+    const firstReport = { ...sourceReport, id: "stream-report-a" };
+    const laterReport = { ...sourceReport, id: "stream-report-b" };
+    const baseScene = {
+      ...scene,
+      beats: [{ ...scene.beats[0]!, reports: [firstReport, laterReport] }],
+    };
+    const perturbedScene = {
+      ...scene,
+      beats: [{
+        ...scene.beats[0]!,
+        reports: [firstReport, { ...firstReport }, laterReport],
+      }],
+    };
+
+    const base = createOperationSimulation(
+      baseScene,
+      completeCampaign.officers,
+      "audit-0",
+      BALANCED_HARNESS,
+    ).snapshot();
+    const perturbed = createOperationSimulation(
+      perturbedScene,
+      completeCampaign.officers,
+      "audit-0",
+      BALANCED_HARNESS,
+    ).snapshot();
+    const recipientsFor = (
+      snapshot: typeof base,
+      reportId: string,
+    ): readonly string[] | undefined => snapshot.messages.find(
+      ({ authoredReportId }) => authoredReportId === reportId,
+    )?.recipientOfficerIds;
+
+    expect(recipientsFor(perturbed, laterReport.id)).toEqual(
+      recipientsFor(base, laterReport.id),
+    );
+  });
+
   it("allows seeds to vary plausible intents without changing dispositions", () => {
     const scene = playableScenes[0] as CampaignScene;
     const snapshots = Array.from({ length: 24 }, (_, seed) =>

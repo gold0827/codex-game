@@ -194,6 +194,7 @@ export function createOperationSimulation(
       timeMs,
     );
   };
+  let activeSignalId: string | null = null;
   const selectSignalAlternative = <Value extends string>(
     reason: string,
     alternatives: readonly Value[],
@@ -201,7 +202,7 @@ export function createOperationSimulation(
   ): Value => {
     const sourceOfficerId = roster.find(({ id }) => reason.endsWith(id))?.id;
     return selectAlternative(
-      operationRandomStreamKey.signal(sourceOfficerId ?? reason),
+      operationRandomStreamKey.signal(activeSignalId ?? sourceOfficerId ?? reason),
       reason,
       alternatives,
       timeMs,
@@ -212,6 +213,15 @@ export function createOperationSimulation(
     roster, harness, consequences, durationMs, state, officers, messages, metrics, appendReplay,
     selectAlternative: selectSignalAlternative,
   });
+  const queueReport: typeof signals.queueReport = (report, timeMs) => {
+    const previousSignalId = activeSignalId;
+    activeSignalId = report.id;
+    try {
+      signals.queueReport(report, timeMs);
+    } finally {
+      activeSignalId = previousSignalId;
+    }
+  };
   const threatRuntime = createThreats({
     harness, durationMs, readiness, state, officers, threats, objectives, units, metrics, appendReplay,
     addBelief: signals.addBelief,
@@ -231,7 +241,7 @@ export function createOperationSimulation(
     orderedBeats,
     state,
     appendReplay,
-    queueReport: signals.queueReport,
+    queueReport,
     telegraphThreat: threatRuntime.telegraphThreat,
     refreshDecisions: decisions.refreshDecisions,
     processMessages: signals.processMessages,
