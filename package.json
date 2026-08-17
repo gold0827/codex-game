@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
+    "test:ci": "vitest run --exclude tests/simulation/monte-carlo-operation.test.ts --exclude tests/simulation/operation-evaluation.test.ts --exclude tests/simulation/bridge-defense-evaluation.test.ts",
+    "test:monte-carlo": "vitest run tests/simulation/monte-carlo-operation.test.ts tests/simulation/operation-evaluation.test.ts tests/simulation/bridge-defense-evaluation.test.ts",
     "assets:sprites": "tsx scripts/assets/generate-officer-sprites.mjs",
     "assets:maps": "tsx scripts/assets/generate-battlefield-map.mjs",
     "check:assets:sprites": "tsx scripts/assets/generate-officer-sprites.mjs --check",
@@ -14,7 +16,8 @@
     "check:assets": "npm run check:assets:sprites && npm run check:assets:maps",
     "evaluate:operations": "tsx scripts/evaluate-operations.ts",
     "check:dependencies": "node scripts/check-dependencies.mjs",
-    "check": "npm run check:assets && npm run build && npm test && npm run check:dependencies"
+    "check": "npm run check:assets && npm run build && npm test && npm run check:dependencies",
+    "check:ci": "npm run check:assets && npm run build && npm run test:ci && npm run check:dependencies"
   },
   "devDependencies": {
     "jsdom": "30.0.1",
