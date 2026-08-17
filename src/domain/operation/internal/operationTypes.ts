@@ -1,5 +1,13 @@
 import type { OfficerDisposition, ThreatLane } from "../../../campaign/types";
-import type { OfficerIntent, OfficerBeliefSnapshot, OperationThreatSnapshot, OperationMessageSnapshot } from "../../../simulation/simulationTypes";
+import type {
+  OfficerIntent,
+  OfficerBeliefSnapshot,
+  OperationThreatSnapshot,
+  OperationMessageSnapshot,
+  OperationReplayKind,
+  OperationStatus,
+  ReplayDataValue,
+} from "../../../simulation/simulationTypes";
 
 export type MutableOfficer = {
   id: string;
@@ -10,7 +18,8 @@ export type MutableOfficer = {
   pendingDecision: { intent: OfficerIntent; reason: string; dueAtMs: number } | null;
   authorized: boolean;
 };
-export type MutableMessage = Omit<OperationMessageSnapshot, "verificationDueAtMs"> & {
+type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
+export type MutableMessage = Mutable<Omit<OperationMessageSnapshot, "verificationDueAtMs">> & {
   verificationDueAtMs: number | null;
 };
 export type MutableThreat = Omit<OperationThreatSnapshot, "state" | "result"> & {
@@ -36,6 +45,28 @@ export type MutableMetrics = {
   interventionCount: number;
   autonomyScore: number;
 };
+export type OperationRuntimeState = {
+  elapsedMs: number;
+  accumulatedMs: number;
+  status: OperationStatus;
+  outcomeId: string | null;
+  nextBeatIndex: number;
+  messageSequence: number;
+  crossChecked: boolean;
+  authorityReassigned: boolean;
+  autonomousReplan: boolean;
+};
+export type AppendReplay = (
+  kind: OperationReplayKind,
+  timeMs: number,
+  description: string,
+  data?: Readonly<Record<string, ReplayDataValue>>,
+) => void;
+export type SelectAlternative = <Value extends string>(
+  reason: string,
+  alternatives: readonly Value[],
+  timeMs: number,
+) => Value;
 
 export const LANES: readonly ThreatLane[] = ["north", "center", "south", "command"];
 export const SEVERITY_THRESHOLD = { low: 0.3, medium: 0.42, high: 0.52, critical: 0.58 } as const;
