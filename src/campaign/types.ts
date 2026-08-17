@@ -16,6 +16,30 @@ export type ThreatKind =
 export type ThreatLane = "north" | "center" | "south" | "command";
 export type ThreatSeverity = "low" | "medium" | "high" | "critical";
 
+export interface CampaignTilePosition {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface CampaignTerrainTile {
+  readonly position: CampaignTilePosition;
+  readonly movementCost: number;
+}
+
+export interface CampaignMapLocation {
+  readonly id: string;
+  readonly position: CampaignTilePosition;
+}
+
+export interface CampaignMapTopology {
+  readonly width: number;
+  readonly height: number;
+  readonly blocked: readonly CampaignTilePosition[];
+  readonly terrain: readonly CampaignTerrainTile[];
+  readonly spawns: readonly CampaignMapLocation[];
+  readonly destinations: readonly CampaignMapLocation[];
+}
+
 export interface CampaignOfficer {
   readonly id: string;
   readonly name: string;
@@ -130,6 +154,7 @@ export interface CampaignScene {
   readonly identity: CampaignSceneIdentity;
   readonly copy: CampaignSceneCopy;
   readonly presentation: CampaignScenePresentation;
+  readonly mapTopology?: CampaignMapTopology;
   readonly guidance: readonly CampaignGuidanceStep[];
   readonly beats: readonly CampaignEncounterBeat[];
   readonly objectives: readonly CampaignObjective[];

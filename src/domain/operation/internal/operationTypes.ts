@@ -30,8 +30,6 @@ export type MutableObjective = { id: string; required: boolean; progress: number
 export type MutableUnit = {
   officerId: string;
   lane: ThreatLane;
-  position: number;
-  route: ThreatLane[];
   intent: OfficerIntent;
   health: number;
   objectiveId: string | null;

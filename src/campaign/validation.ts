@@ -13,6 +13,11 @@ export type CampaignDiagnosticCode =
   | "invalid-beat-time"
   | "out-of-order-beat-time"
   | "invalid-threat-telegraph-duration"
+  | "invalid-map-dimensions"
+  | "invalid-map-position"
+  | "invalid-terrain-cost"
+  | "duplicate-map-location"
+  | "blocked-map-location"
   | "missing-transition-target"
   | "unreachable-scene"
   | "invalid-start-scene"
@@ -96,10 +101,140 @@ export function validateCampaignDefinition(
   }
 
   definition.scenes.forEach((scene) => {
+    const sceneId = scene.identity.id;
     const seenOutcomeIds = new Set<string>();
     const sceneReportIds = new Set(
       scene.beats.flatMap((beat) => beat.reports.map((report) => report.id)),
     );
+
+    const { mapTopology } = scene;
+    if (mapTopology) {
+    const validDimensions =
+      Number.isSafeInteger(mapTopology.width) &&
+      mapTopology.width > 0 &&
+      Number.isSafeInteger(mapTopology.height) &&
+      mapTopology.height > 0;
+    if (!validDimensions) {
+      diagnostics.push({
+        code: "invalid-map-dimensions",
+        sceneId,
+        field: "mapTopology",
+        message: "Map width and height must be positive safe integers.",
+      });
+    }
+    const positionKey = ({ x, y }: { readonly x: number; readonly y: number }): string => `${x},${y}`;
+    const positionIsValid = ({ x, y }: { readonly x: number; readonly y: number }): boolean =>
+      validDimensions && Number.isSafeInteger(x) && Number.isSafeInteger(y) &&
+      x >= 0 && y >= 0 && x < mapTopology.width && y < mapTopology.height;
+    const blockedKeys = new Set<string>();
+    mapTopology.blocked.forEach((position, index) => {
+      if (!positionIsValid(position)) {
+        diagnostics.push({
+          code: "invalid-map-position",
+          sceneId,
+          field: `mapTopology.blocked[${index}]`,
+          message: `Blocked tile (${position.x}, ${position.y}) must be inside the map.`,
+        });
+      }
+      const key = positionKey(position);
+      if (blockedKeys.has(key)) {
+        diagnostics.push({
+          code: "duplicate-map-location",
+          sceneId,
+          field: `mapTopology.blocked[${index}]`,
+          message: `Blocked tile (${position.x}, ${position.y}) is duplicated.`,
+        });
+      }
+      blockedKeys.add(key);
+    });
+    const terrainKeys = new Set<string>();
+    mapTopology.terrain.forEach((tile, index) => {
+      if (!positionIsValid(tile.position)) {
+        diagnostics.push({
+          code: "invalid-map-position",
+          sceneId,
+          field: `mapTopology.terrain[${index}].position`,
+          message: `Terrain tile (${tile.position.x}, ${tile.position.y}) must be inside the map.`,
+        });
+      }
+      if (!Number.isSafeInteger(tile.movementCost) || tile.movementCost < 1) {
+        diagnostics.push({
+          code: "invalid-terrain-cost",
+          sceneId,
+          field: `mapTopology.terrain[${index}].movementCost`,
+          message: "Terrain movement cost must be a positive safe integer.",
+        });
+      }
+      const key = positionKey(tile.position);
+      if (terrainKeys.has(key)) {
+        diagnostics.push({
+          code: "duplicate-map-location",
+          sceneId,
+          field: `mapTopology.terrain[${index}].position`,
+          message: `Terrain tile (${tile.position.x}, ${tile.position.y}) is duplicated.`,
+        });
+      }
+      if (blockedKeys.has(key)) {
+        diagnostics.push({
+          code: "blocked-map-location",
+          sceneId,
+          field: `mapTopology.terrain[${index}].position`,
+          message: "A blocked tile cannot also declare traversable terrain.",
+        });
+      }
+      terrainKeys.add(key);
+    });
+    const occupiedLocationKeys = new Set<string>();
+    (["spawns", "destinations"] as const).forEach((collection) => {
+      const ids = new Set<string>();
+      mapTopology[collection].forEach((location, index) => {
+        if (!positionIsValid(location.position)) {
+          diagnostics.push({
+            code: "invalid-map-position",
+            sceneId,
+            field: `mapTopology.${collection}[${index}].position`,
+            message: `${collection} location "${location.id}" must be inside the map.`,
+          });
+        }
+        if (ids.has(location.id)) {
+          diagnostics.push({
+            code: "duplicate-map-location",
+            sceneId,
+            field: `mapTopology.${collection}[${index}].id`,
+            message: `${collection} identifier "${location.id}" is duplicated.`,
+          });
+        }
+        ids.add(location.id);
+        const key = positionKey(location.position);
+        if (blockedKeys.has(key)) {
+          diagnostics.push({
+            code: "blocked-map-location",
+            sceneId,
+            field: `mapTopology.${collection}[${index}].position`,
+            message: `${collection} location "${location.id}" cannot occupy a blocked tile.`,
+          });
+        }
+        if (occupiedLocationKeys.has(key)) {
+          diagnostics.push({
+            code: "duplicate-map-location",
+            sceneId,
+            field: `mapTopology.${collection}[${index}].position`,
+            message: `Map location (${location.position.x}, ${location.position.y}) is already occupied.`,
+          });
+        }
+        occupiedLocationKeys.add(key);
+      });
+    });
+    if (scene.identity.kind !== "epilogue" &&
+        (mapTopology.spawns.length === 0 || mapTopology.destinations.length === 0)) {
+      diagnostics.push({
+        code: "invalid-map-position",
+        sceneId,
+        field: "mapTopology",
+        message: "A playable scene requires at least one spawn and destination.",
+      });
+    }
+    }
 
     scene.guidance.forEach((guidance, guidanceIndex) => {
       if (guidanceIds.has(guidance.id)) {

@@ -1,6 +1,8 @@
 import type {
   CampaignOfficer,
+  CampaignMapTopology,
   CampaignScene,
+  CampaignTilePosition,
   OfficerDisposition,
   ThreatKind,
   ThreatLane,
@@ -102,12 +104,29 @@ export interface OperationThreatSnapshot {
 
 export interface OperationUnitSnapshot {
   readonly officerId: string;
+  readonly tile: CampaignTilePosition;
+  readonly path: readonly CampaignTilePosition[];
+  /** Snapshot-boundary compatibility projection; spatial movement is tile-based. */
   readonly lane: ThreatLane;
+  /** Snapshot-boundary compatibility projection; spatial movement is tile-based. */
   readonly position: number;
+  /** Snapshot-boundary compatibility projection; spatial movement is tile-based. */
   readonly route: readonly ThreatLane[];
   readonly intent: OfficerIntent;
   readonly health: number;
   readonly objectiveId: string | null;
+}
+
+export interface OperationSpatialActorSnapshot {
+  readonly actorId: string;
+  readonly position: CampaignTilePosition;
+  readonly destination: CampaignTilePosition | null;
+  readonly path: readonly CampaignTilePosition[];
+}
+
+export interface OperationSpatialSnapshot {
+  readonly topology: CampaignMapTopology;
+  readonly actors: readonly OperationSpatialActorSnapshot[];
 }
 
 export interface OperationObjectiveSnapshot {
@@ -148,6 +167,7 @@ export interface OperationSnapshot {
   readonly messages: readonly OperationMessageSnapshot[];
   readonly threats: readonly OperationThreatSnapshot[];
   readonly units: readonly OperationUnitSnapshot[];
+  readonly spatial: OperationSpatialSnapshot;
   readonly objectives: readonly OperationObjectiveSnapshot[];
   readonly metrics: OperationMetricsSnapshot;
   readonly consequences: readonly HarnessConsequence[];

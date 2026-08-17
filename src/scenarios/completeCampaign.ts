@@ -1,7 +1,36 @@
 import {
   assertValidCampaignDefinition,
   type CampaignDefinition,
+  type CampaignMapTopology,
 } from "../campaign";
+
+export const firstSpatialMap = {
+  width: 24,
+  height: 16,
+  blocked: [
+    { x: 11, y: 0 }, { x: 11, y: 1 }, { x: 11, y: 2 },
+    { x: 11, y: 4 }, { x: 11, y: 5 }, { x: 11, y: 6 },
+    { x: 11, y: 8 }, { x: 11, y: 9 }, { x: 11, y: 10 },
+    { x: 11, y: 11 }, { x: 11, y: 12 }, { x: 11, y: 14 },
+    { x: 11, y: 15 },
+  ],
+  terrain: [
+    { position: { x: 5, y: 6 }, movementCost: 4 },
+    { position: { x: 6, y: 6 }, movementCost: 4 },
+    { position: { x: 7, y: 6 }, movementCost: 4 },
+    { position: { x: 8, y: 6 }, movementCost: 4 },
+  ],
+  spawns: [
+    { id: "west-north", position: { x: 1, y: 2 } },
+    { id: "west-center", position: { x: 1, y: 7 } },
+    { id: "west-south", position: { x: 1, y: 12 } },
+  ],
+  destinations: [
+    { id: "east-north", position: { x: 22, y: 2 } },
+    { id: "east-center", position: { x: 22, y: 7 } },
+    { id: "east-south", position: { x: 22, y: 12 } },
+  ],
+} as const satisfies CampaignMapTopology;
 
 export const completeCampaign = {
   id: "complete-campaign",
@@ -50,6 +79,7 @@ export const completeCampaign = {
         soundtrackId: "two-blinks-march",
         accentColor: "#67c1a3",
       },
+      mapTopology: firstSpatialMap,
       guidance: [
         {
           id: "tutorial-pause",
@@ -198,6 +228,7 @@ export const completeCampaign = {
         soundtrackId: "convoy-in-the-rain",
         accentColor: "#4aa3c7",
       },
+      mapTopology: firstSpatialMap,
       guidance: [],
       beats: [
         {
@@ -306,6 +337,7 @@ export const completeCampaign = {
         soundtrackId: "courteous-cannonade",
         accentColor: "#e28b44",
       },
+      mapTopology: firstSpatialMap,
       guidance: [],
       beats: [
         {
@@ -414,6 +446,7 @@ export const completeCampaign = {
         soundtrackId: "stamp-and-march",
         accentColor: "#d9b64c",
       },
+      mapTopology: firstSpatialMap,
       guidance: [],
       beats: [
         {
@@ -522,6 +555,7 @@ export const completeCampaign = {
         soundtrackId: "crossed-wires-nocturne",
         accentColor: "#8d7ed8",
       },
+      mapTopology: firstSpatialMap,
       guidance: [],
       beats: [
         {
@@ -630,6 +664,7 @@ export const completeCampaign = {
         soundtrackId: "apples-under-fire",
         accentColor: "#c95c62",
       },
+      mapTopology: firstSpatialMap,
       guidance: [],
       beats: [
         {
@@ -758,6 +793,7 @@ export const completeCampaign = {
         soundtrackId: "basil-on-the-sill",
         accentColor: "#83b86b",
       },
+      mapTopology: firstSpatialMap,
       guidance: [],
       beats: [
         {

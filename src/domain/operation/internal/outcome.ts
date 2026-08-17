@@ -12,6 +12,7 @@ import {
   type OperationUnitSnapshot,
 } from "../../../simulation/simulationTypes";
 import type { OperationEvent } from "../operationEvent";
+import type { SpatialWorld } from "./spatial";
 import type {
   AppendReplay,
   MutableMessage,
@@ -45,12 +46,14 @@ type OutcomeContext = {
   replayEntries: OperationReplayEntry[];
   operationEvents: OperationEvent[];
   appendReplay: AppendReplay;
+  spatialWorld: SpatialWorld;
 };
 
 export function createOutcome(context: OutcomeContext) {
   const {
     scene, harness, consequences, durationMs, readiness, compoundReplanRequired, state,
     officers, messages, threats, units, objectives, metrics, replayEntries, operationEvents, appendReplay,
+    spatialWorld,
   } = context;
 
   const finishOperation = (): void => {
@@ -100,7 +103,21 @@ export function createOutcome(context: OutcomeContext) {
   const messageSnapshots = (): OperationMessageSnapshot[] =>
     messages.map(({ verificationDueAtMs: _verificationDueAtMs, ...message }) => clone(message));
   const objectiveSnapshots = (): OperationObjectiveSnapshot[] => objectives.map((objective) => ({ ...objective }));
-  const unitSnapshots = (): OperationUnitSnapshot[] => units.map((unit) => ({ ...unit, route: [...unit.route] }));
+  const unitSnapshots = (): OperationUnitSnapshot[] => {
+    const spatial = spatialWorld.snapshot();
+    return units.map((unit) => {
+      const actor = spatial.actors.find(({ actorId }) => actorId === unit.officerId);
+      if (!actor) throw new Error(`Missing spatial actor "${unit.officerId}".`);
+      return {
+        ...unit,
+        tile: actor.position,
+        path: actor.path,
+        lane: unit.lane,
+        position: actor.position.x / Math.max(1, spatial.topology.width - 1),
+        route: [unit.lane],
+      };
+    });
+  };
   const metricsSnapshot = (): OperationMetricsSnapshot => ({ ...metrics });
 
   const snapshot = (): OperationSnapshot => clone({
@@ -115,6 +132,7 @@ export function createOutcome(context: OutcomeContext) {
     messages: messageSnapshots(),
     threats,
     units: unitSnapshots(),
+    spatial: spatialWorld.snapshot(),
     objectives: objectiveSnapshots(),
     metrics: metricsSnapshot(),
     consequences,
