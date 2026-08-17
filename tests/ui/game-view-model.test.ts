@@ -46,9 +46,36 @@ describe("game presentation view model", () => {
       "의도",
       expect.any(String),
     ]);
+    expect(view.operation?.officers[0]).toMatchObject({
+      role: completeCampaign.officers[0]?.role,
+      facts: expect.arrayContaining([
+        ["역할", completeCampaign.officers[0]?.role],
+        ["의도", expect.any(String)],
+        ["상태", expect.any(String)],
+      ]),
+    });
     expect(view.operation?.recipients[0]?.label).toContain(completeCampaign.officers[0]?.name);
     expect(view.operation?.events.length).toBeGreaterThan(0);
     expect(view.operation?.events.every(({ label }) => !/[A-Za-z]{4}/.test(label))).toBe(true);
+  });
+
+  it("uses readable officer name and role fallbacks when roster lookup is missing", () => {
+    const session = createGameSession(completeCampaign, "missing-officer-role");
+    session.dispatch({ type: "start-attempt" });
+    const view = projectGameViewModel(session.read(), {
+      title: completeCampaign.title,
+      sceneCount: completeCampaign.scenes.length,
+      officers: [],
+    });
+
+    expect(view.operation?.officers[0]).toMatchObject({
+      name: "소속 미상 장교",
+      role: "역할 정보 없음",
+      facts: expect.arrayContaining([["역할", "역할 정보 없음"]]),
+    });
+    expect(view.operation?.officers[0]?.name).not.toBe(
+      session.read().operation?.officers[0]?.id,
+    );
   });
 
   it("joins authored beat copy and report tone by stable identifiers", () => {

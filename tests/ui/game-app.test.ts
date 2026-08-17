@@ -211,6 +211,15 @@ describe("production game app", () => {
     const guidance = root.querySelector<HTMLElement>(".tutorial-guidance");
     expect(guidance?.textContent).toContain("대위 한확인");
     expect(guidance?.textContent).not.toContain("captain-han");
+
+    root.querySelector<HTMLElement>('[data-officer-id="captain-han"]')
+      ?.querySelector<HTMLButtonElement>('[data-action="inspect-officer"]')
+      ?.click();
+    const detail = root.querySelector<HTMLElement>(".selected-officer-detail");
+    expect(detail?.querySelector(".officer-role")?.textContent).toBe("포격 좌표 검증");
+    expect([...detail?.querySelectorAll(".officer-facts dt") ?? []].map(({ textContent }) => textContent))
+      .toEqual(expect.arrayContaining(["역할", "의도", "상태"]));
+    expect(detail?.textContent).not.toContain("captain-han");
   });
 
   it("targets routed report cards by their unique runtime message identity", () => {
