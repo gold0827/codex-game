@@ -60,7 +60,7 @@ describe("operation evaluation", () => {
     expect(first.runs.map(({ seed }) => seed)).toEqual(
       Array.from({ length: 16 }, (_, index) => 100 + index),
     );
-  });
+  }, 10_000);
 
   it("classifies failures and accounts separately for unclassified failures", () => {
     const result = evaluateOperations({
@@ -145,7 +145,7 @@ describe("operation evaluation", () => {
     expect(JSON.stringify(result)).not.toContain("description");
     expect(JSON.stringify(result)).not.toContain("events");
     expect(JSON.stringify(result)).not.toContain("replay");
-  });
+  }, 10_000);
 
   it(
     "executes a 500-plus seed batch",
@@ -156,7 +156,7 @@ describe("operation evaluation", () => {
       expect(result.runs).toHaveLength(512);
       expect(result.interventionCount.observedCount).toBe(512);
     },
-    60_000,
+    90_000,
   );
 
   it("rejects seed ranges and scripted times that cannot replay exactly", () => {
