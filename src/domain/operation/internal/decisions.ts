@@ -1,7 +1,7 @@
 import type { CampaignOfficer, CampaignScene, OfficerDisposition } from "../../../campaign/types";
+import type { SeededRandom } from "../../../simulation/seededRandom";
 import type {
   HarnessConfiguration,
-  OfficerIntent,
   OperationIntervention,
   OperationSnapshot,
 } from "../../../simulation/simulationTypes";
@@ -9,13 +9,17 @@ import type {
   AppendReplay,
   MutableMessage,
   MutableMetrics,
+  MutableObjective,
   MutableOfficer,
   MutableThreat,
   MutableUnit,
   OperationRuntimeState,
-  SelectAlternative,
 } from "./operationTypes";
 import { clamp, clone } from "./operationTypes";
+import type { SpatialWorld } from "./spatial";
+import { intentForAction } from "./agent/actions";
+import { createOfficerMind, type OfficerMindContext } from "./agent/officerMind";
+import { perceive } from "./agent/perception";
 
 export function confidenceFor(disposition: OfficerDisposition, harness: HarnessConfiguration): number {
   const raw = disposition === "action"
@@ -24,12 +28,6 @@ export function confidenceFor(disposition: OfficerDisposition, harness: HarnessC
       ? 0.3 + harness.verificationDepth * 0.62
       : 0.25 + harness.informationReach * 0.32 + harness.feedbackCompression * 0.3;
   return Math.round(Math.min(1, Math.max(0, raw)) * 10_000) / 10_000;
-}
-
-export function intentAlternatives(disposition: OfficerDisposition): readonly OfficerIntent[] {
-  if (disposition === "action") return ["advance-locally", "advance-locally", "engage-threat", "secure-objective"];
-  if (disposition === "verification") return ["cross-check-report", "cross-check-report", "inspect-source", "hold-for-evidence"];
-  return ["route-report", "route-report", "broadcast-update", "compress-feedback"];
 }
 
 type DecisionContext = {
@@ -43,9 +41,11 @@ type DecisionContext = {
   messages: MutableMessage[];
   threats: MutableThreat[];
   units: MutableUnit[];
+  objectives: MutableObjective[];
   metrics: MutableMetrics;
   appendReplay: AppendReplay;
-  selectAlternative: SelectAlternative;
+  spatialWorld: SpatialWorld;
+  decisionRandom: (officerId: string) => SeededRandom;
   updateBacklog: () => void;
   snapshot: () => OperationSnapshot;
 };
@@ -53,33 +53,108 @@ type DecisionContext = {
 export function createDecisions(context: DecisionContext) {
   const {
     scene, roster, harness, durationMs, compoundReplanRequired, state, officers, messages,
-    threats, units, metrics, appendReplay, selectAlternative, updateBacklog, snapshot,
+    threats, units, objectives, metrics, appendReplay, spatialWorld, decisionRandom,
+    updateBacklog, snapshot,
   } = context;
+
+  const minds = new Map(officers.map((officer) => {
+    const mind = createOfficerMind(
+      officer.id,
+      officer.profile,
+      decisionRandom(officer.id),
+    );
+    officer.decisionCadenceMs = mind.cadenceMs;
+    return [officer.id, mind] as const;
+  }));
+
+  const severityRisk = { low: 0.25, medium: 0.5, high: 0.75, critical: 1 } as const;
+
+  const mindContextFor = (officer: MutableOfficer): OfficerMindContext => {
+    const unit = units.find(({ officerId }) => officerId === officer.id);
+    const spatial = spatialWorld.snapshot();
+    const actor = spatial.actors.find(({ actorId }) => actorId === officer.id);
+    const width = Math.max(1, spatial.topology.width - 1);
+    const height = Math.max(1, spatial.topology.height - 1);
+    const normalizedDistance = actor?.destination
+      ? clamp(
+          (Math.abs(actor.destination.x - actor.position.x) +
+            Math.abs(actor.destination.y - actor.position.y)) /
+          (width + height),
+        )
+      : 0;
+    const localRisk = threats
+      .filter(({ state, lane }) => state === "telegraphed" && lane === unit?.lane)
+      .reduce((risk, threat) => Math.max(risk, severityRisk[threat.severity]), 0);
+    const targetObjective = objectives.find(({ id }) => id === unit?.objectiveId) ?? objectives[0];
+    const supportOfficer = officers.find(({ id }) => id !== officer.id) ?? officer;
+    return {
+      objectiveId: targetObjective?.id ?? "local-objective",
+      positionId: actor?.destination
+        ? `${actor.destination.x},${actor.destination.y}`
+        : `${actor?.position.x ?? 0},${actor?.position.y ?? 0}`,
+      fallbackAreaId: `fallback-${unit?.lane ?? "command"}`,
+      supportOfficerId: supportOfficer.id,
+      normalizedDistance,
+      risk: localRisk,
+      memoryPressure: clamp(officer.memory.entries.length / officer.profile.memoryCapacity),
+      signalLoad: clamp(metrics.signalBacklog / Math.max(1, roster.length * 2)),
+    };
+  };
 
   const refreshDecisions = (reason: string, timeMs: number): void => {
     officers.forEach((officer) => {
-      const alternatives = intentAlternatives(officer.disposition);
-      let intent = selectAlternative(`${officer.id} ${officer.disposition} disposition`, alternatives, timeMs);
-      if (officer.disposition === "action" && harness.authorityClarity < 0.35 && intent !== "secure-objective") intent = "secure-objective";
-      if (
-        officer.disposition === "verification" && harness.verificationDepth >= 0.55 &&
-        messages.some(({ verificationState }) => verificationState === "pending")
-      ) intent = "cross-check-report";
+      const mind = minds.get(officer.id);
+      if (!mind) throw new Error(`Missing OfficerMind for "${officer.id}".`);
+      const perception = perceive({
+        observation: { observedAtMs: timeMs, facts: [] },
+        receivedReports: [],
+        profile: officer.profile,
+        memory: officer.memory,
+        nowMs: timeMs,
+      });
+      officer.memory = perception.memory;
+      const commitment = mind.consider({
+        perception,
+        context: mindContextFor(officer),
+        nowMs: timeMs,
+        currentCommitment: officer.committedAction,
+      });
+      if (!commitment) {
+        const activeCommitment = officer.committedAction;
+        if (activeCommitment && activeCommitment.endsAtMs <= timeMs) {
+          officer.committedAction = null;
+        }
+        return;
+      }
+      officer.committedAction = commitment;
+      const action = commitment.trace.selectedAction;
+      let intent = intentForAction(action.kind);
+      if (officer.disposition === "action" && harness.authorityClarity < 0.35) intent = "secure-objective";
+      if (officer.disposition === "verification" && harness.verificationDepth >= 0.55 &&
+        messages.some(({ verificationState }) => verificationState === "pending")) intent = "cross-check-report";
       if (officer.disposition === "communication" && metrics.signalBacklog > roster.length) intent = "compress-feedback";
       officer.intent = intent;
-      officer.pendingDecision = { intent, reason, dueAtMs: Math.min(durationMs, timeMs + 2_000) };
       const unit = units.find(({ officerId }) => officerId === officer.id);
       if (unit) unit.intent = intent;
-      appendReplay("decision", timeMs, `${officer.id} chose ${intent}: ${reason}.`, {
+      appendReplay("decision", timeMs, `${officer.id} committed to ${action.kind}: ${commitment.trace.topReason}.`, {
         officerId: officer.id,
         disposition: officer.disposition,
         intent,
+        action: action.kind,
+        target: action.target.id,
+        targetKind: action.target.kind,
+        topReason: commitment.trace.topReason,
+        abandonedAction: commitment.trace.abandonedAlternative.action.kind,
+        commitmentEndsAtMs: commitment.endsAtMs,
+        cadenceMs: mind.cadenceMs,
+        trigger: reason,
         confidence: officer.confidence,
       });
     });
   };
 
   const processCrossCheckAndReplan = (): void => {
+    refreshDecisions("individual cadence elapsed", state.elapsedMs);
     const misinformationExists = threats.some(({ kind }) => kind === "misinformation");
     const verifiedMessages = messages.filter(({ verificationState }) => verificationState === "verified");
     const verifiedSources = new Set(verifiedMessages.map(({ sourceOfficerId }) => sourceOfficerId));

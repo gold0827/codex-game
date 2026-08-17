@@ -181,24 +181,23 @@ describe("production game app", () => {
     expect(root.childElementCount).toBe(0);
   });
 
-  it("presents pending decisions without simulation diagnostics", () => {
+  it("presents committed actions without simulation diagnostics", () => {
     startAttempt();
     const snapshot = session.read();
     const decisionBeat = snapshot.scene.beats.find(
       ({ id }) => id === "school-acknowledgement-loop",
     );
-    if (!decisionBeat) throw new Error("Missing pending-decision test beat");
+    if (!decisionBeat) throw new Error("Missing committed-action test beat");
 
     advanceRealTime(
       decisionBeat.timeMs / snapshot.scene.gameplayTuning.simulationSpeed,
     );
 
-    const rawReason = session.read().operation?.officers[0]?.pendingDecision?.reason;
-    if (!rawReason) throw new Error("Missing pending-decision diagnostic reason");
-    expect(rawReason).toContain(decisionBeat.id);
+    const rawReason = session.read().operation?.officers[0]?.committedAction?.trace.topReason;
+    if (!rawReason) throw new Error("Missing committed-action diagnostic reason");
 
     const officerText = root.querySelector('[data-region="officers"]')?.textContent;
-    expect(officerText).toContain("판단 준비 중");
+    expect(officerText).toContain("유지 중");
     expect(officerText).not.toContain(rawReason);
     expect(officerText).not.toContain(decisionBeat.id);
   });

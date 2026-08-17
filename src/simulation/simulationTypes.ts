@@ -10,6 +10,20 @@ import type {
   ThreatSeverity,
 } from "../campaign/types";
 import type { RandomSeed } from "./seededRandom";
+import type {
+  ActionCommitment,
+  OfficerIntent,
+} from "../domain/operation/internal/agent/actions";
+
+export type {
+  ActionCommitment,
+  DecisionAlternative,
+  DecisionTrace,
+  OfficerAction,
+  OfficerActionKind,
+  OfficerActionTarget,
+  OfficerIntent,
+} from "../domain/operation/internal/agent/actions";
 
 export const OPERATION_FIXED_STEP_MS = 100;
 
@@ -26,17 +40,6 @@ export const BALANCED_HARNESS: HarnessConfiguration = Object.freeze({
   verificationDepth: 0.68,
   feedbackCompression: 0.7,
 });
-
-export type OfficerIntent =
-  | "advance-locally"
-  | "engage-threat"
-  | "secure-objective"
-  | "cross-check-report"
-  | "inspect-source"
-  | "hold-for-evidence"
-  | "route-report"
-  | "broadcast-update"
-  | "compress-feedback";
 
 export type VerificationState =
   | "unverified"
@@ -56,12 +59,6 @@ export interface OfficerBeliefSnapshot {
   readonly verificationState: VerificationState;
 }
 
-export interface OfficerDecisionSnapshot {
-  readonly intent: OfficerIntent;
-  readonly reason: string;
-  readonly dueAtMs: number;
-}
-
 export interface OfficerSimulationSnapshot {
   readonly id: string;
   readonly profile: AgentProfile;
@@ -71,7 +68,8 @@ export interface OfficerSimulationSnapshot {
   readonly confidence: number;
   readonly currentBelief: OfficerBeliefSnapshot | null;
   readonly beliefs: readonly OfficerBeliefSnapshot[];
-  readonly pendingDecision: OfficerDecisionSnapshot | null;
+  readonly decisionCadenceMs: number;
+  readonly committedAction: ActionCommitment | null;
   readonly authorized: boolean;
 }
 

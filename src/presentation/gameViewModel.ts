@@ -53,6 +53,16 @@ const intentLabels = {
   "compress-feedback": "피드백 압축",
 } as const;
 
+const actionLabels = {
+  move: "이동",
+  investigate: "조사",
+  defend: "방어",
+  verify: "검증",
+  broadcast: "상황 전파",
+  support: "지원",
+  retreat: "후퇴",
+} as const;
+
 const verificationLabels = {
   unverified: "미검증",
   pending: "검증 대기",
@@ -219,7 +229,9 @@ export function projectHudViewModel(
                 ["확신", percentage(officer.confidence)],
                 ["현재 믿음", officer.currentBelief?.assertion ?? "관측 없음"],
                 ["검증", officer.currentBelief ? verificationLabels[officer.currentBelief.verificationState] : "해당 없음"],
-                ["다음 판단", officer.pendingDecision ? `판단 준비 중 · ${intentLabels[officer.pendingDecision.intent]}` : "대기 중"],
+                ["실행 행동", officer.committedAction
+                  ? `유지 중 · ${actionLabels[officer.committedAction.trace.selectedAction.kind]}`
+                  : "대기 중"],
                 ["체력", unit ? `${Math.round(unit.health)}%` : "배치 없음"],
                 ["권한", officer.authorized ? "예외 승인" : "기본 경계"],
               ] as const,

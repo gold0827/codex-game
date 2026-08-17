@@ -1,6 +1,7 @@
 import type { AgentProfile, OfficerDisposition, ThreatLane } from "../../../campaign/types";
 import type { BoundedMemory } from "./agent/memory";
 import type { PerceptionMemoryEntry } from "./agent/perception";
+import type { ActionCommitment } from "./agent/actions";
 import type {
   OfficerIntent,
   OperationThreatSnapshot,
@@ -17,7 +18,8 @@ export type MutableOfficer = {
   confidence: number;
   profile: AgentProfile;
   memory: BoundedMemory<PerceptionMemoryEntry>;
-  pendingDecision: { intent: OfficerIntent; reason: string; dueAtMs: number } | null;
+  decisionCadenceMs: number;
+  committedAction: ActionCommitment | null;
   authorized: boolean;
 };
 type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
