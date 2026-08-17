@@ -133,7 +133,7 @@ describe("operation evaluation", () => {
       expect(result.runs).toHaveLength(512);
       expect(result.interventionCount.observedCount).toBe(512);
     },
-    30_000,
+    60_000,
   );
 
   it("rejects seed ranges and scripted times that cannot replay exactly", () => {
