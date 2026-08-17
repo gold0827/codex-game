@@ -2,6 +2,7 @@ import {
   bridgeDefenseCampaign,
   bridgeDefenseMapSkin,
 } from "../../src/scenarios/bridgeDefenseOperation";
+import { createFixtureAction, nextFrame } from "./chrome-fixture-helpers";
 
 const root = document.querySelector<HTMLElement>("#app");
 if (!root) throw new Error("Chrome fixture root is missing.");
@@ -20,19 +21,6 @@ const progressKey = `campaign-progress:${bridgeDefenseCampaign.id}:v1`;
 localStorage.removeItem(settingsKey);
 localStorage.removeItem(progressKey);
 localStorage.removeItem(`campaign-document:${bridgeDefenseCampaign.id}`);
-
-async function nextFrame(): Promise<void> {
-  await new Promise<void>((resolve) => {
-    let settled = false;
-    const finish = (): void => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-    window.requestAnimationFrame(finish);
-    window.setTimeout(finish, 20);
-  });
-}
 
 async function waitFor(condition: () => boolean, maxFrames = 180): Promise<boolean> {
   for (let frame = 0; frame < maxFrames; frame += 1) {
@@ -54,11 +42,7 @@ async function waitForDuration(
   return condition();
 }
 
-const action = (name: string): HTMLButtonElement => {
-  const button = root.querySelector<HTMLButtonElement>(`[data-action="${name}"]`);
-  if (!button) throw new Error(`Missing Chrome fixture action ${name}.`);
-  return button;
-};
+const action = createFixtureAction(root);
 
 const selectedTile = (canvas: HTMLCanvasElement): Readonly<{ x: number; y: number }> | null => {
   const [x, y] = (canvas.dataset.selectedTile ?? "").split(",").map(Number);
