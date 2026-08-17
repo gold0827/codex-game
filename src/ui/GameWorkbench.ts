@@ -8,7 +8,7 @@ import {
   type GameAppOptions,
   type GameFrameScheduler,
 } from "./GameApp";
-import { createGameAudio, type GameAudio } from "./GameAudio";
+import type { GameAudio } from "./GameAudio";
 
 export type GameWorkbenchOptions = Readonly<{
   storage?: CampaignStorage;
@@ -29,20 +29,12 @@ export type GameWorkbench = Readonly<{
   destroy: () => void;
 }>;
 
-function browserStorage(): CampaignStorage {
-  return {
-    getItem: (key) => window.localStorage.getItem(key),
-    setItem: (key, value) => window.localStorage.setItem(key, value),
-    removeItem: (key) => window.localStorage.removeItem(key),
-  };
-}
-
 export function mountGameWorkbench(
   root: HTMLElement,
   authoredCampaign: CampaignDefinition,
   options: GameWorkbenchOptions = {},
 ): GameWorkbench {
-  const storage = options.storage ?? browserStorage();
+  const storage = options.storage;
   const campaignDocument = createCampaignDocument(authoredCampaign, {
     storage,
     storageKey: options.storageKey,
@@ -138,7 +130,7 @@ export function mountGameWorkbench(
 
   const gameOptions = (): GameAppOptions => ({
     frameScheduler: options.frameScheduler,
-    audio: (options.audioFactory ?? createGameAudio)(),
+    audio: options.audioFactory?.(),
   });
 
   const createFreshGame = (): GameApp => {

@@ -11,7 +11,7 @@ import type {
   OfficerIntent,
   VerificationState,
 } from "../simulation/simulationTypes";
-import { createGameAudio, type GameAudio, type GameAudioCue } from "./GameAudio";
+import type { GameAudio, GameAudioCue } from "./GameAudio";
 import {
   renderGameBattlefield,
   type ThreatImpactSnapshot,
@@ -149,21 +149,19 @@ function renderMeter(label: string, value: number): HTMLElement {
   return row;
 }
 
-function defaultScheduler(): GameFrameScheduler {
-  return {
-    request: (callback) => window.requestAnimationFrame(callback),
-    cancel: (handle) => window.cancelAnimationFrame(handle),
-  };
-}
-
 export function mountGameApp(
   root: HTMLElement,
   campaign: CampaignDefinition,
   controller: GameController,
   options: GameAppOptions = {},
 ): GameApp {
-  const scheduler = options.frameScheduler ?? defaultScheduler();
-  const audio = options.audio ?? createGameAudio();
+  const scheduler = options.frameScheduler ?? { request: () => 0, cancel: () => undefined };
+  const audio = options.audio ?? {
+    cue: () => undefined,
+    muted: () => true,
+    setMuted: () => undefined,
+    dispose: () => undefined,
+  } satisfies GameAudio;
   let frameHandle: number | null = null;
   let previousFrameTime: number | null = null;
   let message = "";
