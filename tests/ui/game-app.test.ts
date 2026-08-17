@@ -239,6 +239,32 @@ describe("production game app", () => {
     expect(root.childElementCount).toBe(0);
   });
 
+  it("keeps optional audio failures from blocking play or teardown", () => {
+    app.destroy();
+    const dispose = vi.fn(() => {
+      throw new Error("audio dispose failed");
+    });
+    const failingAudio: GameAudio = {
+      cue: () => { throw new Error("audio cue failed"); },
+      setSoundtrack: () => { throw new Error("soundtrack failed"); },
+      muted: () => { throw new Error("mute state failed"); },
+      setMuted: () => { throw new Error("mute failed"); },
+      dispose,
+    };
+
+    expect(() => {
+      app = mountGameApp(root, completeCampaign, session, {
+        frameScheduler: scheduler,
+        audio: failingAudio,
+      });
+    }).not.toThrow();
+    expect(() => startAttempt()).not.toThrow();
+    expect(() => action("toggle-mute").click()).not.toThrow();
+    expect(() => app.destroy()).not.toThrow();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(root.childElementCount).toBe(0);
+  });
+
   it("presents committed actions without simulation diagnostics", () => {
     startAttempt();
     const snapshot = session.read();

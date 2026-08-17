@@ -13,6 +13,7 @@ function fakeMusicElement() {
     play: vi.fn(() => Promise.resolve()),
     pause: vi.fn(),
     removeAttribute: vi.fn(),
+    load: vi.fn(),
   };
 }
 
@@ -66,6 +67,26 @@ describe("browser audio", () => {
     audio.dispose();
     audio.dispose();
     expect(music.removeAttribute).toHaveBeenCalledTimes(2);
+    expect(music.load).toHaveBeenCalledTimes(2);
+  });
+
+  it("clamps invalid catalog volume without interrupting soundtrack setup", () => {
+    const music = fakeMusicElement();
+    const audio = createBrowserAudio(
+      [
+        { id: "too-loud", src: "/loud.ogg", volume: 2 },
+        { id: "not-a-number", src: "/invalid.ogg", volume: Number.NaN },
+      ],
+      {
+        createMusicElement: () => music as unknown as HTMLAudioElement,
+        audioContextConstructor: null,
+      },
+    );
+
+    audio.setSoundtrack("too-loud");
+    expect(music.volume).toBe(1);
+    audio.setSoundtrack("not-a-number");
+    expect(music.volume).toBe(0.16);
   });
 
   it("contains rejected media playback without interrupting game input", () => {

@@ -80,6 +80,22 @@ export function createBrowserAudio(
   let activeSoundtrackId: string | null = null;
   let disposed = false;
 
+  const safelyUseMusic = (operation: () => void): boolean => {
+    try {
+      operation();
+      return true;
+    } catch {
+      // HTMLMediaElement support and state vary by browser. Audio stays optional.
+      return false;
+    }
+  };
+
+  const clearMusic = (): void => {
+    safelyUseMusic(() => music.pause());
+    safelyUseMusic(() => music.removeAttribute("src"));
+    safelyUseMusic(() => music.load());
+  };
+
   const contextConstructor = (): AudioContextConstructor | null => {
     if (options.audioContextConstructor !== undefined) {
       return options.audioContextConstructor;
@@ -101,18 +117,29 @@ export function createBrowserAudio(
   const setSoundtrack = (soundtrackId: string | null): void => {
     if (disposed || soundtrackId === activeSoundtrackId) return;
     const soundtrack = soundtrackId === null ? undefined : soundtrackById.get(soundtrackId);
-    music.pause();
     activeSoundtrackId = soundtrack?.id ?? null;
     if (!soundtrack) {
-      music.removeAttribute("src");
+      clearMusic();
       return;
     }
-    music.src = soundtrack.src;
-    music.loop = true;
-    music.preload = "auto";
-    music.volume = soundtrack.volume ?? 0.16;
-    music.muted = isMuted;
-    music.currentTime = 0;
+    safelyUseMusic(() => music.pause());
+    const requestedVolume = soundtrack.volume ?? 0.16;
+    const volume = Number.isFinite(requestedVolume)
+      ? Math.min(1, Math.max(0, requestedVolume))
+      : 0.16;
+    const configured = safelyUseMusic(() => {
+      music.src = soundtrack.src;
+      music.loop = true;
+      music.preload = "auto";
+      music.volume = volume;
+      music.muted = isMuted;
+      music.currentTime = 0;
+    });
+    if (!configured) {
+      activeSoundtrackId = null;
+      clearMusic();
+      return;
+    }
     playMusic();
   };
 
@@ -153,19 +180,26 @@ export function createBrowserAudio(
       if (disposed) return;
       isUnlocked = true;
       isMuted = muted;
-      music.muted = muted;
-      if (muted) music.pause();
+      safelyUseMusic(() => {
+        music.muted = muted;
+      });
+      if (muted) safelyUseMusic(() => music.pause());
       else playMusic();
     },
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      music.pause();
-      music.removeAttribute("src");
+      clearMusic();
       activeSoundtrackId = null;
       const closing = context;
       context = null;
-      if (closing) void closing.close().catch(() => undefined);
+      if (closing) {
+        try {
+          void closing.close().catch(() => undefined);
+        } catch {
+          // A failed context close must not interrupt the remaining UI teardown.
+        }
+      }
     },
   };
 }
