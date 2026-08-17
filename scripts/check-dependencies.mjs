@@ -21,11 +21,7 @@ const TARGET_DEPENDENCIES = Object.freeze({
 });
 
 const MIGRATION_EXCEPTIONS = Object.freeze({
-  "ui/CampaignEditor.ts -> campaign/index.ts": "Remove when #75 moves campaign authoring out of presentation.",
-  "ui/CampaignEditor.ts -> editor/index.ts": "Remove when #75 moves campaign authoring out of presentation.",
   "ui/CommandRoom.ts -> scenarios/commandRoomScenario.ts": "Remove when #72 replaces the legacy scenario-backed view.",
-  "ui/GameWorkbench.ts -> campaign/index.ts": "Remove when #75 isolates campaign authoring from the runtime UI.",
-  "ui/GameWorkbench.ts -> editor/index.ts": "Remove when #75 isolates campaign authoring from the runtime UI.",
   "ui/TacticalMap.ts -> scenarios/commandRoomScenario.ts": "Remove when #72 replaces the legacy scenario-backed view.",
 });
 

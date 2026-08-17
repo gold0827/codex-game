@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { CampaignStorage } from "../../src/editor";
+import {
+  createLocalStorageCampaignRepository,
+  type CampaignKeyValueStore,
+} from "../../src/campaign";
 import type { GameSession } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import type { GameAudio } from "../../src/ui/GameAudio";
@@ -8,9 +11,9 @@ import type { GameFrameScheduler } from "../../src/ui/GameApp";
 import {
   mountGameWorkbench,
   type GameWorkbench,
-} from "../../src/ui/GameWorkbench";
+} from "../../src/app/GameWorkbench";
 
-class MemoryStorage implements CampaignStorage {
+class MemoryStorage implements CampaignKeyValueStore {
   readonly values = new Map<string, string>();
   getItem(key: string): string | null { return this.values.get(key) ?? null; }
   setItem(key: string, value: string): void { this.values.set(key, value); }
@@ -101,7 +104,7 @@ describe("game workbench", () => {
     scheduler = new DeterministicScheduler();
     disposedAudio = 0;
     workbench = mountGameWorkbench(root, completeCampaign, {
-      storage,
+      repository: createLocalStorageCampaignRepository(completeCampaign, storage),
       frameScheduler: scheduler,
       audioFactory,
       seed: "workbench-test",
@@ -235,7 +238,7 @@ describe("game workbench", () => {
     storage.setItem(`campaign-document:${completeCampaign.id}`, JSON.stringify(override));
     workbench.destroy();
     workbench = mountGameWorkbench(root, completeCampaign, {
-      storage,
+      repository: createLocalStorageCampaignRepository(completeCampaign, storage),
       frameScheduler: scheduler,
       audioFactory,
     });
@@ -252,13 +255,13 @@ describe("game workbench", () => {
 
   it("falls back to authored content and shows a Korean diagnostic for invalid storage", () => {
     workbench.destroy();
-    const invalidStorage: CampaignStorage = {
+    const invalidStorage: CampaignKeyValueStore = {
       getItem: () => "not-json",
       setItem: () => undefined,
       removeItem: () => undefined,
     };
     workbench = mountGameWorkbench(root, completeCampaign, {
-      storage: invalidStorage,
+      repository: createLocalStorageCampaignRepository(completeCampaign, invalidStorage),
       frameScheduler: scheduler,
       audioFactory,
     });
@@ -273,13 +276,13 @@ describe("game workbench", () => {
 
   it("falls back and reports when storage cannot be read", () => {
     workbench.destroy();
-    const unreadableStorage: CampaignStorage = {
+    const unreadableStorage: CampaignKeyValueStore = {
       getItem: () => { throw new Error("denied"); },
       setItem: () => undefined,
       removeItem: () => undefined,
     };
     workbench = mountGameWorkbench(root, completeCampaign, {
-      storage: unreadableStorage,
+      repository: createLocalStorageCampaignRepository(completeCampaign, unreadableStorage),
       frameScheduler: scheduler,
       audioFactory,
     });

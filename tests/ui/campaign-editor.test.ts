@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  createLocalStorageCampaignRepository,
+  type CampaignKeyValueStore,
+} from "../../src/campaign";
+import {
   createCampaignDocument,
-  type CampaignStorage,
-} from "../../src/editor";
+  mountCampaignWorkshop,
+} from "../../src/authoring/campaign-workshop";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
-import { mountCampaignEditor } from "../../src/ui/CampaignEditor";
 
-class MemoryStorage implements CampaignStorage {
+class MemoryStorage implements CampaignKeyValueStore {
   readonly values = new Map<string, string>();
 
   getItem(key: string): string | null {
@@ -47,9 +50,11 @@ describe("campaign editor", () => {
     document.body.innerHTML = '<div id="root"></div>';
     root = document.querySelector("#root")!;
     storage = new MemoryStorage();
-    campaignDocument = createCampaignDocument(completeCampaign, { storage });
+    campaignDocument = createCampaignDocument(completeCampaign, {
+      repository: createLocalStorageCampaignRepository(completeCampaign, storage),
+    });
     restartCount = 0;
-    mountCampaignEditor(root, campaignDocument, {
+    mountCampaignWorkshop(root, campaignDocument, {
       onClose: () => undefined,
       onRestart: () => {
         restartCount += 1;
@@ -135,7 +140,9 @@ describe("campaign editor", () => {
     action("apply-scene").click();
     action("save-campaign").click();
 
-    const reloaded = createCampaignDocument(completeCampaign, { storage });
+    const reloaded = createCampaignDocument(completeCampaign, {
+      repository: createLocalStorageCampaignRepository(completeCampaign, storage),
+    });
     expect(reloaded.load().ok).toBe(true);
     expect(reloaded.listScenes()[0]!.copy.title).toBe("저장될 제목");
     expect(reloaded.listScenes()[0]!.beats[0]!.reports[0]!.text).toBe("저장될 중첩 보고");
@@ -165,15 +172,17 @@ describe("campaign editor", () => {
   });
 
   it("reports storage failures in Korean without changing the document", () => {
-    const failingStorage: CampaignStorage = {
+    const failingStorage: CampaignKeyValueStore = {
       getItem: () => null,
       setItem: () => {
         throw new Error("denied");
       },
       removeItem: () => undefined,
     };
-    campaignDocument = createCampaignDocument(completeCampaign, { storage: failingStorage });
-    mountCampaignEditor(root, campaignDocument, {
+    campaignDocument = createCampaignDocument(completeCampaign, {
+      repository: createLocalStorageCampaignRepository(completeCampaign, failingStorage),
+    });
+    mountCampaignWorkshop(root, campaignDocument, {
       onClose: () => undefined,
       onRestart: () => undefined,
     });

@@ -1,20 +1,15 @@
 import {
   parseCampaignJson,
   parseCampaignValue,
+  createInMemoryCampaignRepository,
   type CampaignDefinition,
   type CampaignParseDiagnostic,
+  type CampaignRepository,
   type CampaignScene,
-} from "../campaign";
-
-export interface CampaignStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
+} from "../../campaign";
 
 export interface CampaignDocumentOptions {
-  readonly storage?: CampaignStorage;
-  readonly storageKey?: string;
+  readonly repository?: CampaignRepository;
 }
 
 export type CampaignDocumentDiagnostic =
@@ -44,9 +39,7 @@ function errorMessage(error: unknown): string {
 }
 
 export class CampaignDocument {
-  readonly #authoredSource: CampaignDefinition;
-  readonly #storage: CampaignStorage | undefined;
-  readonly #storageKey: string;
+  readonly #repository: CampaignRepository;
   #current: CampaignDefinition;
 
   constructor(
@@ -61,10 +54,8 @@ export class CampaignDocument {
           .join("; ")}`,
       );
     }
-    this.#authoredSource = structuredClone(parsed.value);
     this.#current = structuredClone(parsed.value);
-    this.#storage = options.storage;
-    this.#storageKey = options.storageKey ?? `campaign-document:${parsed.value.id}`;
+    this.#repository = options.repository ?? createInMemoryCampaignRepository(parsed.value);
   }
 
   #success(): CampaignDocumentResult {
@@ -147,9 +138,8 @@ export class CampaignDocument {
   }
 
   save(): CampaignDocumentResult {
-    if (!this.#storage) return this.#success();
     try {
-      this.#storage.setItem(this.#storageKey, this.exportJson());
+      this.#repository.save(this.#current);
       return this.#success();
     } catch (error) {
       return {
@@ -158,7 +148,7 @@ export class CampaignDocument {
           {
             kind: "storage",
             code: "storage-write",
-            path: this.#storageKey,
+            path: "campaign-repository",
             message: errorMessage(error),
           },
         ],
@@ -167,10 +157,9 @@ export class CampaignDocument {
   }
 
   load(): CampaignDocumentResult {
-    if (!this.#storage) return this.#success();
-    let stored: string | null;
     try {
-      stored = this.#storage.getItem(this.#storageKey);
+      this.#current = structuredClone(this.#repository.load());
+      return this.#success();
     } catch (error) {
       return {
         ok: false,
@@ -178,36 +167,29 @@ export class CampaignDocument {
           {
             kind: "storage",
             code: "storage-read",
-            path: this.#storageKey,
+            path: "campaign-repository",
             message: errorMessage(error),
           },
         ],
       };
     }
-    if (stored === null) return this.#success();
-    return this.importJson(stored);
   }
 
   restore(): CampaignDocumentResult {
-    if (this.#storage) {
-      try {
-        this.#storage.removeItem(this.#storageKey);
-      } catch (error) {
-        return {
-          ok: false,
-          diagnostics: [
-            {
-              kind: "storage",
-              code: "storage-remove",
-              path: this.#storageKey,
-              message: errorMessage(error),
-            },
-          ],
-        };
-      }
+    try {
+      this.#current = structuredClone(this.#repository.restore());
+      return this.#success();
+    } catch (error) {
+      return {
+        ok: false,
+        diagnostics: [{
+          kind: "storage",
+          code: "storage-remove",
+          path: "campaign-repository",
+          message: errorMessage(error),
+        }],
+      };
     }
-    this.#current = structuredClone(this.#authoredSource);
-    return this.#success();
   }
 }
 
