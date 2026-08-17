@@ -21,11 +21,13 @@ npm run check
 ```
 
 로컬 크롬에서 배포용 기본 주소의 훈련 안내부터 에필로그·초기화까지 실제
-시간으로 검증하려면 다음 명령을 실행합니다. 크롬을 기본 위치가 아닌 곳에
-설치했다면 `CHROME_PATH`를 지정합니다.
+시간으로 검증하거나, 개발용 오버레이 수명주기만 독립 검증하려면 각각 다음
+명령을 실행합니다. 두 명령은 같은 서버·브라우저 실행 도우미를 재사용합니다.
+크롬을 기본 위치가 아닌 곳에 설치했다면 `CHROME_PATH`를 지정합니다.
 
 ```sh
 node tests/fixtures/run-bridge-defense-chrome.mjs
+node tests/fixtures/run-workbench-overlays-chrome.mjs
 ```
 
 `npm run check`는 asset 산출물 일치, TypeScript build, 전체 test, module 의존
