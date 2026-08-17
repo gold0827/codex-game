@@ -15,6 +15,20 @@ type FailureCauseCode = OperationResult["failureCauses"][number]["code"];
 type ReportTone = GameSnapshot["scene"]["beats"][number]["reports"][number]["tone"];
 export type GameViewModel = ReturnType<typeof projectGameViewModel>;
 
+const supportedBackdropIds = new Set([
+  "haein-river-dusk",
+  "haein-river-dawn",
+] as const);
+
+function projectBackdrop(backdropId: string) {
+  return {
+    id: backdropId,
+    style: supportedBackdropIds.has(backdropId as "haein-river-dusk" | "haein-river-dawn")
+      ? backdropId as "haein-river-dusk" | "haein-river-dawn"
+      : "default",
+  } as const;
+}
+
 const harnessLabels: Readonly<
   Record<HarnessAxis, Readonly<{ name: string; low: string; high: string }>>
 > = {
@@ -306,6 +320,7 @@ export function projectGameViewModel(
   return {
     phase: snapshot.phase,
     accentColor: snapshot.scene.presentation.accentColor,
+    backdrop: projectBackdrop(snapshot.scene.presentation.backdropId),
     header: {
       campaignTitle: campaign.title,
       title: snapshot.scene.copy.title,

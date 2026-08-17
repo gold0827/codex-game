@@ -5,6 +5,8 @@ import { renderHarnessControls } from "../gameChrome";
 export function renderBriefingView(view: GameViewModel, dispatch: CommandDispatcher): HTMLElement {
   const main = node("main", "briefing-screen");
   main.dataset.phase = "briefing";
+  main.dataset.backdropId = view.backdrop.id;
+  main.dataset.backdropStyle = view.backdrop.style;
   const copy = node("section", "briefing-copy panel-card");
   const briefing = view.briefing;
   copy.append(

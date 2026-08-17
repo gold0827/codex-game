@@ -45,6 +45,22 @@ async function waitForDuration(
 
 const action = createFixtureAction(root);
 
+type PhaseBackdrop = Readonly<{
+  id: string | null;
+  style: string | null;
+  backgroundImage: string;
+}>;
+
+function phaseBackdrop(phase: "briefing" | "debrief" | "epilogue"): PhaseBackdrop | null {
+  const phaseRoot = root.querySelector<HTMLElement>(`main[data-phase="${phase}"]`);
+  if (!phaseRoot) return null;
+  return {
+    id: phaseRoot.dataset.backdropId ?? null,
+    style: phaseRoot.dataset.backdropStyle ?? null,
+    backgroundImage: getComputedStyle(phaseRoot).backgroundImage,
+  };
+}
+
 const selectedTile = (canvas: HTMLCanvasElement): Readonly<{ x: number; y: number }> | null => {
   const [x, y] = (canvas.dataset.selectedTile ?? "").split(",").map(Number);
   return Number.isSafeInteger(x) && Number.isSafeInteger(y) ? { x, y } : null;
@@ -109,6 +125,7 @@ await import("../../src/main");
 const bridgeBriefing = root.textContent?.includes(
   bridgeDefenseCampaign.scenes[0].copy.briefing,
 ) ?? false;
+const briefingBackdrop = phaseBackdrop("briefing");
 
 action("start-attempt").click();
 action("pause").click();
@@ -269,6 +286,8 @@ let completedFlow = {
   epilogueReached: false,
   resetToBridge: false,
   playerManual: false,
+  debriefBackdrop: null as PhaseBackdrop | null,
+  epilogueBackdrop: null as PhaseBackdrop | null,
 };
 const threatMarkers = {
   drawn: false,
@@ -306,11 +325,13 @@ if (!mapPreview) {
     debriefCopyVisible: root.textContent?.includes(
       bridgeDefenseCampaign.scenes[0].copy.success,
     ) ?? false,
+    debriefBackdrop: phaseBackdrop("debrief"),
   };
   if (completedFlow.debriefStatus === "success") {
     action("choose-lesson").click();
     completedFlow.epilogueReached = root.querySelector("[data-phase='epilogue']") !== null &&
       (root.textContent?.includes(bridgeDefenseCampaign.scenes[1].copy.title) ?? false);
+    completedFlow.epilogueBackdrop = phaseBackdrop("epilogue");
     action("reset-campaign").click();
     completedFlow.resetToBridge = root.querySelector("[data-phase='briefing']") !== null &&
       (root.textContent?.includes(bridgeDefenseCampaign.scenes[0].copy.briefing) ?? false);
@@ -327,6 +348,7 @@ const result = {
   mapPreview,
   productionEntrypoint: true,
   bridgeBriefing,
+  briefingBackdrop,
   editorHidden: root.querySelector('[data-action="open-editor"]') === null,
   mapId: battlefield.dataset.mapId ?? null,
   canvasWidth: canvas.width,
@@ -358,6 +380,9 @@ const result = {
 };
 const passed = result.productionEntrypoint &&
   result.bridgeBriefing &&
+  result.briefingBackdrop?.id === "haein-river-dusk" &&
+  result.briefingBackdrop.style === "haein-river-dusk" &&
+  result.briefingBackdrop.backgroundImage.includes("campaign-battlefield.png") &&
   result.editorHidden &&
   result.mapId === bridgeDefenseMapSkin.id &&
   result.canvasWidth > 0 &&
@@ -431,7 +456,15 @@ const passed = result.productionEntrypoint &&
   (mapPreview || (
     result.completedFlow.debriefStatus === "success" &&
     result.completedFlow.debriefCopyVisible &&
+    result.completedFlow.debriefBackdrop?.id === "haein-river-dusk" &&
+    result.completedFlow.debriefBackdrop.style === "haein-river-dusk" &&
+    result.completedFlow.debriefBackdrop.backgroundImage.includes("campaign-battlefield.png") &&
     result.completedFlow.epilogueReached &&
+    result.completedFlow.epilogueBackdrop?.id === "haein-river-dawn" &&
+    result.completedFlow.epilogueBackdrop.style === "haein-river-dawn" &&
+    result.completedFlow.epilogueBackdrop.backgroundImage.includes("campaign-battlefield.png") &&
+    result.completedFlow.debriefBackdrop.backgroundImage !==
+      result.completedFlow.epilogueBackdrop.backgroundImage &&
     result.completedFlow.resetToBridge &&
     result.completedFlow.playerManual
   ));

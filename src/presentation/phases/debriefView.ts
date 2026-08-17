@@ -6,6 +6,8 @@ export function renderDebriefView(view: GameViewModel, dispatch: CommandDispatch
   const success = debrief?.success ?? false;
   const main = node("main", `debrief-screen debrief-${success ? "success" : "retry"}`);
   main.dataset.phase = "debrief";
+  main.dataset.backdropId = view.backdrop.id;
+  main.dataset.backdropStyle = view.backdrop.style;
   const card = node("section", "debrief-card panel-card");
   card.append(
     node("p", "eyebrow", success ? "작전 종료" : "재정비"),
