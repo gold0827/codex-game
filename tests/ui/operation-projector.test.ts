@@ -81,6 +81,11 @@ describe("operation presentation projector", () => {
     );
     expect(frame?.actors).toHaveLength(operation.spatial.actors.length);
     expect(frame?.threats).toEqual([]);
+    expect(frame?.animation).toEqual({
+      operationTimeMs: operation.elapsedMs,
+      paused: snapshot.paused,
+      reducedMotion: false,
+    });
     expect(frame?.effects.some(({ kind }) => kind === "movement")).toBe(true);
     frame?.actors.forEach((actor) => {
       const spatialActor = operation.spatial.actors.find(({ actorId }) => actorId === actor.id);
@@ -98,6 +103,19 @@ describe("operation presentation projector", () => {
       expect(actor).not.toHaveProperty("route");
       expect(actor).not.toHaveProperty("sprite");
       expect(actor).not.toHaveProperty("assetPath");
+    });
+  });
+
+  it("projects pause and reduced-motion as an explicit Canvas animation policy", () => {
+    const snapshot = operationSnapshot();
+    const frame = projectBattlefieldFrame({ ...snapshot, paused: true }, {
+      reducedMotion: true,
+    });
+
+    expect(frame?.animation).toEqual({
+      operationTimeMs: snapshot.operation?.elapsedMs,
+      paused: true,
+      reducedMotion: true,
     });
   });
 

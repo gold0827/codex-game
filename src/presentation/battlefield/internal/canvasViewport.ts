@@ -46,6 +46,32 @@ type TimedFrame = Readonly<{
   receivedAt: number;
 }>;
 
+export type BattlefieldAnimationSample = Readonly<{
+  active: boolean;
+  operationTimeMs: number;
+  spriteTimeMs: number;
+}>;
+
+export function sampleBattlefieldAnimation(
+  current: TimedFrame,
+  timestamp: number,
+  operationRate = 1,
+): BattlefieldAnimationSample {
+  const policy = current.frame.animation;
+  const active = !policy.paused && !policy.reducedMotion;
+  const elapsedSinceSnapshot = Number.isFinite(timestamp)
+    ? Math.max(0, timestamp - current.receivedAt)
+    : 0;
+  const operationTimeMs = active
+    ? policy.operationTimeMs + elapsedSinceSnapshot * Math.max(0, operationRate)
+    : policy.operationTimeMs;
+  return {
+    active,
+    operationTimeMs,
+    spriteTimeMs: policy.reducedMotion ? 0 : operationTimeMs,
+  };
+}
+
 type AtlasImageSlot = {
   image: HTMLImageElement | null;
   url: string;
@@ -149,6 +175,8 @@ export function createCanvasBattlefieldViewport(
   });
   let previous: TimedFrame | null = null;
   let current: TimedFrame | null = null;
+  let operationRate = 1;
+  let drawCount = 0;
   let frameHandle: number | null = null;
   let destroyed = false;
   let spriteAtlas = fallbackSpriteRuntime();
@@ -335,8 +363,10 @@ export function createCanvasBattlefieldViewport(
     context.clearRect(0, 0, width, height);
     context.fillStyle = "#10231c";
     context.fillRect(0, 0, width, height);
-    const elapsed = Number.isFinite(timestamp) ? timestamp : now();
-    const drawList = createBattlefieldDrawList(previous, current, elapsed);
+    const frameTimestamp = Number.isFinite(timestamp) ? timestamp : now();
+    const animation = sampleBattlefieldAnimation(current, frameTimestamp, operationRate);
+    const drawList = createBattlefieldDrawList(previous, current, animation.operationTimeMs);
+    const spriteFrameIndices: number[] = [];
     const selected = drawList.actors.find((actor) => actor.selected);
     if (followingSelected && selected) camera.follow({ x: selected.x, y: selected.y });
     const scale = camera.read().zoom;
@@ -405,7 +435,8 @@ export function createCanvasBattlefieldViewport(
       }
       const actor = renderable;
       const { x, y } = camera.project(actor.position);
-      const sample = spriteAtlas.sample(actor.action, actor.facing, elapsed);
+      const sample = spriteAtlas.sample(actor.action, actor.facing, animation.spriteTimeMs);
+      spriteFrameIndices.push(sample.frameIndex);
       const image = sample.placeholder
         ? null
         : ensureAtlasImage(
@@ -447,8 +478,14 @@ export function createCanvasBattlefieldViewport(
       context.fillRect(Math.round(x - 14 * scale), Math.round(y + 8 * scale), healthBarWidth * (actor.health / 100), healthBarHeight);
     }
     canvas.dataset.drawnThreatMarkerCount = String(drawList.threats.length);
+    canvas.dataset.animationActive = String(animation.active);
+    canvas.dataset.sampledOperationTimeMs = String(animation.operationTimeMs);
+    canvas.dataset.sampledSpriteTimeMs = String(animation.spriteTimeMs);
+    canvas.dataset.spriteFrameIndices = spriteFrameIndices.join(",");
+    drawCount += 1;
+    canvas.dataset.drawCount = String(drawCount);
     context.restore();
-    schedule();
+    if (animation.active) schedule();
   }
 
   const ResizeObserverConstructor = options.resizeObserver ?? globalThis.ResizeObserver;
@@ -575,8 +612,17 @@ export function createCanvasBattlefieldViewport(
       else delete canvas.dataset.guidanceTile;
       updateCanvasDescription();
       if (followingSelected && nextSelected) camera.follow(nextSelected.position);
+      const receivedAt = now();
+      if (current) {
+        const receivedDelta = receivedAt - current.receivedAt;
+        const operationDelta = frame.animation.operationTimeMs -
+          current.frame.animation.operationTimeMs;
+        if (receivedDelta > 0 && operationDelta > 0) {
+          operationRate = operationDelta / receivedDelta;
+        }
+      }
       previous = current;
-      current = { frame, receivedAt: now() };
+      current = { frame, receivedAt };
       schedule();
     },
     resize: (nextSize) => {

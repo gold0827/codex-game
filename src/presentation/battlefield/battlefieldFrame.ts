@@ -79,6 +79,11 @@ export type BattlefieldFrame = Readonly<{
   actors: readonly BattlefieldActorFrame[];
   threats: readonly BattlefieldThreatFrame[];
   effects: readonly EffectSample[];
+  animation: Readonly<{
+    operationTimeMs: number;
+    paused: boolean;
+    reducedMotion: boolean;
+  }>;
   guidedTile?: WorldPosition | null;
 }>;
 import type { EffectSample } from "../effects/effectTrack";

@@ -4,6 +4,7 @@ import type { BattlefieldFrame } from "../../src/presentation/battlefield/battle
 import {
   createCanvasBattlefieldViewport,
   drawTileHighlight,
+  sampleBattlefieldAnimation,
 } from "../../src/presentation/battlefield/internal/canvasViewport";
 import { createBattlefieldDrawList } from "../../src/presentation/battlefield/internal/drawList";
 
@@ -20,6 +21,12 @@ class TestScheduler {
 
   cancel(handle: number): void {
     this.callbacks.delete(handle);
+  }
+
+  frame(timestamp: number): void {
+    const callbacks = [...this.callbacks.values()];
+    this.callbacks.clear();
+    callbacks.forEach((callback) => callback(timestamp));
   }
 }
 
@@ -50,7 +57,14 @@ class TestResizeObserver {
   }
 }
 
-const frame = (x: number): BattlefieldFrame => ({
+const frame = (
+  x: number,
+  animation: BattlefieldFrame["animation"] = {
+    operationTimeMs: 0,
+    paused: false,
+    reducedMotion: false,
+  },
+): BattlefieldFrame => ({
   map: {
     id: "test-map",
     width: 24,
@@ -69,6 +83,7 @@ const frame = (x: number): BattlefieldFrame => ({
   }],
   threats: [],
   effects: [],
+  animation,
 });
 
 describe("persistent Canvas battlefield viewport", () => {
@@ -82,12 +97,119 @@ describe("persistent Canvas battlefield viewport", () => {
   });
 
   it("interpolates actor positions across the 100ms snapshot interval", () => {
-    const previous = { frame: frame(2), receivedAt: 0 };
-    const current = { frame: frame(10), receivedAt: 100 };
+    const previous = { frame: frame(2, {
+      operationTimeMs: 0,
+      paused: false,
+      reducedMotion: false,
+    }), receivedAt: 0 };
+    const current = { frame: frame(10, {
+      operationTimeMs: 100,
+      paused: false,
+      reducedMotion: false,
+    }), receivedAt: 100 };
 
     expect(createBattlefieldDrawList(previous, current, 100).actors[0]?.x).toBe(2);
     expect(createBattlefieldDrawList(previous, current, 150).actors[0]?.x).toBe(6);
     expect(createBattlefieldDrawList(previous, current, 200).actors[0]?.x).toBe(10);
+  });
+
+  it("samples animation from operation time without advancing across a pause", () => {
+    const running = { frame: frame(4, {
+      operationTimeMs: 200,
+      paused: false,
+      reducedMotion: false,
+    }), receivedAt: 1_000 };
+    const paused = { frame: frame(4, {
+      operationTimeMs: 200,
+      paused: true,
+      reducedMotion: false,
+    }), receivedAt: 1_000 };
+    const reduced = { frame: frame(4, {
+      operationTimeMs: 200,
+      paused: false,
+      reducedMotion: true,
+    }), receivedAt: 1_000 };
+
+    expect(sampleBattlefieldAnimation(running, 1_100, 2)).toEqual({
+      active: true,
+      operationTimeMs: 400,
+      spriteTimeMs: 400,
+    });
+    expect(sampleBattlefieldAnimation(paused, 6_000, 2)).toEqual({
+      active: false,
+      operationTimeMs: 200,
+      spriteTimeMs: 200,
+    });
+    expect(sampleBattlefieldAnimation(reduced, 6_000, 2)).toEqual({
+      active: false,
+      operationTimeMs: 200,
+      spriteTimeMs: 0,
+    });
+  });
+
+  it("snaps actor and threat snapshots when motion is paused or reduced", () => {
+    const previous = { frame: frame(2, {
+      operationTimeMs: 0,
+      paused: false,
+      reducedMotion: false,
+    }) };
+    const paused = { frame: frame(10, {
+      operationTimeMs: 100,
+      paused: true,
+      reducedMotion: false,
+    }) };
+    const reduced = { frame: frame(12, {
+      operationTimeMs: 200,
+      paused: false,
+      reducedMotion: true,
+    }) };
+
+    expect(createBattlefieldDrawList(previous, paused, 100).actors[0]?.x).toBe(10);
+    expect(createBattlefieldDrawList(paused, reduced, 200).actors[0]?.x).toBe(12);
+  });
+
+  it("only keeps a continuous Canvas callback while animation is active", () => {
+    const context = new Proxy<Record<PropertyKey, unknown>>({}, {
+      get(target, property) {
+        if (!(property in target)) target[property] = vi.fn();
+        return target[property];
+      },
+    }) as unknown as CanvasRenderingContext2D;
+    vi.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValue(context);
+    const host = document.createElement("section");
+    const scheduler = new TestScheduler();
+    const viewport = createCanvasBattlefieldViewport(host, {
+      scheduler,
+      now: () => 100,
+      fetchManifest: async () => { throw new Error("offline"); },
+    });
+
+    viewport.update(frame(2, {
+      operationTimeMs: 100,
+      paused: false,
+      reducedMotion: false,
+    }));
+    scheduler.frame(100);
+    expect(scheduler.callbacks.size).toBe(1);
+
+    viewport.update(frame(2, {
+      operationTimeMs: 100,
+      paused: true,
+      reducedMotion: false,
+    }));
+    scheduler.frame(5_000);
+    expect(scheduler.callbacks.size).toBe(0);
+    expect(host.querySelector("canvas")?.dataset.sampledSpriteTimeMs).toBe("100");
+
+    viewport.update(frame(3, {
+      operationTimeMs: 200,
+      paused: false,
+      reducedMotion: true,
+    }));
+    scheduler.frame(6_000);
+    expect(scheduler.callbacks.size).toBe(0);
+    expect(host.querySelector("canvas")?.dataset.sampledSpriteTimeMs).toBe("0");
+    viewport.destroy();
   });
 
   it("draws guided then selected tile diamonds with their established styles", () => {
@@ -176,11 +298,11 @@ describe("persistent Canvas battlefield viewport", () => {
       label: "물리적 위협 포격. 심각도 중간. 예고 중. 타일 4, 5",
     };
     const previous = {
-      frame: { ...frame(2), threats: [{ ...threat, position: { x: 2, y: 5 } }] },
+      frame: { ...frame(2, { operationTimeMs: 0, paused: false, reducedMotion: false }), threats: [{ ...threat, position: { x: 2, y: 5 } }] },
       receivedAt: 0,
     };
     const current = {
-      frame: { ...frame(10), threats: [threat] },
+      frame: { ...frame(10, { operationTimeMs: 100, paused: false, reducedMotion: false }), threats: [threat] },
       receivedAt: 100,
     };
     const drawList = createBattlefieldDrawList(previous, current, 150);

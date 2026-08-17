@@ -26,7 +26,6 @@ export type BattlefieldDrawThreat = Readonly<
 
 type TimedFrame = Readonly<{
   frame: BattlefieldFrame;
-  receivedAt: number;
 }>;
 
 const SNAPSHOT_INTERVAL_MS = 100;
@@ -38,10 +37,20 @@ function clamp(value: number, minimum: number, maximum: number): number {
 export function createBattlefieldDrawList(
   previous: TimedFrame | null,
   current: TimedFrame,
-  now: number,
+  sampleOperationTimeMs: number,
 ): BattlefieldDrawList {
+  const snapshotIntervalMs = previous
+    ? current.frame.animation.operationTimeMs - previous.frame.animation.operationTimeMs
+    : SNAPSHOT_INTERVAL_MS;
   const progress = previous
-    ? clamp((now - current.receivedAt) / SNAPSHOT_INTERVAL_MS, 0, 1)
+    && !current.frame.animation.paused
+    && !current.frame.animation.reducedMotion
+    ? clamp(
+      (sampleOperationTimeMs - current.frame.animation.operationTimeMs) /
+        (snapshotIntervalMs > 0 ? snapshotIntervalMs : SNAPSHOT_INTERVAL_MS),
+      0,
+      1,
+    )
     : 1;
   const previousById = new Map(previous?.frame.actors.map((actor) => [actor.id, actor]));
   const previousThreatById = new Map(previous?.frame.threats.map((threat) => [threat.id, threat]));
