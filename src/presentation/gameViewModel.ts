@@ -12,6 +12,7 @@ export type PresentationCampaign = Readonly<{
 
 type OperationResult = NonNullable<NonNullable<GameSnapshot["operation"]>["result"]>;
 type FailureCauseCode = OperationResult["failureCauses"][number]["code"];
+type ReportTone = GameSnapshot["scene"]["beats"][number]["reports"][number]["tone"];
 export type GameViewModel = ReturnType<typeof projectGameViewModel>;
 
 const harnessLabels: Readonly<
@@ -101,6 +102,14 @@ const verificationLabels = {
   contradicted: "모순 확인",
 } as const;
 
+const reportToneLabels = {
+  confident: "확신",
+  cautious: "신중",
+  urgent: "긴급",
+  relieved: "안도",
+  deadpan: "담담",
+} as const satisfies Readonly<Record<ReportTone, string>>;
+
 function reportTransmission(
   report: NonNullable<GameSnapshot["operation"]>["messages"][number],
 ) {
@@ -176,14 +185,34 @@ function replayLabel(
   return labels[replay.kind];
 }
 
-function guidanceTargetLabel(step: NonNullable<GameSnapshot["tutorial"]["currentStep"]>): string {
+function guidanceTargetLabel(
+  step: NonNullable<GameSnapshot["tutorial"]["currentStep"]>,
+  roster: ReadonlyMap<string, Readonly<{ id: string; rank: string; name: string }>>,
+  reportCopies: ReadonlyMap<string, string>,
+): string {
   if (step.action === "pause") return "작전 일시정지";
   if (step.action === "resume") return "작전 재개";
-  if (step.action === "inspect") return `장교 ${step.target.officerId}`;
+  if (step.action === "inspect") {
+    const officer = roster.get(step.target.officerId);
+    return officer ? `${officer.rank} ${officer.name}` : "소속을 확인할 수 없는 장교";
+  }
   if (step.action === "signal") {
     return `${spatialSignalLabels[step.target.signal]} 신호 · 강도 ${step.target.strength} · 타일 ${step.target.position.x}, ${step.target.position.y}`;
   }
-  return `보고 ${step.target.reportId} → ${step.target.recipientOfficerId}`;
+  const reportCopy = reportCopies.get(step.target.reportId);
+  const recipient = roster.get(step.target.recipientOfficerId);
+  return `“${reportCopy ?? "보고 내용을 확인할 수 없음"}” → ${
+    recipient ? `${recipient.rank} ${recipient.name}` : "수신 장교 정보 없음"
+  }`;
+}
+
+function recentReplayEvents(
+  replay: GameSnapshot["replay"],
+): GameSnapshot["replay"][number][] {
+  const recent = replay.slice(-6);
+  const latestBeat = [...replay].reverse().find(({ kind }) => kind === "beat-activated");
+  if (!latestBeat || recent.some(({ sequence }) => sequence === latestBeat.sequence)) return recent;
+  return [latestBeat, ...recent];
 }
 
 function projectDebrief(
@@ -230,7 +259,17 @@ export function projectGameViewModel(
   campaign: PresentationCampaign,
 ) {
   const roster = new Map(campaign.officers.map((officer) => [officer.id, officer]));
+  const beats = new Map(snapshot.scene.beats.map((beat) => [beat.id, beat]));
+  const authoredReports = new Map(
+    snapshot.scene.beats.flatMap(({ reports }) => reports.map((report) => [report.id, report] as const)),
+  );
   const operation = snapshot.operation;
+  const guidanceReportCopies = new Map<string, string>();
+  operation?.messages.forEach((report) => {
+    if (!guidanceReportCopies.has(report.authoredReportId)) {
+      guidanceReportCopies.set(report.authoredReportId, reportTransmission(report).text);
+    }
+  });
   const guidance = snapshot.tutorial.active ? snapshot.tutorial.currentStep : null;
   const remainingAttention = Math.max(
     0,
@@ -293,7 +332,7 @@ export function projectGameViewModel(
           action: guidance.action,
           position: `${snapshot.tutorial.currentStepIndex + 1}/${snapshot.scene.guidance.length}`,
           instruction: guidance.instruction,
-          target: guidanceTargetLabel(guidance),
+          target: guidanceTargetLabel(guidance, roster, guidanceReportCopies),
           signal: guidance.action === "signal"
             ? {
                 kind: guidance.target.signal,
@@ -368,16 +407,18 @@ export function projectGameViewModel(
           }),
           reports: [...operation.messages].reverse().map((report) => {
             const transmission = reportTransmission(report);
+            const authored = authoredReports.get(report.authoredReportId);
             return {
               id: report.id,
               authoredReportId: report.authoredReportId,
               deliveryState: report.deliveryState,
               verificationState: report.verificationState,
+              tone: authored ? reportToneLabels[authored.tone] : "어조 정보 없음",
               guided: isGuidanceTarget("route", report.authoredReportId),
-              meta: `${formatGameTime(report.createdAtMs)} · ${roster.get(report.sourceOfficerId)?.name ?? report.sourceOfficerId}`,
+              meta: `${formatGameTime(report.createdAtMs)} · ${roster.get(report.sourceOfficerId)?.name ?? "소속 미상"}`,
               status: transmission.status,
               text: transmission.text,
-              detail: `수신 ${report.recipientOfficerIds.map((id) => roster.get(id)?.name ?? id).join(", ") || "없음"} · 신뢰 ${percentage(report.reliability)}`,
+              detail: `수신 ${report.recipientOfficerIds.map((id) => roster.get(id)?.name ?? "소속 미상").join(", ") || "없음"} · 신뢰 ${percentage(report.reliability)}`,
               recipientId:
                 guidance?.action === "route" && guidance.target.reportId === report.authoredReportId
                   ? guidance.target.recipientOfficerId
@@ -386,12 +427,22 @@ export function projectGameViewModel(
               canVerify: remainingAttention > 0 && !report.prioritized,
             };
           }),
-          events: snapshot.replay.slice(-6).reverse().map((event) => ({
-            sequence: event.sequence,
-            time: formatGameTime(event.timeMs),
-            kind: event.kind,
-            label: replayLabel(event, roster),
-          })),
+          events: recentReplayEvents(snapshot.replay).reverse().map((event) => {
+            const beat = event.kind === "beat-activated"
+              ? beats.get(String(event.data.beatId ?? ""))
+              : undefined;
+            return {
+              sequence: event.sequence,
+              time: formatGameTime(event.timeMs),
+              kind: event.kind,
+              label: event.kind === "beat-activated"
+                ? beat?.headline ?? "새 작전 상황"
+                : replayLabel(event, roster),
+              description: event.kind === "beat-activated"
+                ? beat?.description ?? "상황 설명을 확인할 수 없습니다."
+                : null,
+            };
+          }),
           recipients: campaign.officers.map((officer) => ({
             id: officer.id,
             label: `${officer.rank} ${officer.name}`,

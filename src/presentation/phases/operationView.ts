@@ -137,8 +137,13 @@ export function renderOperationView(
     card.dataset.deliveryState = report.deliveryState;
     card.dataset.verificationState = report.verificationState;
     if (report.guided) card.classList.add("guidance-target");
+    const meta = node("p", "report-meta");
+    meta.append(
+      node("span", undefined, report.meta),
+      node("span", "report-tone", `어조 · ${report.tone}`),
+    );
     card.append(
-      node("p", "report-meta", report.meta),
+      meta,
       node("p", "report-transmission-state", report.status),
       node("blockquote", undefined, report.text),
       node("p", "report-detail", report.detail),
@@ -176,7 +181,8 @@ export function renderOperationView(
   operation.events.forEach((event) => {
     const item = node("li", `event-flow-item event-${event.kind}`);
     item.dataset.eventSequence = String(event.sequence);
-    item.append(node("time", undefined, event.time), node("span", undefined, event.label));
+    item.append(node("time", undefined, event.time), node("strong", "event-flow-label", event.label));
+    if (event.description) item.append(node("p", "event-flow-description", event.description));
     eventList.append(item);
   });
   if (!operation.events.length) eventList.append(node("li", "event-flow-empty", "작전 사건을 기다리는 중"));

@@ -83,6 +83,7 @@ const bridgeBriefing = root.textContent?.includes(
 
 action("start-attempt").click();
 action("pause").click();
+const inspectGuidanceText = root.querySelector<HTMLElement>(".tutorial-guidance")?.textContent ?? "";
 root.querySelector<HTMLElement>('[data-officer-id="captain-han"]')
   ?.querySelector<HTMLButtonElement>('[data-action="inspect-officer"]')
   ?.click();
@@ -168,6 +169,26 @@ const operationLayout = {
     tutorialGuidance.getBoundingClientRect(),
     controls.getBoundingClientRect(),
   ),
+};
+const authoredBeat = bridgeDefenseCampaign.scenes[0].beats[0];
+const authoredReport = authoredBeat?.reports[0];
+const beatEvent = root.querySelector<HTMLElement>(".event-beat-activated");
+const reportCard = authoredReport
+  ? root.querySelector<HTMLElement>(`[data-report-id="${authoredReport.id}"]`)
+  : null;
+const authoredOperationCopy = {
+  inspectTargetReadable: inspectGuidanceText.includes("대위 한확인") &&
+    !inspectGuidanceText.includes("captain-han"),
+  beatHeadline: Boolean(authoredBeat && beatEvent?.textContent?.includes(authoredBeat.headline)),
+  beatDescription: Boolean(authoredBeat && beatEvent?.textContent?.includes(authoredBeat.description)),
+  reportTone: reportCard?.querySelector(".report-tone")?.textContent ?? null,
+  internalIdsHidden: Boolean(
+    authoredBeat && authoredReport &&
+    !beatEvent?.textContent?.includes(authoredBeat.id) &&
+    !reportCard?.textContent?.includes(authoredReport.id),
+  ),
+  eventTextWrapped: [...root.querySelectorAll<HTMLElement>(".event-flow-item")]
+    .every((item) => item.scrollWidth <= item.clientWidth),
 };
 const selectedBridge = moveSelectionTo(canvas, { x: 11, y: 7 });
 action("issue-spatial-signal").click();
@@ -261,6 +282,7 @@ const result = {
     centralShare: Math.round(operationLayout.centralShare * 1_000) / 1_000,
   },
   threatMarkers,
+  authoredOperationCopy,
   completedFlow,
   errors,
 };
@@ -311,6 +333,12 @@ const passed = result.productionEntrypoint &&
     result.threatMarkers.resolved &&
     result.threatMarkers.accessible
   )) &&
+  result.authoredOperationCopy.inspectTargetReadable &&
+  result.authoredOperationCopy.beatHeadline &&
+  result.authoredOperationCopy.beatDescription &&
+  result.authoredOperationCopy.reportTone === "어조 · 확신" &&
+  result.authoredOperationCopy.internalIdsHidden &&
+  result.authoredOperationCopy.eventTextWrapped &&
   errors.length === 0 &&
   (mapPreview || (
     result.completedFlow.debriefStatus === "success" &&
