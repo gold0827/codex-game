@@ -1,4 +1,5 @@
 import { loadSpriteAtlas, type SpriteAtlasRuntime } from "../../spriteAtlas";
+import { loadMapAtlas, type MapAtlasKind, type MapAtlasRuntime } from "../../mapAtlas";
 import type { BattlefieldFrame, WorldPosition } from "../battlefieldFrame";
 import { orderBattlefieldRenderables } from "../drawOrder";
 import {
@@ -8,6 +9,10 @@ import {
   type IsometricCameraSnapshot,
 } from "../isometricCamera";
 import { createBattlefieldDrawList } from "./drawList";
+import {
+  createBattlefieldMapDrawList,
+  type BattlefieldMapDrawList,
+} from "./mapDrawList";
 
 export type BattlefieldViewportSize = Readonly<{
   width: number;
@@ -40,9 +45,6 @@ type TimedFrame = Readonly<{
   receivedAt: number;
 }>;
 
-const WORLD_WIDTH = 24;
-const WORLD_HEIGHT = 16;
-
 function browserScheduler(): FrameScheduler {
   return {
     request: (callback) => window.requestAnimationFrame(callback),
@@ -50,7 +52,7 @@ function browserScheduler(): FrameScheduler {
   };
 }
 
-function fallbackRuntime(): SpriteAtlasRuntime {
+function fallbackSpriteRuntime(): SpriteAtlasRuntime {
   return {
     status: "degraded",
     issues: [{ path: "$", message: "sprite atlas를 아직 불러오지 못했습니다." }],
@@ -66,6 +68,16 @@ function fallbackRuntime(): SpriteAtlasRuntime {
       frameIndex: 0,
       placeholder: true,
     }),
+  };
+}
+
+function fallbackMapRuntime(): MapAtlasRuntime {
+  return {
+    status: "degraded",
+    issues: [{ path: "$", message: "map atlas를 아직 불러오지 못했습니다." }],
+    imageUrl: "",
+    frame: () => null,
+    skin: () => ({ tiles: [], props: [] }),
   };
 }
 
@@ -89,19 +101,23 @@ export function createCanvasBattlefieldViewport(
   const context = canvas.getContext("2d");
   let size = { width: 1, height: 1, pixelRatio: 1 };
   const camera = createIsometricCamera({
-    bounds: { minX: 0, minY: 0, maxX: WORLD_WIDTH - 1, maxY: WORLD_HEIGHT - 1 },
+    bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
     viewport: size,
   });
   let previous: TimedFrame | null = null;
   let current: TimedFrame | null = null;
   let frameHandle: number | null = null;
   let destroyed = false;
-  let atlas = fallbackRuntime();
-  let atlasImage: HTMLImageElement | null = null;
-  let atlasImageUrl = "";
+  let spriteAtlas = fallbackSpriteRuntime();
+  let mapAtlas = fallbackMapRuntime();
+  let spriteAtlasImage: HTMLImageElement | null = null;
+  let spriteAtlasImageUrl = "";
+  let mapAtlasImage: HTMLImageElement | null = null;
+  let mapAtlasImageUrl = "";
   let selectedActorId: string | null = null;
   let selectedTile: WorldPosition | null = null;
   let activeEffectLabels: readonly string[] = [];
+  let mapDrawList: BattlefieldMapDrawList | null = null;
   let followingSelected = true;
   let panStart: Readonly<{ x: number; y: number }> | null = null;
   let pointerOrigin: Readonly<{ x: number; y: number }> | null = null;
@@ -140,19 +156,19 @@ export function createCanvasBattlefieldViewport(
     if (!destroyed && frameHandle === null) frameHandle = scheduler.request(draw);
   };
 
-  const ensureAtlasImage = (imageUrl: string): HTMLImageElement | null => {
+  const ensureSpriteAtlasImage = (imageUrl: string): HTMLImageElement | null => {
     if (!imageUrl) return null;
-    if (atlasImage && atlasImageUrl === imageUrl) return atlasImage;
-    if (atlasImage) {
-      atlasImage.onload = null;
-      atlasImage.onerror = null;
+    if (spriteAtlasImage && spriteAtlasImageUrl === imageUrl) return spriteAtlasImage;
+    if (spriteAtlasImage) {
+      spriteAtlasImage.onload = null;
+      spriteAtlasImage.onerror = null;
     }
     const image = new Image();
-    atlasImage = image;
-    atlasImageUrl = imageUrl;
+    spriteAtlasImage = image;
+    spriteAtlasImageUrl = imageUrl;
     image.onload = () => {
       if (!destroyed) {
-        if (atlas.status === "ready") showAssetStatus(null);
+        if (spriteAtlas.status === "ready" && mapAtlas.status === "ready") showAssetStatus(null);
         schedule();
       }
     };
@@ -161,6 +177,98 @@ export function createCanvasBattlefieldViewport(
     };
     image.src = imageUrl;
     return image;
+  };
+
+  const ensureMapAtlasImage = (imageUrl: string): HTMLImageElement | null => {
+    if (!imageUrl) return null;
+    if (mapAtlasImage && mapAtlasImageUrl === imageUrl) return mapAtlasImage;
+    if (mapAtlasImage) {
+      mapAtlasImage.onload = null;
+      mapAtlasImage.onerror = null;
+    }
+    const image = new Image();
+    mapAtlasImage = image;
+    mapAtlasImageUrl = imageUrl;
+    image.onload = () => {
+      if (!destroyed) {
+        if (spriteAtlas.status === "ready" && mapAtlas.status === "ready") showAssetStatus(null);
+        schedule();
+      }
+    };
+    image.onerror = () => {
+      if (!destroyed) showAssetStatus("전장 map을 불러오지 못해 식별 가능한 대체 표식을 표시합니다.");
+    };
+    image.src = imageUrl;
+    return image;
+  };
+
+  const drawFallbackMapAsset = (
+    kind: MapAtlasKind,
+    position: WorldPosition,
+    scale: number,
+  ): void => {
+    if (!context) return;
+    const center = camera.project(position);
+    const halfWidth = (ISOMETRIC_TILE_SIZE.width * scale) / 2;
+    const halfHeight = (ISOMETRIC_TILE_SIZE.height * scale) / 2;
+    const colors: Readonly<Record<MapAtlasKind, string>> = {
+      "ground-a": "#415c45",
+      "ground-b": "#587052",
+      rough: "#776b46",
+      blocked: "#304638",
+      water: "#24545d",
+      bridge: "#9a7445",
+      ford: "#776b46",
+      spawn: "#73d5c8",
+      destination: "#e6cf72",
+      "command-post": "#d1b873",
+      "civilian-shelter": "#c19a5d",
+    };
+    context.save();
+    context.fillStyle = colors[kind];
+    context.strokeStyle = "#101815";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(center.x, center.y - halfHeight);
+    context.lineTo(center.x + halfWidth, center.y);
+    context.lineTo(center.x, center.y + halfHeight);
+    context.lineTo(center.x - halfWidth, center.y);
+    context.closePath();
+    if (kind === "spawn" || kind === "destination") context.globalAlpha = 0.7;
+    context.fill();
+    context.stroke();
+    if (kind === "command-post" || kind === "civilian-shelter") {
+      context.fillRect(
+        Math.round(center.x - 10 * scale),
+        Math.round(center.y - 22 * scale),
+        Math.round(20 * scale),
+        Math.round(22 * scale),
+      );
+    }
+    context.restore();
+  };
+
+  const drawMapAsset = (kind: MapAtlasKind, position: WorldPosition, scale: number): void => {
+    if (!context) return;
+    const frame = mapAtlas.frame(kind);
+    const image = frame ? ensureMapAtlasImage(mapAtlas.imageUrl) : null;
+    const drawable = image?.complete && image.naturalWidth > 0;
+    if (!frame || !drawable || !image) {
+      drawFallbackMapAsset(kind, position, scale);
+      return;
+    }
+    const center = camera.project(position);
+    context.drawImage(
+      image,
+      frame.rect.x,
+      frame.rect.y,
+      frame.rect.width,
+      frame.rect.height,
+      Math.round(center.x - frame.anchor.x * scale),
+      Math.round(center.y - frame.anchor.y * scale),
+      Math.round(frame.rect.width * scale),
+      Math.round(frame.rect.height * scale),
+    );
   };
 
   function draw(timestamp: number): void {
@@ -177,25 +285,12 @@ export function createCanvasBattlefieldViewport(
     const drawList = createBattlefieldDrawList(previous, current, elapsed);
     const selected = drawList.actors.find((actor) => actor.selected);
     if (followingSelected && selected) camera.follow({ x: selected.x, y: selected.y });
-
-    context.strokeStyle = "rgba(125, 225, 173, 0.16)";
-    context.lineWidth = 1;
-    for (let worldX = 0; worldX < WORLD_WIDTH; worldX += 1) {
-      const start = camera.project({ x: worldX, y: 0 });
-      const end = camera.project({ x: worldX, y: WORLD_HEIGHT - 1 });
-      context.beginPath();
-      context.moveTo(Math.round(start.x), Math.round(start.y));
-      context.lineTo(Math.round(end.x), Math.round(end.y));
-      context.stroke();
-    }
-    for (let worldY = 0; worldY < WORLD_HEIGHT; worldY += 1) {
-      const start = camera.project({ x: 0, y: worldY });
-      const end = camera.project({ x: WORLD_WIDTH - 1, y: worldY });
-      context.beginPath();
-      context.moveTo(Math.round(start.x), Math.round(start.y));
-      context.lineTo(Math.round(end.x), Math.round(end.y));
-      context.stroke();
-    }
+    const scale = camera.read().zoom;
+    const currentMapDrawList = mapDrawList ?? createBattlefieldMapDrawList(
+      current.frame.map,
+      mapAtlas.skin(current.frame.map.id),
+    );
+    for (const tile of currentMapDrawList.tiles) drawMapAsset(tile.kind, tile.position, scale);
 
     if (selectedTile) {
       const center = camera.project(selectedTile);
@@ -233,16 +328,27 @@ export function createCanvasBattlefieldViewport(
       context.restore();
     }
 
-    const actors = orderBattlefieldRenderables(drawList.actors.map((actor) => ({
-      ...actor,
-      kind: "actor" as const,
-      position: { x: actor.x, y: actor.y },
-    })));
-    const scale = camera.read().zoom;
-    for (const actor of actors) {
+    const renderables = orderBattlefieldRenderables([
+      ...drawList.actors.map((actor) => ({
+        ...actor,
+        kind: "actor" as const,
+        position: { x: actor.x, y: actor.y },
+      })),
+      ...currentMapDrawList.props.map((prop) => ({
+        ...prop,
+        kind: "prop" as const,
+        assetKind: prop.kind,
+      })),
+    ]);
+    for (const renderable of renderables) {
+      if (renderable.kind === "prop") {
+        drawMapAsset(renderable.assetKind, renderable.position, scale);
+        continue;
+      }
+      const actor = renderable;
       const { x, y } = camera.project(actor.position);
-      const sample = atlas.sample(actor.action, actor.facing, elapsed);
-      const image = sample.placeholder ? null : ensureAtlasImage(sample.imageUrl);
+      const sample = spriteAtlas.sample(actor.action, actor.facing, elapsed);
+      const image = sample.placeholder ? null : ensureSpriteAtlasImage(sample.imageUrl);
       const drawable = image?.complete && image.naturalWidth > 0;
       if (drawable && image) {
         const { rect, anchor } = sample.frame;
@@ -292,9 +398,11 @@ export function createCanvasBattlefieldViewport(
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
   const tileAt = (position: Readonly<{ x: number; y: number }>): WorldPosition | null => {
+    if (!current) return null;
     const world = camera.unproject(position);
     const tile = { x: Math.round(world.x), y: Math.round(world.y) };
-    return tile.x >= 0 && tile.x < WORLD_WIDTH && tile.y >= 0 && tile.y < WORLD_HEIGHT
+    return tile.x >= 0 && tile.x < current.frame.map.width &&
+      tile.y >= 0 && tile.y < current.frame.map.height
       ? tile
       : null;
   };
@@ -343,15 +451,15 @@ export function createCanvasBattlefieldViewport(
       ArrowUp: { x: 0, y: -1 },
       ArrowDown: { x: 0, y: 1 },
     } as const)[event.key as "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown"];
-    if (!delta) return;
+    if (!delta || !current) return;
     event.preventDefault();
     const start = selectedTile ?? {
       x: Math.round(camera.read().center.x),
       y: Math.round(camera.read().center.y),
     };
     selectTile({
-      x: Math.max(0, Math.min(WORLD_WIDTH - 1, start.x + delta.x)),
-      y: Math.max(0, Math.min(WORLD_HEIGHT - 1, start.y + delta.y)),
+      x: Math.max(0, Math.min(current.frame.map.width - 1, start.x + delta.x)),
+      y: Math.max(0, Math.min(current.frame.map.height - 1, start.y + delta.y)),
     });
   };
   canvas.addEventListener("pointerdown", onPointerDown);
@@ -364,11 +472,31 @@ export function createCanvasBattlefieldViewport(
   const viewport: CanvasBattlefieldViewport = {
     update: (frame) => {
       if (destroyed) return;
+      const firstFrame = current === null;
+      camera.setBounds({
+        minX: 0,
+        minY: 0,
+        maxX: frame.map.width - 1,
+        maxY: frame.map.height - 1,
+      });
+      if (firstFrame) {
+        camera.follow({
+          x: (frame.map.width - 1) / 2,
+          y: (frame.map.height - 1) / 2,
+        });
+      }
+      if (selectedTile) {
+        selectedTile = {
+          x: Math.min(selectedTile.x, frame.map.width - 1),
+          y: Math.min(selectedTile.y, frame.map.height - 1),
+        };
+      }
       const nextSelected = frame.actors.find((actor) => actor.selected);
       const nextSelectedId = nextSelected?.id ?? null;
       if (nextSelectedId !== selectedActorId) followingSelected = true;
       selectedActorId = nextSelectedId;
       activeEffectLabels = [...new Set(frame.effects.map(({ label }) => label))];
+      mapDrawList = createBattlefieldMapDrawList(frame.map, mapAtlas.skin(frame.map.id));
       updateCanvasDescription();
       if (followingSelected && nextSelected) camera.follow(nextSelected.position);
       previous = current;
@@ -410,12 +538,15 @@ export function createCanvasBattlefieldViewport(
       canvas.removeEventListener("keydown", onKeyDown);
       previous = null;
       current = null;
-      if (atlasImage) {
-        atlasImage.onload = null;
-        atlasImage.onerror = null;
-        atlasImage.src = "";
+      mapDrawList = null;
+      for (const image of [spriteAtlasImage, mapAtlasImage]) {
+        if (!image) continue;
+        image.onload = null;
+        image.onerror = null;
+        image.src = "";
       }
-      atlasImage = null;
+      spriteAtlasImage = null;
+      mapAtlasImage = null;
       host.replaceChildren();
     },
   };
@@ -424,19 +555,34 @@ export function createCanvasBattlefieldViewport(
   observer?.observe(host);
   viewport.resize({ width: host.clientWidth || 640, height: host.clientHeight || 360 });
 
-  const manifestUrl = new URL(
+  const spriteManifestUrl = new URL(
     `${import.meta.env.BASE_URL}assets/visual/sprites/officers/manifest.json`,
     document.baseURI,
   ).href;
+  const mapManifestUrl = new URL(
+    `${import.meta.env.BASE_URL}assets/visual/maps/battlefield/manifest.json`,
+    document.baseURI,
+  ).href;
   const fetchManifest = options.fetchManifest ?? fetch;
-  void loadSpriteAtlas(manifestUrl, (input, init) => fetchManifest(input, {
+  const fetchAsset = (input: RequestInfo | URL, init?: RequestInit) => fetchManifest(input, {
     ...init,
     signal: abortController.signal,
-  })).then((runtime) => {
+  });
+  void Promise.all([
+    loadSpriteAtlas(spriteManifestUrl, fetchAsset),
+    loadMapAtlas(mapManifestUrl, fetchAsset),
+  ]).then(([nextSpriteAtlas, nextMapAtlas]) => {
     if (destroyed) return;
-    atlas = runtime;
-    if (runtime.status === "degraded") {
-      showAssetStatus("전장 sprite를 불러오지 못해 식별 가능한 대체 표식을 표시합니다.");
+    spriteAtlas = nextSpriteAtlas;
+    mapAtlas = nextMapAtlas;
+    if (current) {
+      mapDrawList = createBattlefieldMapDrawList(
+        current.frame.map,
+        mapAtlas.skin(current.frame.map.id),
+      );
+    }
+    if (nextSpriteAtlas.status === "degraded" || nextMapAtlas.status === "degraded") {
+      showAssetStatus("전장 map 또는 sprite를 불러오지 못해 식별 가능한 대체 표식을 표시합니다.");
     }
     schedule();
   });

@@ -10,6 +10,7 @@ const root = document.querySelector<HTMLElement>("#fixture-root");
 if (!root) throw new Error("Chrome fixture root is missing.");
 
 const session = createGameSession(bridgeDefenseCampaign, "chrome-fixture");
+const mapPreview = new URLSearchParams(window.location.search).has("map-preview");
 const app = mountGameApp(root, bridgeDefenseCampaign, session, {
   frameScheduler: {
     request: (callback) => window.requestAnimationFrame(callback),
@@ -20,6 +21,10 @@ const app = mountGameApp(root, bridgeDefenseCampaign, session, {
 root.querySelector<HTMLButtonElement>('[data-action="start-attempt"]')?.click();
 await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+if (mapPreview) {
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+}
 
 const grid = root.querySelector<HTMLElement>(".operation-grid");
 const battlefield = root.querySelector<HTMLElement>("[data-region='battlefield']");
@@ -28,18 +33,21 @@ const gridWidth = grid?.getBoundingClientRect().width ?? 0;
 const battlefieldWidth = battlefield?.getBoundingClientRect().width ?? 0;
 const centralShare = gridWidth === 0 ? 0 : battlefieldWidth / gridWidth;
 
-root.querySelector<HTMLButtonElement>('[data-action="pause"]')?.click();
-root.querySelector<HTMLElement>('[data-officer-id="captain-han"]')
-  ?.querySelector<HTMLButtonElement>('[data-action="inspect-officer"]')
-  ?.click();
-root.querySelector<HTMLButtonElement>('[data-action="resume"]')?.click();
+if (!mapPreview) {
+  root.querySelector<HTMLButtonElement>('[data-action="pause"]')?.click();
+  root.querySelector<HTMLElement>('[data-officer-id="captain-han"]')
+    ?.querySelector<HTMLButtonElement>('[data-action="inspect-officer"]')
+    ?.click();
+  root.querySelector<HTMLButtonElement>('[data-action="resume"]')?.click();
+  const remainingMs = (session.read().operation?.durationMs ?? 0) -
+    (session.read().operation?.elapsedMs ?? 0);
+  session.advance(remainingMs);
+  app.render();
+}
 const tutorialCompleted = session.read().tutorial.currentStep === null;
-const remainingMs = (session.read().operation?.durationMs ?? 0) -
-  (session.read().operation?.elapsedMs ?? 0);
-session.advance(remainingMs);
-app.render();
 
 const result = {
+  mapPreview,
   phase: session.read().phase,
   sceneId: session.read().scene.identity.id,
   mapId: battlefield?.dataset.mapId ?? null,
@@ -53,16 +61,18 @@ const result = {
     bridgeDefenseCampaign.scenes[0].copy.success,
   ) ?? false,
 };
-const passed = result.phase === "debrief" &&
-  result.sceneId === "haein-bridge-defense" &&
+const passed = result.sceneId === "haein-bridge-defense" &&
   result.mapId === bridgeDefenseMapSkin.id &&
   result.centralShare >= 0.7 &&
   result.canvasWidth > 0 &&
   result.canvasHeight > 0 &&
   result.officerCount === 4 &&
-  result.tutorialCompleted &&
-  result.debriefStatus === "success" &&
-  result.debriefCopyVisible;
+  (mapPreview
+    ? result.phase === "operation"
+    : result.phase === "debrief" &&
+      result.tutorialCompleted &&
+      result.debriefStatus === "success" &&
+      result.debriefCopyVisible);
 
 const output = document.createElement("pre");
 output.id = "fixture-result";

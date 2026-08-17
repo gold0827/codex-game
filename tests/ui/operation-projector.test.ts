@@ -28,6 +28,19 @@ describe("operation presentation projector", () => {
     if (!operation) throw new Error("Missing operation fixture.");
 
     const frame = projectBattlefieldFrame(snapshot);
+    expect(frame?.map).toMatchObject({
+      id: snapshot.scene.presentation.mapId,
+      width: snapshot.scene.mapTopology?.width,
+      height: snapshot.scene.mapTopology?.height,
+      tiles: expect.arrayContaining([
+        expect.objectContaining({ kind: "blocked" }),
+        expect.objectContaining({ kind: "rough" }),
+      ]),
+    });
+    expect(frame?.map.locations).toHaveLength(
+      (snapshot.scene.mapTopology?.spawns.length ?? 0) +
+      (snapshot.scene.mapTopology?.destinations.length ?? 0),
+    );
     expect(frame?.actors).toHaveLength(operation.spatial.actors.length);
     expect(frame?.effects.some(({ kind }) => kind === "movement")).toBe(true);
     frame?.actors.forEach((actor) => {

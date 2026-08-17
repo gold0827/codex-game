@@ -48,6 +48,13 @@ class TestResizeObserver {
 }
 
 const frame = (x: number): BattlefieldFrame => ({
+  map: {
+    id: "test-map",
+    width: 24,
+    height: 16,
+    tiles: [],
+    locations: [],
+  },
   actors: [{
     id: "major-baek",
     position: { x, y: 7 },
@@ -140,6 +147,8 @@ describe("persistent Canvas battlefield viewport", () => {
     const canvas = host.querySelector<HTMLCanvasElement>("canvas");
     if (!canvas) throw new Error("canvas must be mounted");
 
+    viewport.update({ ...frame(2), actors: [] });
+
     canvas.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 320, clientY: 180 }));
     canvas.dispatchEvent(new MouseEvent("pointerup", { button: 0, clientX: 320, clientY: 180 }));
 
@@ -171,11 +180,40 @@ describe("persistent Canvas battlefield viewport", () => {
     const canvas = host.querySelector<HTMLCanvasElement>("canvas");
     if (!canvas) throw new Error("canvas must be mounted");
 
+    viewport.update({ ...frame(2), actors: [] });
+
     canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
     canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
     expect(selected).toEqual([{ x: 13, y: 8 }, { x: 13, y: 9 }]);
     expect(canvas.dataset.selectedTile).toBe("13,9");
+    viewport.destroy();
+  });
+
+  it("uses the current map dimensions for camera and keyboard selection bounds", () => {
+    const host = document.createElement("section");
+    const selected: Array<Readonly<{ x: number; y: number }>> = [];
+    const viewport = createCanvasBattlefieldViewport(host, {
+      scheduler: new TestScheduler(),
+      resizeObserver: TestResizeObserver as unknown as typeof ResizeObserver,
+      fetchManifest: async () => { throw new Error("offline"); },
+      onTileSelected: (position) => selected.push(position),
+    });
+    const canvas = host.querySelector<HTMLCanvasElement>("canvas");
+    if (!canvas) throw new Error("canvas must be mounted");
+    viewport.update({
+      ...frame(2),
+      map: { id: "small", width: 4, height: 3, tiles: [], locations: [] },
+      actors: [],
+    });
+
+    for (let index = 0; index < 10; index += 1) {
+      canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    }
+
+    expect(selected.at(-1)).toEqual({ x: 3, y: 2 });
+    expect(viewport.readCamera().center).toEqual({ x: 1.5, y: 1 });
     viewport.destroy();
   });
 

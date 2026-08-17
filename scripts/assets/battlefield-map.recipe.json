@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "columns": 4,
+  "palette": {
+    "outline": "#101815",
+    "ground": "#415c45",
+    "groundLight": "#587052",
+    "groundDark": "#304638",
+    "rough": "#776b46",
+    "roughLight": "#9b8956",
+    "water": "#24545d",
+    "waterLight": "#3c7b7d",
+    "bridge": "#9a7445",
+    "bridgeLight": "#c19a5d",
+    "canvas": "#d1b873",
+    "signal": "#73d5c8",
+    "objective": "#e6cf72",
+    "danger": "#ef6b61"
+  }
+}

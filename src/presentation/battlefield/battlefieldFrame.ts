@@ -25,6 +25,24 @@ export type BattlefieldFacing =
 
 export type BattlefieldCue = "destination-reached" | "low-health";
 
+export type BattlefieldMapTileKind = "blocked" | "rough";
+export type BattlefieldMapLocationKind = "spawn" | "destination";
+
+export type BattlefieldMapFrame = Readonly<{
+  id: string;
+  width: number;
+  height: number;
+  tiles: readonly Readonly<{
+    kind: BattlefieldMapTileKind;
+    position: WorldPosition;
+  }>[];
+  locations: readonly Readonly<{
+    id: string;
+    kind: BattlefieldMapLocationKind;
+    position: WorldPosition;
+  }>[];
+}>;
+
 export type BattlefieldActorFrame = Readonly<{
   id: string;
   position: WorldPosition;
@@ -36,6 +54,7 @@ export type BattlefieldActorFrame = Readonly<{
 }>;
 
 export type BattlefieldFrame = Readonly<{
+  map: BattlefieldMapFrame;
   actors: readonly BattlefieldActorFrame[];
   effects: readonly EffectSample[];
 }>;

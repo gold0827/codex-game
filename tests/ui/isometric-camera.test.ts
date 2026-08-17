@@ -29,6 +29,20 @@ describe("isometric camera runtime", () => {
     expect(camera.panBy({ x: 10_000, y: 10_000 }).center).toEqual({ x: 0, y: 0 });
   });
 
+  it("replaces map bounds without replacing the persistent camera", () => {
+    const camera = createIsometricCamera({
+      bounds: { minX: 0, minY: 0, maxX: 23, maxY: 15 },
+      viewport: { width: 640, height: 360 },
+      center: { x: 20, y: 14 },
+    });
+
+    expect(camera.setBounds({ minX: 0, minY: 0, maxX: 7, maxY: 5 }).center).toEqual({
+      x: 7,
+      y: 5,
+    });
+    expect(camera.follow({ x: 99, y: 99 }).center).toEqual({ x: 7, y: 5 });
+  });
+
   it("limits zoom and preserves the world point beneath a zoom anchor", () => {
     const camera = createIsometricCamera({
       bounds: { minX: -100, minY: -100, maxX: 100, maxY: 100 },

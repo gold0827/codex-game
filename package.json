@@ -8,7 +8,10 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "assets:sprites": "tsx scripts/assets/generate-officer-sprites.mjs",
-    "check:assets": "tsx scripts/assets/generate-officer-sprites.mjs --check",
+    "assets:maps": "tsx scripts/assets/generate-battlefield-map.mjs",
+    "check:assets:sprites": "tsx scripts/assets/generate-officer-sprites.mjs --check",
+    "check:assets:maps": "tsx scripts/assets/generate-battlefield-map.mjs --check",
+    "check:assets": "npm run check:assets:sprites && npm run check:assets:maps",
     "evaluate:operations": "tsx scripts/evaluate-operations.ts",
     "check:dependencies": "node scripts/check-dependencies.mjs",
     "check": "npm run check:assets && npm run build && npm test && npm run check:dependencies"
