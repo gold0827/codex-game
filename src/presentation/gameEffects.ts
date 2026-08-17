@@ -1,6 +1,5 @@
 import type { GameSession, GameSnapshot } from "../application/game-session";
 import type { GameAudio } from "../ui/GameAudio";
-import type { ThreatImpactViewModel } from "./gameViewModel";
 import { effectAssetManifest } from "./effects/effectAssets";
 import { createEffectCueProjector } from "./effects/effectCueProjector";
 import type { EffectTrack } from "./effects/effectTrack";
@@ -11,7 +10,6 @@ export type GameFrameScheduler = Readonly<{
 }>;
 
 export type GameEffects = Readonly<{
-  threatImpacts: ReadonlyMap<string, ThreatImpactViewModel>;
   effectTrack: EffectTrack;
   observe: (snapshot: GameSnapshot) => void;
   syncFrameLoop: () => void;
@@ -35,7 +33,6 @@ export function createGameEffects(
   let knownThreatIds = new Set<string>();
   let knownEffectCueIds = new Set<string>();
   let destroyed = false;
-  const threatImpacts = new Map<string, ThreatImpactViewModel>();
   const effectCueProjector = createEffectCueProjector();
   let effectTrack: EffectTrack = { cues: [] };
 
@@ -67,7 +64,6 @@ export function createGameEffects(
   }
 
   return {
-    threatImpacts,
     get effectTrack() { return effectTrack; },
     observe: (snapshot) => {
       const soundtrackId = snapshot.scene.presentation.soundtrackId;
@@ -90,23 +86,6 @@ export function createGameEffects(
         audio.cue(snapshot.debrief?.status === "success" ? "success" : "failure");
       }
       previousPhase = snapshot.phase;
-      const operation = snapshot.operation;
-      operation?.threats.forEach((threat) => {
-        const objective = operation.objectives.find(({ id }) => id === threat.target);
-        const unit = operation.units.find(({ lane }) => lane === threat.lane);
-        const observed = objective
-          ? { label: "목표", value: objective.progress }
-          : unit
-            ? { label: "체력", value: unit.health }
-            : null;
-        if (!observed) return;
-        const previous = threatImpacts.get(threat.id);
-        threatImpacts.set(threat.id, {
-          label: observed.label,
-          before: previous?.before ?? observed.value,
-          after: observed.value,
-        });
-      });
     },
     syncFrameLoop,
     restoreFocus: (focusKey) => {

@@ -40,7 +40,10 @@ describe("game presentation view model", () => {
     expect(view.operation?.officers[0]?.facts.flat()).not.toContain(
       snapshot.operation?.officers[0]?.committedAction?.trace.topReason,
     );
-    expect(view.operation?.battlefield.units[0]?.intentLabel).toBeTruthy();
+    expect(view.operation?.officers[0]?.facts).toContainEqual([
+      "의도",
+      expect.any(String),
+    ]);
     expect(view.operation?.recipients[0]?.label).toContain(completeCampaign.officers[0]?.name);
     expect(view.operation?.events.length).toBeGreaterThan(0);
     expect(view.operation?.events.every(({ label }) => !/[A-Za-z]{4}/.test(label))).toBe(true);

@@ -3,7 +3,6 @@ import type {
   HarnessAxis,
   PlayerSpeed,
 } from "../application/game-session";
-import { projectBattlefieldFrame } from "./operation/battlefieldProjector";
 
 export type PresentationCampaign = Readonly<{
   title: string;
@@ -11,22 +10,9 @@ export type PresentationCampaign = Readonly<{
   officers: readonly Readonly<{ id: string; rank: string; name: string }>[];
 }>;
 
-export type ThreatImpactViewModel = Readonly<{
-  label: string;
-  before: number;
-  after: number;
-}>;
-
-export type HudViewModel = ReturnType<typeof projectHudViewModel>;
-type OperationHudViewModel = NonNullable<HudViewModel["operation"]>;
-type LegacyBattlefieldViewModel = NonNullable<ReturnType<typeof projectLegacyBattlefield>>;
 type OperationResult = NonNullable<NonNullable<GameSnapshot["operation"]>["result"]>;
 type FailureCauseCode = OperationResult["failureCauses"][number]["code"];
-export type GameViewModel = Omit<HudViewModel, "operation"> & Readonly<{
-  operation: (OperationHudViewModel & Readonly<{
-    battlefield: LegacyBattlefieldViewModel;
-  }>) | null;
-}>;
+export type GameViewModel = ReturnType<typeof projectGameViewModel>;
 
 const harnessLabels: Readonly<
   Record<HarnessAxis, Readonly<{ name: string; low: string; high: string }>>
@@ -115,18 +101,6 @@ const phaseLabels = {
   debrief: "결과 보고",
   epilogue: "졸업",
 } as const;
-
-const laneLabels = { north: "북쪽", center: "중앙", south: "남쪽", command: "지휘" } as const;
-const severityLabels = { low: "낮음", medium: "보통", high: "높음", critical: "치명" } as const;
-const threatKindLabels = {
-  communications: "통신",
-  flood: "침수",
-  artillery: "포격",
-  ambush: "매복",
-  misinformation: "거짓 정보",
-  obstruction: "장애물",
-} as const;
-const threatResultLabels = { blocked: "차단", "damaged-objective": "목표 피해" } as const;
 
 const failureCauseLabels = {
   "vehicle-not-arrived": "부대가 지정 목적지에 도착하지 못했습니다.",
@@ -221,7 +195,7 @@ function projectDebrief(
   } as const;
 }
 
-export function projectHudViewModel(
+export function projectGameViewModel(
   snapshot: GameSnapshot,
   campaign: PresentationCampaign,
 ) {
@@ -294,6 +268,7 @@ export function projectHudViewModel(
       : null,
     operation: operation
       ? {
+          mapId: snapshot.scene.presentation.mapId,
           elapsed: formatGameTime(operation.elapsedMs),
           paused: snapshot.paused,
           speed: snapshot.playerSpeed,
@@ -384,77 +359,6 @@ export function projectHudViewModel(
       subtitle: snapshot.scene.copy.subtitle,
       briefing: snapshot.scene.copy.briefing,
       success: snapshot.scene.copy.success,
-    },
-  } as const;
-}
-
-function projectLegacyBattlefield(
-  snapshot: GameSnapshot,
-  campaign: PresentationCampaign,
-) {
-  const operation = snapshot.operation;
-  const battlefieldFrame = projectBattlefieldFrame(snapshot);
-  if (!operation || !battlefieldFrame) return null;
-  const roster = new Map(campaign.officers.map((officer) => [officer.id, officer]));
-  return {
-    mapId: snapshot.scene.presentation.mapId,
-    fixedStepLabel: `고정 스텝 ${operation.fixedStepMs}ms`,
-    units: battlefieldFrame.actors.map((actor, index) => {
-      const unit = operation.units.find(({ officerId }) => officerId === actor.id);
-      if (!unit) throw new Error(`Missing operation unit for battlefield actor "${actor.id}".`);
-      const normalizedX = actor.position.x / Math.max(1, operation.spatial.topology.width - 1);
-      const normalizedY = actor.position.y / Math.max(1, operation.spatial.topology.height - 1);
-      const lane: keyof typeof laneLabels = normalizedY < 0.2
-        ? "command"
-        : normalizedY < 0.42
-          ? "north"
-          : normalizedY < 0.7
-            ? "center"
-            : "south";
-      return {
-        sprite: index + 1,
-        left: 8 + normalizedX * 82,
-        lane,
-        laneLabel: laneLabels[lane],
-        intent: unit.intent,
-        intentLabel: intentLabels[unit.intent],
-        health: Math.round(actor.health),
-        officerName: roster.get(actor.id)?.name ?? actor.id,
-      };
-    }),
-    threats: operation.threats.map((threat, index) => {
-      const duration = Math.max(1, threat.telegraphEndsAtMs - threat.telegraphedAtMs);
-      const progress = threat.state === "resolved" ? 100 : Math.max(0, Math.min(100, ((operation.elapsedMs - threat.telegraphedAtMs) / duration) * 100));
-      const stateLabel = threat.result ? threatResultLabels[threat.result] : threat.state === "resolved" ? "해결" : "예고 중";
-      return {
-        id: threat.id,
-        index,
-        lane: threat.lane,
-        laneLabel: laneLabels[threat.lane],
-        severity: threat.severity,
-        severityLabel: severityLabels[threat.severity],
-        kindLabel: threatKindLabels[threat.kind],
-        state: threat.state,
-        stateLabel,
-        progress,
-      };
-    }),
-  } as const;
-}
-
-export function projectGameViewModel(
-  snapshot: GameSnapshot,
-  campaign: PresentationCampaign,
-): GameViewModel {
-  const hud = projectHudViewModel(snapshot, campaign);
-  if (!hud.operation) return { ...hud, operation: null };
-  const battlefield = projectLegacyBattlefield(snapshot, campaign);
-  if (!battlefield) throw new Error("Missing battlefield for operation HUD.");
-  return {
-    ...hud,
-    operation: {
-      ...hud.operation,
-      battlefield,
     },
   } as const;
 }
