@@ -67,6 +67,33 @@
   opacity: 0.72;
 }
 
+.briefing-officer-lessons {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 24px;
+}
+
+.briefing-officer-memory {
+  padding: 10px 12px;
+  border: 1px solid #29483c;
+  background: rgba(103, 193, 163, 0.06);
+}
+
+.briefing-officer-memory strong {
+  color: var(--scene-accent);
+  font-size: 11px;
+}
+
+.briefing-officer-memory ul {
+  display: grid;
+  gap: 4px;
+  margin: 7px 0 0;
+  padding-left: 17px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .harness-controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

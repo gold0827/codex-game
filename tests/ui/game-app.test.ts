@@ -333,7 +333,14 @@ describe("production game app", () => {
       );
       expect(lessonChoices).toHaveLength(completeCampaign.officers.length);
       expect(lessonChoices[0]?.textContent).toContain(completeCampaign.officers[0]?.name);
+      const selectedLesson = session.read().debrief?.lessonChoices[0];
       lessonChoices[0]?.click();
+      if (session.read().phase === "briefing") {
+        const memory = root.querySelector<HTMLElement>('[data-region="officer-lessons"]');
+        expect(memory?.textContent).toContain(selectedLesson?.summary);
+        expect(memory?.querySelectorAll("li").length).toBeLessThanOrEqual(2);
+        expect(memory?.textContent).not.toMatch(/major-baek|:lesson/);
+      }
     }
 
     expect(playedScenes).toEqual(
@@ -348,5 +355,28 @@ describe("production game app", () => {
     action("reset-campaign").click();
     expect(session.read().phase).toBe("briefing");
     expect(session.read().progress.completedSceneIds).toEqual([]);
+  });
+
+  it("shows a selected officer lesson in the next briefing and operation", () => {
+    startAttempt();
+    completeTutorial();
+    const operation = session.read();
+    const remaining =
+      operation.scene.encounterParameters.durationMs -
+      (operation.operation?.elapsedMs ?? 0);
+    advanceRealTime(remaining / operation.scene.gameplayTuning.simulationSpeed + 2);
+
+    const lesson = session.read().debrief?.lessonChoices[0];
+    if (!lesson) throw new Error("A successful operation must offer a lesson.");
+    root.querySelector<HTMLButtonElement>('[data-action="choose-lesson"]')?.click();
+
+    const memories = root.querySelector<HTMLElement>('[data-region="officer-lessons"]');
+    expect(memories?.textContent).toContain("소령 백돌격");
+    expect(memories?.textContent).toContain(lesson.summary);
+    expect(memories?.textContent).not.toContain("대위 한확인");
+
+    startAttempt();
+    expect(root.querySelector('[data-region="officers"]')?.textContent).toContain("축적 교훈");
+    expect(root.querySelector('[data-region="officers"]')?.textContent).toContain(lesson.summary);
   });
 });
