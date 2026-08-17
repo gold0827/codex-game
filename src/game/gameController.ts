@@ -150,7 +150,7 @@ export function createGameController(
     deriveRunSeed(
       definition.id,
       scene.identity.id,
-      `${String(baseSeed)}:attempt-${attemptNumber}`,
+      baseSeed,
     );
 
   const routeReportsExist = (): boolean => {

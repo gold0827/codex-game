@@ -244,7 +244,7 @@ describe("game controller operation", () => {
 });
 
 describe("game controller campaign flow", () => {
-  it("runs a poor attempt into retry, increments its seed, and retries successfully", () => {
+  it("runs a poor attempt into a stable-seed retry, then retries successfully", () => {
     const controller = createGameController(completeCampaign, "retry-base");
     controller.setHarness(POOR_HARNESS);
     const firstSeed = controller.snapshot().attemptSeed;
@@ -260,7 +260,7 @@ describe("game controller campaign flow", () => {
       attemptNumber: 2,
       harness: POOR_HARNESS,
     });
-    expect(controller.snapshot().attemptSeed).not.toBe(firstSeed);
+    expect(controller.snapshot().attemptSeed).toBe(firstSeed);
 
     controller.setHarness(BALANCED_HARNESS);
     playBalancedAttempt(controller);
