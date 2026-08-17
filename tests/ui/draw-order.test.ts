@@ -35,6 +35,19 @@ describe("battlefield draw order", () => {
     ]);
   });
 
+  it.each(["tree", "rock", "barricade"] as const)(
+    "depth-sorts the %s obstacle with actors and effects",
+    (obstacle) => {
+      const rearActor = renderable("rear-unit", "actor", 1, 2);
+      const effect = renderable("signal", "effect", 3, 2);
+      const actor = renderable("unit", "actor", 3, 2);
+      const prop = renderable(obstacle, "prop", 3, 2);
+
+      expect(orderBattlefieldRenderables([prop, actor, effect, rearActor]).map(({ id }) => id))
+        .toEqual(["rear-unit", "signal", "unit", obstacle]);
+    },
+  );
+
   it("draws a world effect beneath an actor and prop at the same foot depth", () => {
     const effect = renderable("signal", "effect", 3, 2);
     const actor = renderable("unit", "actor", 3, 2);

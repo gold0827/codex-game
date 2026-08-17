@@ -40,6 +40,12 @@ describe("battlefield map atlas asset contract", () => {
     expect(validation.ok).toBe(true);
     if (!validation.ok) throw new Error("production map manifest must be valid");
     expect(Object.keys(validation.manifest.frames)).toEqual(MAP_ATLAS_KINDS);
+    for (const kind of ["tree", "rock", "barricade"] as const) {
+      expect(validation.manifest.frames[kind]).toMatchObject({
+        anchor: { x: 32, y: 80 },
+        rect: { width: 64, height: 96 },
+      });
+    }
     expect(validation.manifest.skins[bridgeDefenseMapSkin.id]).toMatchObject({
       tiles: expect.arrayContaining([
         expect.objectContaining({ id: "haein-bridge", kind: "bridge", position: { x: 11, y: 7 } }),
@@ -47,8 +53,40 @@ describe("battlefield map atlas asset contract", () => {
       ]),
       props: bridgeDefenseMapSkin.landmarks,
     });
-    expect(readFileSync(join(productionDirectory, validation.manifest.image), "utf8"))
-      .toContain("<title>자율군단 아이소메트릭 battlefield map atlas</title>");
+    const atlas = readFileSync(join(productionDirectory, validation.manifest.image), "utf8");
+    expect(atlas).toContain("<title>자율군단 아이소메트릭 battlefield map atlas</title>");
+    const obstacleArtwork = ["tree", "rock", "barricade"].map((kind) =>
+      atlas.match(new RegExp(`<g data-kind="${kind}"[^>]*>(.*?)</g>`))?.[1],
+    );
+    expect(obstacleArtwork.every(Boolean)).toBe(true);
+    expect(new Set(obstacleArtwork).size).toBe(3);
+    expect(obstacleArtwork.every((artwork) => !artwork?.includes("32,64 63,80 32,95 1,80")))
+      .toBe(true);
+  });
+
+  it("rejects invalid obstacle kinds, coordinates, and frames", () => {
+    const manifest = readProduction() as Record<string, unknown>;
+    const frames = manifest.frames as Record<string, unknown>;
+    const skins = manifest.skins as Record<string, { props: unknown[] }>;
+    const bridgeSkin = skins[bridgeDefenseMapSkin.id];
+    if (!bridgeSkin) throw new Error("bridge skin must exist");
+    frames.tree = {
+      rect: { x: 0, y: 0, width: 0, height: 96 },
+      anchor: { x: 32, y: 80 },
+    };
+    bridgeSkin.props.push(
+      { id: "unknown", kind: "hedge", position: { x: 1, y: 1 } },
+      { id: "negative", kind: "rock", position: { x: -1, y: 1 } },
+    );
+
+    expect(validateMapAtlasManifest(manifest)).toEqual({
+      ok: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ path: "frames.tree.rect" }),
+        expect.objectContaining({ path: `skins.${bridgeDefenseMapSkin.id}.props[2]` }),
+        expect.objectContaining({ path: `skins.${bridgeDefenseMapSkin.id}.props[3]` }),
+      ]),
+    });
   });
 
   it("isolates an invalid frame while retaining valid frames and skins", () => {

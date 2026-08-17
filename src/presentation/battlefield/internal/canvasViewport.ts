@@ -215,6 +215,9 @@ export function createCanvasBattlefieldViewport(
       destination: "#e6cf72",
       "command-post": "#d1b873",
       "civilian-shelter": "#c19a5d",
+      tree: "#315c3b",
+      rock: "#65716b",
+      barricade: "#8a5f36",
     };
     context.save();
     context.fillStyle = colors[kind];
@@ -229,7 +232,13 @@ export function createCanvasBattlefieldViewport(
     if (kind === "spawn" || kind === "destination") context.globalAlpha = 0.7;
     context.fill();
     context.stroke();
-    if (kind === "command-post" || kind === "civilian-shelter") {
+    if (
+      kind === "command-post" ||
+      kind === "civilian-shelter" ||
+      kind === "tree" ||
+      kind === "rock" ||
+      kind === "barricade"
+    ) {
       context.fillRect(
         Math.round(center.x - 10 * scale),
         Math.round(center.y - 22 * scale),

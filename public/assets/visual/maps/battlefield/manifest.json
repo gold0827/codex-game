@@ -3,7 +3,7 @@
   "image": "atlas.svg",
   "size": {
     "width": 256,
-    "height": 288
+    "height": 384
   },
   "frames": {
     "ground-a": {
@@ -130,6 +130,42 @@
       "rect": {
         "x": 128,
         "y": 192,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "tree": {
+      "rect": {
+        "x": 192,
+        "y": 192,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "rock": {
+      "rect": {
+        "x": 0,
+        "y": 288,
+        "width": 64,
+        "height": 96
+      },
+      "anchor": {
+        "x": 32,
+        "y": 80
+      }
+    },
+    "barricade": {
+      "rect": {
+        "x": 64,
+        "y": 288,
         "width": 64,
         "height": 96
       },
