@@ -14,10 +14,12 @@ import {
   type OperationResult,
   type OperationSnapshot,
   type OperationSpatialSignalSnapshot,
+  type OperationThreatSnapshot,
   type OperationUnitSnapshot,
 } from "../../../simulation/simulationTypes";
 import type { OperationEvent } from "../operationEvent";
 import type { SpatialWorld } from "./spatial";
+import type { EncounterSimulation } from "./encounterTypes";
 import type {
   AppendReplay,
   MutableMessage,
@@ -49,13 +51,15 @@ type OutcomeContext = {
   operationEvents: OperationEvent[];
   appendReplay: AppendReplay;
   spatialWorld: SpatialWorld;
+  encounter: EncounterSimulation;
+  threatActorId: (threatId: string) => string;
 };
 
 export function createOutcome(context: OutcomeContext) {
   const {
     scene, harness, consequences, durationMs, state,
     officers, messages, spatialSignals, threats, units, objectives, metrics, replayEntries, operationEvents, appendReplay,
-    spatialWorld,
+    spatialWorld, encounter, threatActorId,
   } = context;
 
   let operationResult: OperationResult | null = null;
@@ -359,6 +363,21 @@ export function createOutcome(context: OutcomeContext) {
   const signalSnapshots = (): OperationSpatialSignalSnapshot[] =>
     spatialSignals.map((signal) => clone(signal));
   const objectiveSnapshots = (): OperationObjectiveSnapshot[] => objectives.map((objective) => ({ ...objective }));
+  const threatSnapshots = (): OperationThreatSnapshot[] => {
+    const encounterActors = encounter.snapshot().actors;
+    return threats.map((threat) => {
+      const actorId = threatActorId(threat.id);
+      const actor = encounterActors.find(({ id }) => id === actorId);
+      if (!actor) throw new Error(`Missing hostile encounter actor "${actorId}".`);
+      return {
+        ...threat,
+        tile: actor.position,
+        health: actor.health,
+        suppression: actor.suppression,
+        panicReaction: actor.panicReaction,
+      };
+    });
+  };
   const unitSnapshots = (): OperationUnitSnapshot[] => {
     const spatial = spatialWorld.snapshot();
     return units.map((unit) => {
@@ -388,7 +407,7 @@ export function createOutcome(context: OutcomeContext) {
     officers: officerSnapshots(),
     messages: messageSnapshots(),
     signals: signalSnapshots(),
-    threats,
+    threats: threatSnapshots(),
     units: unitSnapshots(),
     spatial: spatialWorld.snapshot(),
     objectives: objectiveSnapshots(),

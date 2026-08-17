@@ -129,6 +129,10 @@ export interface OperationThreatSnapshot {
   readonly kind: ThreatKind;
   readonly lane: ThreatLane;
   readonly severity: ThreatSeverity;
+  readonly tile: CampaignTilePosition;
+  readonly health: number;
+  readonly suppression: number;
+  readonly panicReaction: PanicReaction | null;
   readonly target: string;
   readonly telegraphedAtMs: number;
   readonly telegraphEndsAtMs: number;

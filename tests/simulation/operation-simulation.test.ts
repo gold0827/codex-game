@@ -71,6 +71,63 @@ describe("operation spatial execution", () => {
     );
     expect(first.actors.every(({ destination, path }) => destination === null && path.length === 0)).toBe(true);
   });
+
+  it("projects each telegraphed hostile actor tile and current combat state into an immutable threat snapshot", () => {
+    const scene = playableScenes.find(
+      ({ identity }) => identity.id === "misaddressed-artillery",
+    ) as CampaignScene;
+    const createRun = () => createOperationSimulation(
+      scene,
+      completeCampaign.officers,
+      101,
+      poorHarness,
+    );
+    const first = createRun();
+    const replay = createRun();
+
+    first.advance(14_000);
+    replay.advance(14_000);
+    const telegraphed = first.snapshot().threats[0];
+
+    expect(telegraphed).toMatchObject({
+      id: "artillery-ceremonial-volley",
+      state: "telegraphed",
+      result: null,
+      tile: { x: 23, y: 8 },
+      health: 100,
+      suppression: 0,
+      panicReaction: null,
+    });
+    expect(replay.snapshot().threats).toEqual(first.snapshot().threats);
+
+    const returned = first.snapshot() as unknown as {
+      threats: Array<{ tile: { x: number }; health: number }>;
+    };
+    returned.threats[0]!.tile.x = 0;
+    returned.threats[0]!.health = 0;
+    expect(first.snapshot().threats[0]).toMatchObject({
+      tile: { x: 23, y: 8 },
+      health: 100,
+    });
+
+    first.advance(6_000);
+    const resolved = first.snapshot().threats[0];
+    const finalSuppression = first.events().filter((event) =>
+      event.kind === "unit-suppressed" &&
+      event.data.actorId === "threat:artillery-ceremonial-volley"
+    ).at(-1);
+
+    expect(resolved).toMatchObject({
+      id: "artillery-ceremonial-volley",
+      state: "resolved",
+      result: "damaged-objective",
+      tile: { x: 23, y: 8 },
+      health: 100,
+      suppression: 1,
+      panicReaction: "misidentify",
+    });
+    expect(finalSuppression?.data.suppression).toBe(resolved?.suppression);
+  });
 });
 
 describe("seeded random", () => {
