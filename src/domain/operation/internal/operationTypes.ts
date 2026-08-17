@@ -2,11 +2,13 @@ import type { AgentProfile, OfficerDisposition, ThreatLane } from "../../../camp
 import type { BoundedMemory } from "./agent/memory";
 import type { PerceptionMemoryEntry } from "./agent/perception";
 import type { ActionCommitment } from "./agent/actions";
+import type { PanicReaction } from "./encounterTypes";
 import type {
   OfficerIntent,
   OperationThreatSnapshot,
   OperationMessageSnapshot,
   OperationReplayKind,
+  OperationWorldEventKind,
   OperationStatus,
   ReplayDataValue,
 } from "../../../simulation/simulationTypes";
@@ -36,6 +38,8 @@ export type MutableUnit = {
   lane: ThreatLane;
   intent: OfficerIntent;
   health: number;
+  suppression: number;
+  panicReaction: PanicReaction | null;
   objectiveId: string | null;
 };
 export type MutableMetrics = {
@@ -64,6 +68,11 @@ export type AppendReplay = (
   description: string,
   data?: Readonly<Record<string, ReplayDataValue>>,
 ) => void;
+export type AppendWorldEvent = (
+  kind: OperationWorldEventKind,
+  timeMs: number,
+  data?: Readonly<Record<string, ReplayDataValue>>,
+) => void;
 export type SelectAlternative = <Value extends string>(
   reason: string,
   alternatives: readonly Value[],
@@ -71,7 +80,6 @@ export type SelectAlternative = <Value extends string>(
 ) => Value;
 
 export const LANES: readonly ThreatLane[] = ["north", "center", "south", "command"];
-export const SEVERITY_THRESHOLD = { low: 0.3, medium: 0.42, high: 0.52, critical: 0.58 } as const;
 export const SEVERITY_DAMAGE = { low: 4, medium: 8, high: 13, critical: 19 } as const;
 export function clone<Value>(value: Value): Value { return JSON.parse(JSON.stringify(value)) as Value; }
 export function clamp(value: number, minimum = 0, maximum = 1): number { return Math.min(maximum, Math.max(minimum, value)); }

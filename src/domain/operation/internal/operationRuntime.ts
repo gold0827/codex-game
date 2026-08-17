@@ -1,4 +1,10 @@
-import type { CampaignOfficer, CampaignScene, ThreatLane } from "../../../campaign/types";
+import type {
+  CampaignMapTopology,
+  CampaignOfficer,
+  CampaignScene,
+  CampaignTilePosition,
+  ThreatLane,
+} from "../../../campaign/types";
 import { deriveRandomStreamSeed, type RandomSeed } from "../../../simulation/seededRandom";
 import type {
   HarnessConfiguration,
@@ -6,10 +12,15 @@ import type {
   OperationReplayEntry,
   OperationReplayKind,
   OperationSimulation,
+  OperationWorldEventKind,
   ReplayDataValue,
 } from "../../../simulation/simulationTypes";
 import { OPERATION_FIXED_STEP_MS } from "../../../simulation/simulationTypes";
-import { projectOperationReplay, type OperationEvent } from "../operationEvent";
+import {
+  projectOperationReplay,
+  type OperationEvent,
+  type OperationReplayEvent,
+} from "../operationEvent";
 import { confidenceFor, createDecisions } from "./decisions";
 import { createOutcome } from "./outcome";
 import { createSignals } from "./signals";
@@ -24,7 +35,7 @@ import type {
   MutableUnit,
   OperationRuntimeState,
 } from "./operationTypes";
-import { LANES, clamp, clone, rounded } from "./operationTypes";
+import { LANES, SEVERITY_DAMAGE, clamp, clone, rounded } from "./operationTypes";
 import {
   createOperationRandomStreams,
   operationRandomStreamKey,
@@ -33,6 +44,41 @@ import { createSpatialWorld } from "./spatial";
 import { createBoundedMemory } from "./agent/memory";
 import { defaultAgentProfile } from "./agent/perception";
 import { DEFAULT_INTENT_BY_DISPOSITION } from "./agent/actions";
+import { createEncounterSimulation } from "./encounters";
+import type { EncounterActorDefinition } from "./encounterTypes";
+
+const threatActorId = (threatId: string): string => `threat:${threatId}`;
+
+function allocateThreatPositions(
+  topology: CampaignMapTopology,
+  lanes: readonly ThreatLane[],
+): CampaignTilePosition[] {
+  const reserved = new Set([
+    ...topology.blocked,
+    ...topology.spawns.map(({ position }) => position),
+    ...topology.destinations.map(({ position }) => position),
+    ...topology.terrain.map(({ position }) => position),
+  ].map(({ x, y }) => `${x},${y}`));
+  const laneY: Record<ThreatLane, number> = {
+    north: Math.round((topology.height - 1) * 0.15),
+    center: Math.round((topology.height - 1) * 0.5),
+    south: Math.round((topology.height - 1) * 0.8),
+    command: Math.round((topology.height - 1) * 0.5),
+  };
+  return lanes.map((lane) => {
+    const candidates = Array.from({ length: topology.width * topology.height }, (_, index) => ({
+      x: index % topology.width,
+      y: Math.floor(index / topology.width),
+    })).sort((left, right) =>
+      Math.abs(left.y - laneY[lane]) - Math.abs(right.y - laneY[lane]) ||
+      right.x - left.x || left.y - right.y
+    );
+    const position = candidates.find((candidate) => !reserved.has(`${candidate.x},${candidate.y}`));
+    if (!position) throw new RangeError("Operation map has no traversable tile for an authored threat.");
+    reserved.add(`${position.x},${position.y}`);
+    return position;
+  });
+}
 
 function assertHarness(harness: HarnessConfiguration): void {
   const fields = ["informationReach", "authorityClarity", "verificationDepth", "feedbackCompression"] as const;
@@ -141,6 +187,8 @@ export function createOperationSimulation(
     lane: LANES[index % LANES.length] as ThreatLane,
     intent: DEFAULT_INTENT_BY_DISPOSITION[officer.disposition],
     health: 100,
+    suppression: 0,
+    panicReaction: null,
     objectiveId: objectives[index % Math.max(1, objectives.length)]?.id ?? null,
   }));
   if (mapTopology.spawns.length < roster.length ||
@@ -160,6 +208,55 @@ export function createOperationSimulation(
       destination: mapTopology.destinations[index]!.position,
     });
   });
+  const authoredThreats = orderedBeats.flatMap(({ threats }) => threats);
+  const threatPositions = allocateThreatPositions(
+    mapTopology,
+    authoredThreats.map(({ lane }) => lane),
+  );
+  const encounterRange = Math.max(2, Math.ceil(Math.hypot(mapTopology.width, mapTopology.height) * 0.5));
+  const officerActors: EncounterActorDefinition[] = roster.map((officer, index) => {
+    const runtimeOfficer = officers[index] as MutableOfficer;
+    return {
+      id: officer.id,
+      team: "officer",
+      position: mapTopology.spawns[index]!.position,
+      disposition: officer.disposition,
+      profile: runtimeOfficer.profile,
+      weapon: {
+        range: encounterRange,
+        accuracy: readiness >= 0.52 ? clamp(0.55 + readiness * 0.7) : readiness * 0.6,
+        damage: 100,
+        suppression: 0.4,
+      },
+    };
+  });
+  const hostileActors: EncounterActorDefinition[] = authoredThreats.map((threat, index) => ({
+    id: threatActorId(threat.id),
+    team: "hostile",
+    position: threatPositions[index]!,
+    disposition: "action",
+    profile: {
+      initiative: 0.7,
+      caution: 0.25,
+      discipline: 0.55,
+      cooperation: 0.2,
+      stressTolerance: 0.7,
+      memoryCapacity: 1,
+      sourceTrust: [],
+    },
+    weapon: {
+      range: Math.hypot(mapTopology.width, mapTopology.height),
+      accuracy: ({ low: 0.55, medium: 0.65, high: 0.75, critical: 0.85 } as const)[threat.severity],
+      damage: SEVERITY_DAMAGE[threat.severity],
+      suppression: ({ low: 0.45, medium: 0.6, high: 0.75, critical: 0.9 } as const)[threat.severity],
+    },
+  }));
+  const encounter = createEncounterSimulation({
+    id: scene.identity.id,
+    topology: mapTopology,
+    cover: mapTopology.terrain.filter(({ movementCost }) => movementCost > 1).map(({ position }) => position),
+    actors: [...officerActors, ...hostileActors],
+  }, deriveRandomStreamSeed(runSeed, operationRandomStreamKey.encounter(scene.identity.id)));
   const metrics: MutableMetrics = {
     objectiveProgress: 0,
     civilianSafety: 100,
@@ -170,16 +267,16 @@ export function createOperationSimulation(
     autonomyScore: 100,
   };
 
-  let replaySequence = 0;
+  let eventSequence = 0;
   const appendReplay = (
     kind: OperationReplayKind,
     timeMs: number,
     description: string,
     data: Readonly<Record<string, ReplayDataValue>> = {},
   ): void => {
-    const event: OperationEvent = {
-      id: `${scene.identity.id}:event-${replaySequence}`,
-      sequence: replaySequence,
+    const event: OperationReplayEvent = {
+      id: `${scene.identity.id}:event-${eventSequence}`,
+      sequence: eventSequence,
       timeMs,
       kind,
       data: clone(data),
@@ -195,7 +292,21 @@ export function createOperationSimulation(
       description: projectedDescription,
       data: Object.fromEntries(Object.entries(projectedEvent.data).filter(([key]) => key !== "description")),
     });
-    replaySequence += 1;
+    eventSequence += 1;
+  };
+  const appendWorldEvent = (
+    kind: OperationWorldEventKind,
+    timeMs: number,
+    data: Readonly<Record<string, ReplayDataValue>> = {},
+  ): void => {
+    operationEvents.push({
+      id: `${scene.identity.id}:event-${eventSequence}`,
+      sequence: eventSequence,
+      timeMs,
+      kind,
+      data: clone(data),
+    });
+    eventSequence += 1;
   };
   const selectAlternative = <Value extends string>(
     stableKey: string,
@@ -238,9 +349,12 @@ export function createOperationSimulation(
     }
   };
   const threatRuntime = createThreats({
-    harness, durationMs, readiness, state, officers, threats, objectives, units, metrics, appendReplay,
+    durationMs, state, officers, threats, objectives, units, metrics, appendReplay,
+    appendWorldEvent,
     addBelief: signals.addBelief,
-    advanceSpatial: spatialWorld.advance,
+    spatialWorld,
+    encounter,
+    threatActorId,
   });
   const outcome = createOutcome({
     scene, harness, consequences, durationMs, readiness, compoundReplanRequired, state,
