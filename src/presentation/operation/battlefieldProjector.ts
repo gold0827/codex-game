@@ -7,6 +7,8 @@ import type {
   BattlefieldFrame,
   WorldPosition,
 } from "../battlefield/battlefieldFrame";
+import { projectEffectTrack } from "../effects/effectCueProjector";
+import { sampleEffectTrack, type EffectTrack } from "../effects/effectTrack";
 
 type Operation = NonNullable<GameSnapshot["operation"]>;
 type Unit = Operation["units"][number];
@@ -56,7 +58,10 @@ function cues(unit: Unit, moving: boolean): readonly BattlefieldCue[] {
   return values;
 }
 
-export function projectBattlefieldFrame(snapshot: GameSnapshot): BattlefieldFrame | null {
+export function projectBattlefieldFrame(
+  snapshot: GameSnapshot,
+  options: Readonly<{ reducedMotion?: boolean; effectTrack?: EffectTrack }> = {},
+): BattlefieldFrame | null {
   const operation = snapshot.operation;
   if (!operation) return null;
   const units = new Map(operation.units.map((unit) => [unit.officerId, unit]));
@@ -74,5 +79,12 @@ export function projectBattlefieldFrame(snapshot: GameSnapshot): BattlefieldFram
       selected: snapshot.selectedOfficerId === actor.actorId,
     };
   });
-  return { actors };
+  return {
+    actors,
+    effects: sampleEffectTrack(
+      options.effectTrack ?? projectEffectTrack(snapshot),
+      operation.elapsedMs,
+      options.reducedMotion ?? false,
+    ),
+  };
 }

@@ -1,4 +1,16 @@
-type BrowserAudioCue = "click" | "report" | "threat" | "success" | "failure";
+type BrowserAudioCue =
+  | "click"
+  | "report"
+  | "threat"
+  | "success"
+  | "failure"
+  | "movement"
+  | "verification"
+  | "attack"
+  | "hit"
+  | "suppression"
+  | "panic"
+  | "retreat";
 
 type AudioContextConstructor = new () => AudioContext;
 
@@ -8,6 +20,13 @@ const cueNotes: Readonly<Record<BrowserAudioCue, readonly [number, number, numbe
   threat: [145, 0.12, 0.055],
   success: [660, 0.16, 0.045],
   failure: [190, 0.2, 0.05],
+  movement: [430, 0.035, 0.018],
+  verification: [820, 0.07, 0.028],
+  attack: [240, 0.055, 0.04],
+  hit: [110, 0.07, 0.05],
+  suppression: [170, 0.11, 0.035],
+  panic: [940, 0.08, 0.03],
+  retreat: [310, 0.09, 0.025],
 };
 
 export function createBrowserFrameScheduler() {
@@ -51,7 +70,9 @@ export function createBrowserAudio() {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       const startedAt = context.currentTime;
-      oscillator.type = name === "threat" || name === "failure" ? "square" : "sine";
+      oscillator.type = ["threat", "failure", "attack", "hit", "suppression", "panic"].includes(name)
+        ? "square"
+        : "sine";
       oscillator.frequency.setValueAtTime(frequency, startedAt);
       gain.gain.setValueAtTime(volume, startedAt);
       gain.gain.exponentialRampToValueAtTime(0.0001, startedAt + duration);

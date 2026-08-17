@@ -57,6 +57,7 @@ const frame = (x: number): BattlefieldFrame => ({
     cues: [],
     selected: true,
   }],
+  effects: [],
 });
 
 describe("persistent Canvas battlefield viewport", () => {
@@ -163,6 +164,33 @@ describe("persistent Canvas battlefield viewport", () => {
       expect(host.querySelector('[role="status"]')?.textContent).toContain("대체 표식");
     });
     expect(host.querySelector("canvas")?.getAttribute("aria-label")).toContain("실시간 전장");
+    viewport.destroy();
+  });
+
+  it("announces active world-space effect semantics from the Canvas", () => {
+    const host = document.createElement("section");
+    const viewport = createCanvasBattlefieldViewport(host, {
+      scheduler: new TestScheduler(),
+      resizeObserver: TestResizeObserver as unknown as typeof ResizeObserver,
+      fetchManifest: async () => { throw new Error("offline"); },
+    });
+
+    viewport.update({
+      ...frame(2),
+      effects: [{
+        id: "verification:major-baek:0",
+        kind: "verification",
+        label: "검증",
+        glyph: "✓",
+        color: "#7de1d8",
+        position: { x: 2, y: 7 },
+        progress: 0.2,
+        radius: 13,
+        opacity: 1,
+      }],
+    });
+
+    expect(host.querySelector("canvas")?.getAttribute("aria-label")).toContain("식별된 효과: 검증");
     viewport.destroy();
   });
 });

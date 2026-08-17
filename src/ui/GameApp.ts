@@ -29,6 +29,7 @@ export type { GameFrameScheduler } from "../presentation/gameEffects";
 export type GameAppOptions = Readonly<{
   frameScheduler?: GameFrameScheduler;
   audio?: GameAudio;
+  reducedMotion?: boolean;
 }>;
 
 export type GameApp = Readonly<{
@@ -64,6 +65,7 @@ export function mountGameApp(
   let message = "";
   let destroyed = false;
   let battlefield: MountedCanvasBattlefield | null = null;
+  const reducedMotion = options.reducedMotion ?? globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
   const dispatch: CommandDispatcher = (command: GameCommand, cue = "click", focusKey) => {
     try {
@@ -85,7 +87,10 @@ export function mountGameApp(
     if (destroyed) return;
     const snapshot = session.read();
     effects.observe(snapshot);
-    const battlefieldFrame = projectBattlefieldFrame(snapshot);
+    const battlefieldFrame = projectBattlefieldFrame(snapshot, {
+      reducedMotion,
+      effectTrack: effects.effectTrack,
+    });
     if (battlefieldFrame) {
       battlefield ??= mountCanvasBattlefield(scheduler);
       battlefield.update(battlefieldFrame);
