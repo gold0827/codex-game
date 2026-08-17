@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createGameController, type GameController } from "../../src/game";
+import { createGameSession, type GameSession } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import type { GameAudio } from "../../src/ui/GameAudio";
 import {
@@ -45,7 +45,7 @@ function silentAudio(): GameAudio {
 
 describe("production game app", () => {
   let root: HTMLElement;
-  let controller: GameController;
+  let session: GameSession;
   let scheduler: DeterministicFrameScheduler;
   let app: GameApp;
   let frameTime: number;
@@ -67,7 +67,7 @@ describe("production game app", () => {
   };
 
   const completeTutorial = (): void => {
-    const snapshot = controller.snapshot();
+    const snapshot = session.read();
     const reportBeat = snapshot.scene.beats.find((beat) =>
       beat.reports.some(({ id }) => id === "school-han-address"),
     );
@@ -91,10 +91,10 @@ describe("production game app", () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="test-root"></div>';
     root = document.querySelector("#test-root")!;
-    controller = createGameController(completeCampaign, "ui-test-seed");
+    session = createGameSession(completeCampaign, "ui-test-seed");
     scheduler = new DeterministicFrameScheduler();
     frameTime = 0;
-    app = mountGameApp(root, completeCampaign, controller, {
+    app = mountGameApp(root, completeCampaign, session, {
       frameScheduler: scheduler,
       audio: silentAudio(),
     });
@@ -104,7 +104,7 @@ describe("production game app", () => {
     app.destroy();
   });
 
-  it("configures the authored briefing and starts the real controller", () => {
+  it("configures the authored briefing and starts the real session", () => {
     expect(root.querySelector("[data-phase='briefing']")).not.toBeNull();
     expect(root.textContent).toContain(completeCampaign.scenes[0]?.copy.briefing);
     expect(root.querySelectorAll("[data-harness-axis]")).toHaveLength(4);
@@ -117,10 +117,10 @@ describe("production game app", () => {
     information.value = "1";
     information.dispatchEvent(new Event("change", { bubbles: true }));
     expect(root.querySelector('[role="alert"]')?.textContent).toContain("자원 한도");
-    expect(controller.snapshot().harness.informationReach).not.toBe(1);
+    expect(session.read().harness.informationReach).not.toBe(1);
 
     startAttempt();
-    expect(controller.snapshot().phase).toBe("operation");
+    expect(session.read().phase).toBe("operation");
     expect(root.querySelector("[data-phase='operation']")).not.toBeNull();
     expect(action("pause").textContent).toBe("일시정지");
     expect(root.querySelectorAll("[data-action^='speed-']")).toHaveLength(3);
@@ -143,8 +143,8 @@ describe("production game app", () => {
     expect(root.querySelector('[data-region="reports"]')?.textContent).toContain(
       completeCampaign.scenes[0]?.beats[2]?.reports[0]?.text,
     );
-    expect(controller.snapshot().tutorial.currentStep).toBeNull();
-    expect(controller.snapshot().lastIntervention?.command).toEqual({
+    expect(session.read().tutorial.currentStep).toBeNull();
+    expect(session.read().lastIntervention?.command).toEqual({
       kind: "route-report",
       reportId: "school-han-address",
       recipientOfficerId: "major-baek",
@@ -153,7 +153,7 @@ describe("production game app", () => {
 
   it("presents pending decisions without simulation diagnostics", () => {
     startAttempt();
-    const snapshot = controller.snapshot();
+    const snapshot = session.read();
     const decisionBeat = snapshot.scene.beats.find(
       ({ id }) => id === "school-acknowledgement-loop",
     );
@@ -163,7 +163,7 @@ describe("production game app", () => {
       decisionBeat.timeMs / snapshot.scene.gameplayTuning.simulationSpeed,
     );
 
-    const rawReason = controller.snapshot().operation?.officers[0]?.pendingDecision?.reason;
+    const rawReason = session.read().operation?.officers[0]?.pendingDecision?.reason;
     if (!rawReason) throw new Error("Missing pending-decision diagnostic reason");
     expect(rawReason).toContain(decisionBeat.id);
 
@@ -186,42 +186,42 @@ describe("production game app", () => {
       input.value = "0";
       input.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(Object.values(controller.snapshot().harness)).toEqual([0, 0, 0, 0]);
+    expect(Object.values(session.read().harness)).toEqual([0, 0, 0, 0]);
 
     startAttempt();
-    const snapshot = controller.snapshot();
+    const snapshot = session.read();
     advanceRealTime(
       snapshot.scene.encounterParameters.durationMs /
         snapshot.scene.gameplayTuning.simulationSpeed +
         2,
     );
 
-    expect(controller.snapshot().debrief?.status).toBe("retry");
+    expect(session.read().debrief?.status).toBe("retry");
     expect(root.querySelector("[data-phase='debrief']")?.textContent).toContain(
-      controller.snapshot().scene.copy.failure,
+      session.read().scene.copy.failure,
     );
     expect(action("continue-campaign").textContent).toBe("다시 시도");
     action("continue-campaign").click();
-    expect(controller.snapshot()).toMatchObject({ phase: "briefing", attemptNumber: 2 });
+    expect(session.read()).toMatchObject({ phase: "briefing", attemptNumber: 2 });
   });
 
   it("continues every successful debrief into the epilogue and resets", () => {
     const playedScenes: string[] = [];
 
-    while (controller.snapshot().phase !== "epilogue") {
-      playedScenes.push(controller.snapshot().scene.identity.id);
+    while (session.read().phase !== "epilogue") {
+      playedScenes.push(session.read().scene.identity.id);
       startAttempt();
-      if (controller.snapshot().scene.identity.kind === "tutorial") completeTutorial();
+      if (session.read().scene.identity.kind === "tutorial") completeTutorial();
 
-      const snapshot = controller.snapshot();
+      const snapshot = session.read();
       const remaining =
         snapshot.scene.encounterParameters.durationMs -
         (snapshot.operation?.elapsedMs ?? 0);
       advanceRealTime(remaining / snapshot.scene.gameplayTuning.simulationSpeed + 2);
 
-      expect(controller.snapshot().phase).toBe("debrief");
+      expect(session.read().phase).toBe("debrief");
       expect(root.querySelector("[data-phase='debrief']")?.textContent).toContain(
-        controller.snapshot().scene.copy.success,
+        session.read().scene.copy.success,
       );
       expect(action("continue-campaign").textContent).toBe("다음 작전");
       action("continue-campaign").click();
@@ -237,7 +237,7 @@ describe("production game app", () => {
     );
     expect(root.querySelector(".pixel-garden")).not.toBeNull();
     action("reset-campaign").click();
-    expect(controller.snapshot().phase).toBe("briefing");
-    expect(controller.snapshot().progress.completedSceneIds).toEqual([]);
+    expect(session.read().phase).toBe("briefing");
+    expect(session.read().progress.completedSceneIds).toEqual([]);
   });
 });

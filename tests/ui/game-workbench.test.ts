@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { CampaignStorage } from "../../src/editor";
-import type { GameController } from "../../src/game";
+import type { GameSession } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 import type { GameAudio } from "../../src/ui/GameAudio";
 import type { GameFrameScheduler } from "../../src/ui/GameApp";
@@ -35,42 +35,43 @@ class DeterministicScheduler implements GameFrameScheduler {
 }
 
 function advanceToOperationTime(
-  controller: GameController,
+  session: GameSession,
   operationElapsedMs: number,
 ): void {
-  const simulationSpeed = controller.snapshot().scene.gameplayTuning.simulationSpeed;
-  controller.tick(operationElapsedMs / simulationSpeed);
+  const simulationSpeed = session.read().scene.gameplayTuning.simulationSpeed;
+  session.advance(operationElapsedMs / simulationSpeed);
 }
 
-function finishSuccessfulAttempt(controller: GameController): void {
-  const routeStep = controller
-    .snapshot()
+function finishSuccessfulAttempt(session: GameSession): void {
+  const routeStep = session
+    .read()
     .scene.guidance.find((step) => step.action === "route");
   if (routeStep?.action === "route") {
-    const reportBeat = controller.snapshot().scene.beats.find((beat) =>
+    const reportBeat = session.read().scene.beats.find((beat) =>
       beat.reports.some(({ id }) => id === routeStep.target.reportId),
     );
-    advanceToOperationTime(controller, reportBeat?.timeMs ?? 0);
-    if (controller.snapshot().tutorial.currentStep?.action === "pause") {
-      controller.pause();
+    advanceToOperationTime(session, reportBeat?.timeMs ?? 0);
+    if (session.read().tutorial.currentStep?.action === "pause") {
+      session.dispatch({ type: "pause" });
     }
-    const inspectStep = controller.snapshot().tutorial.currentStep;
+    const inspectStep = session.read().tutorial.currentStep;
     if (inspectStep?.action === "inspect") {
-      controller.inspectOfficer(inspectStep.target.officerId);
+      session.dispatch({ type: "inspect-officer", officerId: inspectStep.target.officerId });
     }
-    controller.routeReport(
-      routeStep.target.reportId,
-      routeStep.target.recipientOfficerId,
-    );
-    if (controller.snapshot().tutorial.currentStep?.action === "resume") {
-      controller.resume();
+    session.dispatch({
+      type: "route-report",
+      reportId: routeStep.target.reportId,
+      recipientOfficerId: routeStep.target.recipientOfficerId,
+    });
+    if (session.read().tutorial.currentStep?.action === "resume") {
+      session.dispatch({ type: "resume" });
     }
   }
-  const snapshot = controller.snapshot();
+  const snapshot = session.read();
   const remaining =
     snapshot.scene.encounterParameters.durationMs -
     (snapshot.operation?.elapsedMs ?? 0);
-  controller.tick(remaining / snapshot.scene.gameplayTuning.simulationSpeed + 1);
+  session.advance(remaining / snapshot.scene.gameplayTuning.simulationSpeed + 1);
 }
 
 describe("game workbench", () => {
@@ -119,22 +120,22 @@ describe("game workbench", () => {
       action("close-manual").click();
     };
 
-    expect(workbench.controller().snapshot().phase).toBe("briefing");
+    expect(workbench.session().read().phase).toBe("briefing");
     expectManualOpens();
-    workbench.controller().startAttempt();
-    expect(workbench.controller().snapshot().phase).toBe("operation");
+    workbench.session().dispatch({ type: "start-attempt" });
+    expect(workbench.session().read().phase).toBe("operation");
     expectManualOpens();
-    finishSuccessfulAttempt(workbench.controller());
-    expect(workbench.controller().snapshot().phase).toBe("debrief");
+    finishSuccessfulAttempt(workbench.session());
+    expect(workbench.session().read().phase).toBe("debrief");
     expectManualOpens();
 
-    while (workbench.controller().snapshot().phase !== "epilogue") {
-      workbench.controller().continueCampaign();
-      if (workbench.controller().snapshot().phase === "epilogue") break;
-      workbench.controller().startAttempt();
-      finishSuccessfulAttempt(workbench.controller());
+    while (workbench.session().read().phase !== "epilogue") {
+      workbench.session().dispatch({ type: "continue-campaign" });
+      if (workbench.session().read().phase === "epilogue") break;
+      workbench.session().dispatch({ type: "start-attempt" });
+      finishSuccessfulAttempt(workbench.session());
     }
-    expect(workbench.controller().snapshot().phase).toBe("epilogue");
+    expect(workbench.session().read().phase).toBe("epilogue");
     expectManualOpens();
   });
 
@@ -162,14 +163,14 @@ describe("game workbench", () => {
   it("pauses only an operation that the field manual found running", () => {
     action("start-attempt").click();
     action("open-manual").click();
-    expect(workbench.controller().snapshot().paused).toBe(true);
+    expect(workbench.session().read().paused).toBe(true);
     action("close-manual").click();
-    expect(workbench.controller().snapshot().paused).toBe(false);
+    expect(workbench.session().read().paused).toBe(false);
 
-    workbench.controller().pause();
+    workbench.session().dispatch({ type: "pause" });
     action("open-manual").click();
     action("close-manual").click();
-    expect(workbench.controller().snapshot().paused).toBe(true);
+    expect(workbench.session().read().paused).toBe(true);
   });
 
   it("keeps the field manual and scene editor mutually exclusive", () => {
@@ -180,30 +181,30 @@ describe("game workbench", () => {
     workbench.openEditor();
     expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(true);
     expect(root.querySelector<HTMLElement>(".workbench-editor")?.hidden).toBe(false);
-    expect(workbench.controller().snapshot().paused).toBe(true);
+    expect(workbench.session().read().paused).toBe(true);
 
     workbench.openManual();
     expect(root.querySelector<HTMLElement>(".workbench-editor")?.hidden).toBe(true);
     expect(root.querySelector<HTMLElement>(".workbench-manual")?.hidden).toBe(false);
     workbench.closeManual();
-    expect(workbench.controller().snapshot().paused).toBe(false);
+    expect(workbench.session().read().paused).toBe(false);
   });
 
   it("pauses an active operation while the editor is open and resumes on close", () => {
     action("start-attempt").click();
-    expect(workbench.controller().snapshot().phase).toBe("operation");
-    expect(workbench.controller().snapshot().paused).toBe(false);
+    expect(workbench.session().read().phase).toBe("operation");
+    expect(workbench.session().read().paused).toBe(false);
 
     action("open-editor").click();
-    expect(workbench.controller().snapshot().paused).toBe(true);
+    expect(workbench.session().read().paused).toBe(true);
     expect(root.querySelector<HTMLElement>(".workbench-editor")?.hidden).toBe(false);
     action("close-editor").click();
-    expect(workbench.controller().snapshot().paused).toBe(false);
+    expect(workbench.session().read().paused).toBe(false);
     expect(root.querySelector<HTMLElement>(".workbench-editor")?.hidden).toBe(true);
   });
 
   it("restarts a deep-cloned edited campaign and destroys the previous game app", () => {
-    const previousController = workbench.controller();
+    const previousSession = workbench.session();
     action("start-attempt").click();
     expect(scheduler.callbacks.size).toBeGreaterThan(0);
     workbench.openEditor();
@@ -212,8 +213,8 @@ describe("game workbench", () => {
     action("apply-scene").click();
     action("restart-game").click();
 
-    expect(workbench.controller()).not.toBe(previousController);
-    expect(workbench.controller().snapshot().scene.copy.title).toBe("재시작에 반영된 제목");
+    expect(workbench.session()).not.toBe(previousSession);
+    expect(workbench.session().read().scene.copy.title).toBe("재시작에 반영된 제목");
     expect(root.querySelector(".workbench-game")?.textContent).toContain("재시작에 반영된 제목");
     expect(disposedAudio).toBe(1);
     expect(scheduler.cancelled.length).toBeGreaterThan(0);
@@ -223,7 +224,7 @@ describe("game workbench", () => {
       scenes: Array<{ copy: { title: string } }>;
     };
     mutableSnapshot.scenes[0]!.copy.title = "외부 변이";
-    expect(workbench.controller().snapshot().scene.copy.title).toBe("재시작에 반영된 제목");
+    expect(workbench.session().read().scene.copy.title).toBe("재시작에 반영된 제목");
   });
 
   it("loads a saved override and restore returns both editor and game to authored content", () => {
@@ -238,12 +239,12 @@ describe("game workbench", () => {
       frameScheduler: scheduler,
       audioFactory,
     });
-    expect(workbench.controller().snapshot().scene.copy.title).toBe("저장된 시작 제목");
+    expect(workbench.session().read().scene.copy.title).toBe("저장된 시작 제목");
 
     workbench.openEditor();
     action("restore-campaign").click();
     expect(workbench.document.snapshot()).toEqual(completeCampaign);
-    expect(workbench.controller().snapshot().scene.copy.title).toBe(
+    expect(workbench.session().read().scene.copy.title).toBe(
       completeCampaign.scenes[0]!.copy.title,
     );
     expect(storage.values.size).toBe(0);
@@ -262,7 +263,7 @@ describe("game workbench", () => {
       audioFactory,
     });
     expect(workbench.document.snapshot()).toEqual(completeCampaign);
-    expect(workbench.controller().snapshot().scene.copy.title).toBe(
+    expect(workbench.session().read().scene.copy.title).toBe(
       completeCampaign.scenes[0]!.copy.title,
     );
     expect(root.querySelector(".workbench-notice")?.textContent).toContain(

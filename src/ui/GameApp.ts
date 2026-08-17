@@ -1,11 +1,11 @@
 import type { CampaignDefinition, CampaignGuidanceStep } from "../campaign";
 import {
-  GameControllerError,
-  type GameController,
+  GameSessionError,
+  type GameSession,
   type GameSnapshot,
   type HarnessAxis,
   type PlayerSpeed,
-} from "../game";
+} from "../application/game-session";
 import type {
   OfficerDecisionSnapshot,
   OfficerIntent,
@@ -28,7 +28,7 @@ export type GameAppOptions = Readonly<{
 }>;
 
 export type GameApp = Readonly<{
-  controller: GameController;
+  session: GameSession;
   render: () => void;
   destroy: () => void;
 }>;
@@ -152,7 +152,7 @@ function renderMeter(label: string, value: number): HTMLElement {
 export function mountGameApp(
   root: HTMLElement,
   campaign: CampaignDefinition,
-  controller: GameController,
+  session: GameSession,
   options: GameAppOptions = {},
 ): GameApp {
   const scheduler = options.frameScheduler ?? { request: () => 0, cancel: () => undefined };
@@ -165,7 +165,7 @@ export function mountGameApp(
   let frameHandle: number | null = null;
   let previousFrameTime: number | null = null;
   let message = "";
-  let previousPhase = controller.snapshot().phase;
+  let previousPhase = session.read().phase;
   let knownThreatIds = new Set<string>();
   const threatImpacts = new Map<string, ThreatImpactSnapshot>();
   let destroyed = false;
@@ -177,7 +177,7 @@ export function mountGameApp(
   };
 
   const syncFrameLoop = (): void => {
-    const snapshot = controller.snapshot();
+    const snapshot = session.read();
     if (snapshot.phase !== "operation" || snapshot.paused || destroyed) {
       cancelFrame();
       return;
@@ -237,7 +237,7 @@ export function mountGameApp(
       audio.cue(cue);
     } catch (error) {
       message =
-        error instanceof GameControllerError && error.code === "harness-over-budget"
+        error instanceof GameSessionError && error.code === "harness-over-budget"
           ? "자원 한도를 넘었습니다. 다른 지휘 조건을 낮춘 뒤 다시 조정합니다."
           : "명령을 처리하지 못했습니다.";
     }
@@ -250,7 +250,7 @@ export function mountGameApp(
     frameHandle = null;
     const elapsed = previousFrameTime === null ? 0 : Math.max(0, timestamp - previousFrameTime);
     previousFrameTime = timestamp;
-    if (elapsed > 0) controller.tick(elapsed);
+    if (elapsed > 0) session.advance(elapsed);
     render();
     syncFrameLoop();
   }
@@ -309,7 +309,7 @@ export function mountGameApp(
       input.disabled = snapshot.phase !== "briefing";
       input.setAttribute("aria-label", label.name);
       input.addEventListener("change", () => {
-        perform(() => controller.configureHarness(axis, Number(input.value)), "click", `harness-${axis}`);
+        perform(() => session.dispatch({ type: "configure-harness", axis, value: Number(input.value) }), "click", `harness-${axis}`);
       });
       input.dataset.focusKey = `harness-${axis}`;
       const limits = node("span", "harness-limits");
@@ -345,7 +345,7 @@ export function mountGameApp(
       );
     });
     const start = button("작전 시작", "start-attempt", () => {
-      perform(() => controller.startAttempt(), "click", "pause-operation");
+      perform(() => session.dispatch({ type: "start-attempt" }), "click", "pause-operation");
     });
     start.classList.add("primary-button");
     copy.append(objectiveHeading, objectives, start);
@@ -374,7 +374,7 @@ export function mountGameApp(
     const pause = button(
       snapshot.paused ? "재개" : "일시정지",
       pauseAction,
-      () => perform(() => (snapshot.paused ? controller.resume() : controller.pause()), "click", snapshot.paused ? "resume-operation" : "pause-operation"),
+      () => perform(() => session.dispatch({ type: snapshot.paused ? "resume" : "pause" }), "click", snapshot.paused ? "resume-operation" : "pause-operation"),
       { pressed: snapshot.paused, focusKey: snapshot.paused ? "resume-operation" : "pause-operation" },
     );
     if (isGuidanceTarget(snapshot, snapshot.paused ? "resume" : "pause")) {
@@ -385,7 +385,7 @@ export function mountGameApp(
       const speedButton = button(
         `${speed}배`,
         `speed-${speed}`,
-        () => perform(() => controller.setPlayerSpeed(speed), "click", `speed-${speed}`),
+        () => perform(() => session.dispatch({ type: "set-player-speed", speed }), "click", `speed-${speed}`),
         { pressed: snapshot.playerSpeed === speed },
       );
       controls.append(speedButton);
@@ -438,7 +438,7 @@ export function mountGameApp(
       const inspect = button(
         `${authored?.rank ?? ""} ${authored?.name ?? officer.id}`.trim(),
         "inspect-officer",
-        () => perform(() => controller.inspectOfficer(officer.id), "click", `inspect-${officer.id}`),
+        () => perform(() => session.dispatch({ type: "inspect-officer", officerId: officer.id }), "click", `inspect-${officer.id}`),
         { pressed: selected, focusKey: `inspect-${officer.id}` },
       );
       inspect.classList.add("officer-select");
@@ -459,7 +459,7 @@ export function mountGameApp(
       const authorize = button(
         "예외 권한 승인",
         "authorize-officer",
-        () => perform(() => controller.authorizeOfficer(officer.id), "click", `authorize-${officer.id}`),
+        () => perform(() => session.dispatch({ type: "authorize-officer", officerId: officer.id }), "click", `authorize-${officer.id}`),
         { disabled: remainingInterventions(snapshot) <= 0 || officer.authorized, focusKey: `authorize-${officer.id}` },
       );
       card.append(inspect, facts, authorize);
@@ -509,13 +509,13 @@ export function mountGameApp(
       const route = button(
         "보고 전달",
         "route-report",
-        () => perform(() => controller.routeReport(report.authoredReportId, recipient.value), "report", `route-${report.authoredReportId}`),
+        () => perform(() => session.dispatch({ type: "route-report", reportId: report.authoredReportId, recipientOfficerId: recipient.value }), "report", `route-${report.authoredReportId}`),
         { disabled: remainingInterventions(snapshot) <= 0, focusKey: `route-${report.authoredReportId}` },
       );
       const verify = button(
         "검증 우선",
         "prioritize-verification",
-        () => perform(() => controller.prioritizeVerification(report.authoredReportId), "report", `verify-${report.authoredReportId}`),
+        () => perform(() => session.dispatch({ type: "prioritize-verification", reportId: report.authoredReportId }), "report", `verify-${report.authoredReportId}`),
         { disabled: remainingInterventions(snapshot) <= 0 || report.prioritized, focusKey: `verify-${report.authoredReportId}` },
       );
       actions.append(recipient, route, verify);
@@ -569,7 +569,7 @@ export function mountGameApp(
       node("p", "lesson-copy", snapshot.scene.copy.lesson),
     );
     const next = button(success ? "다음 작전" : "다시 시도", "continue-campaign", () => {
-      perform(() => controller.continueCampaign(), success ? "success" : "failure", "start-attempt");
+      perform(() => session.dispatch({ type: "continue-campaign" }), success ? "success" : "failure", "start-attempt");
     });
     next.classList.add("primary-button");
     card.append(next);
@@ -589,7 +589,7 @@ export function mountGameApp(
       node("blockquote", undefined, snapshot.scene.copy.success),
     );
     const reset = button("처음부터", "reset-campaign", () => {
-      perform(() => controller.reset(), "click", "start-attempt");
+      perform(() => session.dispatch({ type: "reset" }), "click", "start-attempt");
     });
     reset.classList.add("primary-button");
     copy.append(reset);
@@ -602,7 +602,7 @@ export function mountGameApp(
 
   function render(): void {
     if (destroyed) return;
-    const snapshot = controller.snapshot();
+    const snapshot = session.read();
     recordThreatImpacts(snapshot);
     announceAudioState(snapshot);
     const shell = node("div", "game-shell");
@@ -625,7 +625,7 @@ export function mountGameApp(
   syncFrameLoop();
 
   return {
-    controller,
+    session,
     render,
     destroy: () => {
       destroyed = true;
