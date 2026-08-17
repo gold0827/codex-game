@@ -134,8 +134,15 @@ export function renderOperationView(
   operation.reports.forEach((report) => {
     const card = node("article", "report-card");
     card.dataset.reportId = report.id;
+    card.dataset.deliveryState = report.deliveryState;
+    card.dataset.verificationState = report.verificationState;
     if (report.guided) card.classList.add("guidance-target");
-    card.append(node("p", "report-meta", report.meta), node("blockquote", undefined, report.text), node("p", "report-detail", report.detail));
+    card.append(
+      node("p", "report-meta", report.meta),
+      node("p", "report-transmission-state", report.status),
+      node("blockquote", undefined, report.text),
+      node("p", "report-detail", report.detail),
+    );
     const actions = node("div", "report-actions");
     const recipient = node("select");
     recipient.setAttribute("aria-label", "보고 수신 장교");
