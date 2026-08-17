@@ -1,3 +1,5 @@
+import { createFixtureAction, nextFrame } from "./chrome-fixture-helpers";
+
 type OverlayName = "manual" | "settings" | "editor";
 
 type OverlayTransition = Readonly<{
@@ -25,18 +27,7 @@ const appRoot = document.querySelector<HTMLElement>("#app");
 if (!appRoot) throw new Error("Production app root is missing for the overlay fixture.");
 const root: HTMLElement = appRoot;
 
-async function nextFrame(): Promise<void> {
-  await new Promise<void>((resolve) => {
-    requestAnimationFrame(() => resolve());
-    setTimeout(resolve, 20);
-  });
-}
-
-const action = (name: string): HTMLButtonElement => {
-  const button = root.querySelector<HTMLButtonElement>(`[data-action="${name}"]`);
-  if (!button) throw new Error(`Missing overlay fixture action ${name}.`);
-  return button;
-};
+const action = createFixtureAction(root);
 
 const overlay = (name: OverlayName): HTMLElement => {
   const selectors = {
