@@ -4,8 +4,9 @@ import {
 } from "../../src/scenarios/bridgeDefenseOperation";
 import { createFixtureAction, nextFrame } from "./chrome-fixture-helpers";
 
-const root = document.querySelector<HTMLElement>("#app");
-if (!root) throw new Error("Chrome fixture root is missing.");
+const appRoot = document.querySelector<HTMLElement>("#app");
+if (!appRoot) throw new Error("Chrome fixture root is missing.");
+const root: HTMLElement = appRoot;
 
 const errors: string[] = [];
 window.addEventListener("error", (event) => errors.push(event.message));
@@ -52,11 +53,23 @@ const selectedTile = (canvas: HTMLCanvasElement): Readonly<{ x: number; y: numbe
 function moveSelectionTo(
   canvas: HTMLCanvasElement,
   target: Readonly<{ x: number; y: number }>,
-): boolean {
+): Readonly<{
+  reached: boolean;
+  focusRetained: boolean;
+  sameCanvasNode: boolean;
+  domSynchronized: boolean;
+  moves: number;
+}> {
   canvas.focus();
+  let focusRetained = document.activeElement === canvas;
+  let sameCanvasNode = true;
+  let domSynchronized = true;
+  let moves = 0;
   for (let move = 0; move < 64; move += 1) {
     const selected = selectedTile(canvas);
-    if (selected?.x === target.x && selected.y === target.y) return true;
+    if (selected?.x === target.x && selected.y === target.y) {
+      return { reached: true, focusRetained, sameCanvasNode, domSynchronized, moves };
+    }
     const key = selected === null || selected.x < target.x
       ? "ArrowRight"
       : selected.x > target.x
@@ -64,10 +77,26 @@ function moveSelectionTo(
         : selected.y < target.y
           ? "ArrowDown"
           : "ArrowUp";
-    canvas.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    moves += 1;
+    const next = selectedTile(canvas);
+    const selectedCopy = next ? `선택 타일 ${next.x}, ${next.y}` : "";
+    focusRetained &&= document.activeElement === canvas;
+    sameCanvasNode &&= root.querySelector("canvas.battlefield-canvas") === canvas;
+    domSynchronized &&= next !== null &&
+      canvas.getAttribute("aria-label")?.includes(selectedCopy) === true &&
+      root.querySelector("[data-region='spatial-signal']")?.textContent?.includes(selectedCopy) ===
+        true;
+    if (!focusRetained || !sameCanvasNode || !domSynchronized) break;
   }
   const selected = selectedTile(canvas);
-  return selected?.x === target.x && selected.y === target.y;
+  return {
+    reached: selected?.x === target.x && selected.y === target.y,
+    focusRetained,
+    sameCanvasNode,
+    domSynchronized,
+    moves,
+  };
 }
 
 function overlaps(left: DOMRect, right: DOMRect): boolean {
@@ -190,7 +219,7 @@ const authoredOperationCopy = {
   eventTextWrapped: [...root.querySelectorAll<HTMLElement>(".event-flow-item")]
     .every((item) => item.scrollWidth <= item.clientWidth),
 };
-const selectedBridge = moveSelectionTo(canvas, { x: 11, y: 7 });
+const keyboardBridge = moveSelectionTo(canvas, { x: 11, y: 7 });
 action("issue-spatial-signal").click();
 const feedback = root.querySelector<HTMLElement>(".intervention-feedback");
 const interventionFeedback = {
@@ -294,7 +323,8 @@ const result = {
   assetsReady,
   runtimeMap,
   targetBeforeSignal,
-  selectedBridge,
+  selectedBridge: keyboardBridge.reached,
+  keyboardBridge,
   tutorialCompleted,
   operationLayout: {
     ...operationLayout,
@@ -336,7 +366,11 @@ const passed = result.productionEntrypoint &&
   result.targetBeforeSignal.controlsGuided &&
   result.targetBeforeSignal.kind === "defend" &&
   result.targetBeforeSignal.strength === "2" &&
-  result.selectedBridge &&
+  result.keyboardBridge.reached &&
+  result.keyboardBridge.focusRetained &&
+  result.keyboardBridge.sameCanvasNode &&
+  result.keyboardBridge.domSynchronized &&
+  result.keyboardBridge.moves >= 2 &&
   result.tutorialCompleted &&
   result.operationLayout.viewport[0] === 1440 &&
   result.operationLayout.viewport[1] === 900 &&

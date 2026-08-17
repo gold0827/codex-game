@@ -185,10 +185,14 @@ export function createCanvasBattlefieldViewport(
   };
 
   const selectTile = (position: WorldPosition): void => {
+    const restoreFocus = document.activeElement === canvas;
     selectedTile = { x: position.x, y: position.y };
     canvas.dataset.selectedTile = `${position.x},${position.y}`;
     updateCanvasDescription();
     options.onTileSelected?.(selectedTile);
+    if (restoreFocus && !destroyed && canvas.isConnected) {
+      canvas.focus({ preventScroll: true });
+    }
     schedule();
   };
 
