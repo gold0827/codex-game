@@ -6,7 +6,6 @@ import {
 } from "../../src/application/game-session";
 import { projectGameViewModel } from "../../src/presentation/gameViewModel";
 import { projectBattlefieldFrame } from "../../src/presentation/operation/battlefieldProjector";
-import { projectOperationPresentation } from "../../src/presentation/operation/operationProjector";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 
 const campaignView = {
@@ -62,7 +61,7 @@ describe("operation presentation projector", () => {
     });
   });
 
-  it("does not consume legacy lane, normalized position, or route projections", () => {
+  it("does not consume legacy lane, normalized position, or route values", () => {
     const snapshot = operationSnapshot();
     const operation = snapshot.operation;
     if (!operation) throw new Error("Missing operation fixture.");
@@ -82,24 +81,23 @@ describe("operation presentation projector", () => {
     expect(projectBattlefieldFrame(changedLegacyValues)).toEqual(
       projectBattlefieldFrame(snapshot),
     );
-    expect(projectGameViewModel(changedLegacyValues, campaignView).operation?.battlefield.units)
-      .toEqual(projectGameViewModel(snapshot, campaignView).operation?.battlefield.units);
   });
 
-  it("separates the Canvas frame from the DOM HUD model", () => {
+  it("keeps the Canvas frame out of the DOM view model", () => {
     const snapshot = operationSnapshot();
-    const projected = projectOperationPresentation(snapshot, campaignView);
+    const battlefield = projectBattlefieldFrame(snapshot);
+    const view = projectGameViewModel(snapshot, campaignView);
 
-    expect(projected.battlefield).toEqual(projectBattlefieldFrame(snapshot));
-    expect(projected.hud.operation).not.toBeNull();
-    expect(projected.hud.operation).not.toHaveProperty("battlefield");
+    expect(battlefield).not.toBeNull();
+    expect(view.operation).not.toBeNull();
+    expect(view.operation).not.toHaveProperty("battlefield");
   });
 
   it("does not create a battlefield frame outside an operation", () => {
     const session = createGameSession(completeCampaign, "operation-projector-briefing");
-    const projected = projectOperationPresentation(session.read(), campaignView);
+    const snapshot = session.read();
 
-    expect(projected.battlefield).toBeNull();
-    expect(projected.hud.operation).toBeNull();
+    expect(projectBattlefieldFrame(snapshot)).toBeNull();
+    expect(projectGameViewModel(snapshot, campaignView).operation).toBeNull();
   });
 });
