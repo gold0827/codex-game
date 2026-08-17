@@ -339,6 +339,7 @@ export function createOutcome(context: OutcomeContext) {
     });
     return {
       id: officer.id,
+      experienceLevel: officer.experienceLevel,
       profile: officer.profile,
       memorySize: perception.memory.entries.length,
       disposition: officer.disposition,

@@ -51,6 +51,10 @@ export function createCampaignOperation(
     launch.officers,
     launch.seed,
     harness,
+    launch.memory.map(({ officerId, lessons }) => ({
+      officerId,
+      level: lessons.length,
+    })),
   );
   return {
     simulation,

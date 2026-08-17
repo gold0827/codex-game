@@ -37,6 +37,11 @@ export interface HarnessConfiguration {
   readonly feedbackCompression: number;
 }
 
+export interface OperationOfficerExperience {
+  readonly officerId: string;
+  readonly level: number;
+}
+
 export const BALANCED_HARNESS: HarnessConfiguration = Object.freeze({
   informationReach: 0.68,
   authorityClarity: 0.72,
@@ -64,6 +69,7 @@ export interface OfficerBeliefSnapshot {
 
 export interface OfficerSimulationSnapshot {
   readonly id: string;
+  readonly experienceLevel: number;
   readonly profile: AgentProfile;
   readonly memorySize: number;
   readonly disposition: OfficerDisposition;

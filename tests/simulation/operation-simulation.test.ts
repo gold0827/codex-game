@@ -742,6 +742,22 @@ describe("operation state isolation", () => {
     expect(() =>
       createOperationSimulation(epilogue, completeCampaign.officers, 1, BALANCED_HARNESS),
     ).toThrow(RangeError);
+    expect(() =>
+      createOperationSimulation(scene, completeCampaign.officers, 1, BALANCED_HARNESS, [
+        { officerId: completeCampaign.officers[0]!.id, level: 3 },
+      ]),
+    ).toThrow(RangeError);
+    expect(() =>
+      createOperationSimulation(scene, completeCampaign.officers, 1, BALANCED_HARNESS, [
+        { officerId: "missing", level: 1 },
+      ]),
+    ).toThrow(RangeError);
+    expect(() =>
+      createOperationSimulation(scene, completeCampaign.officers, 1, BALANCED_HARNESS, [
+        { officerId: completeCampaign.officers[0]!.id, level: 1 },
+        { officerId: completeCampaign.officers[0]!.id, level: 2 },
+      ]),
+    ).toThrow(RangeError);
 
     const simulation = createOperationSimulation(
       scene,

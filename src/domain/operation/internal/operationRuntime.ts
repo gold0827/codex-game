@@ -1,4 +1,5 @@
 import type {
+  AgentProfile,
   CampaignMapTopology,
   CampaignOfficer,
   CampaignScene,
@@ -9,6 +10,7 @@ import { deriveRandomStreamSeed, type RandomSeed } from "../../../simulation/see
 import type {
   HarnessConfiguration,
   HarnessConsequence,
+  OperationOfficerExperience,
   OperationReplayEntry,
   OperationReplayKind,
   OperationSimulation,
@@ -91,6 +93,42 @@ function assertHarness(harness: HarnessConfiguration): void {
   });
 }
 
+const MAX_OFFICER_EXPERIENCE = 2;
+
+function experienceByOfficer(
+  roster: readonly CampaignOfficer[],
+  supplied: readonly OperationOfficerExperience[],
+): ReadonlyMap<string, number> {
+  const rosterIds = new Set(roster.map(({ id }) => id));
+  const result = new Map<string, number>();
+  supplied.forEach(({ officerId, level }) => {
+    if (!rosterIds.has(officerId)) {
+      throw new RangeError(`Operation experience references unknown officer "${officerId}".`);
+    }
+    if (result.has(officerId)) {
+      throw new RangeError(`Operation experience repeats officer "${officerId}".`);
+    }
+    if (!Number.isSafeInteger(level) || level < 0 || level > MAX_OFFICER_EXPERIENCE) {
+      throw new RangeError(
+        `Operation experience for "${officerId}" must be between zero and ${MAX_OFFICER_EXPERIENCE}.`,
+      );
+    }
+    result.set(officerId, level);
+  });
+  return result;
+}
+
+function applyExperience(profile: AgentProfile, level: number): AgentProfile {
+  return {
+    ...profile,
+    initiative: clamp(profile.initiative + level * 0.02),
+    discipline: clamp(profile.discipline + level * 0.04),
+    cooperation: clamp(profile.cooperation + level * 0.03),
+    stressTolerance: clamp(profile.stressTolerance + level * 0.05),
+    memoryCapacity: profile.memoryCapacity + level,
+  };
+}
+
 function detectConsequences(harness: HarnessConfiguration): HarnessConsequence[] {
   const consequences: HarnessConsequence[] = [];
   if (harness.informationReach > 0.82) consequences.push("information-saturation");
@@ -122,6 +160,7 @@ export function createOperationSimulation(
   suppliedRoster: readonly CampaignOfficer[],
   runSeed: RandomSeed,
   suppliedHarness: HarnessConfiguration,
+  suppliedExperience: readonly OperationOfficerExperience[] = [],
 ): OperationSimulation {
   assertHarness(suppliedHarness);
   assertPlayableScene(suppliedScene, suppliedRoster);
@@ -129,6 +168,7 @@ export function createOperationSimulation(
   const scene = clone(suppliedScene);
   const roster = clone(suppliedRoster);
   const harness = clone(suppliedHarness);
+  const experience = experienceByOfficer(roster, clone(suppliedExperience));
   const mapTopology = scene.mapTopology;
   if (!mapTopology) {
     throw new RangeError("Operation simulation requires authored map topology.");
@@ -171,9 +211,14 @@ export function createOperationSimulation(
     completed: false,
   }));
   const officers: MutableOfficer[] = roster.map((officer) => {
-    const profile = officer.profile ?? defaultAgentProfile(officer.disposition);
+    const experienceLevel = experience.get(officer.id) ?? 0;
+    const profile = applyExperience(
+      officer.profile ?? defaultAgentProfile(officer.disposition),
+      experienceLevel,
+    );
     return {
       id: officer.id,
+      experienceLevel,
       disposition: officer.disposition,
       intent: DEFAULT_INTENT_BY_DISPOSITION[officer.disposition],
       confidence: confidenceFor(officer.disposition, harness),

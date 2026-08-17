@@ -30,4 +30,44 @@ describe("campaign to operation application seam", () => {
       expect(resolved.launch?.seed).toBe(launch.seed);
     }
   });
+
+  it("applies bounded lesson memory only to its officer's next operation profile", () => {
+    const officerId = completeCampaign.officers[0]!.id;
+    const baselineRun = createCampaignRun(completeCampaign, "experienced-officer");
+    const experiencedRun = createCampaignRun(completeCampaign, "experienced-officer", [{
+      officerId,
+      lessons: [{ id: "first-lesson", officerId, summary: "첫 작전의 교훈" }],
+    }]);
+    const baselineLaunch = baselineRun.read().launch;
+    const experiencedLaunch = experiencedRun.read().launch;
+    if (!baselineLaunch || !experiencedLaunch) throw new Error("Expected playable launches.");
+
+    const baseline = createCampaignOperation(baselineLaunch, BALANCED_HARNESS).simulation.snapshot();
+    const experiencedOperation = createCampaignOperation(
+      experiencedLaunch,
+      BALANCED_HARNESS,
+    );
+    const experienced = experiencedOperation.simulation.snapshot();
+    const repeated = createCampaignOperation(
+      experiencedLaunch,
+      BALANCED_HARNESS,
+    ).simulation.snapshot();
+
+    const baselineOfficer = baseline.officers.find(({ id }) => id === officerId)!;
+    const experiencedOfficer = experienced.officers.find(({ id }) => id === officerId)!;
+    expect(experiencedOfficer.experienceLevel).toBe(1);
+    expect(experiencedOfficer.profile.discipline).toBeGreaterThan(
+      baselineOfficer.profile.discipline,
+    );
+    expect(experiencedOfficer.profile.stressTolerance).toBeGreaterThan(
+      baselineOfficer.profile.stressTolerance,
+    );
+    expect(experiencedOfficer.decisionCadenceMs).toBeLessThan(
+      baselineOfficer.decisionCadenceMs,
+    );
+    expect(experienced.officers.slice(1).map(({ profile }) => profile)).toEqual(
+      baseline.officers.slice(1).map(({ profile }) => profile),
+    );
+    expect(repeated.officers).toEqual(experienced.officers);
+  });
 });
