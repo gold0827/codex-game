@@ -10,10 +10,19 @@ export const MAP_ATLAS_KINDS = [
   "destination",
   "command-post",
   "civilian-shelter",
+  "tree",
+  "rock",
+  "barricade",
 ] as const;
 
 export const MAP_SKIN_TILE_KINDS = ["water", "bridge", "ford"] as const;
-export const MAP_SKIN_PROP_KINDS = ["command-post", "civilian-shelter"] as const;
+export const MAP_SKIN_PROP_KINDS = [
+  "command-post",
+  "civilian-shelter",
+  "tree",
+  "rock",
+  "barricade",
+] as const;
 
 export type MapAtlasKind = (typeof MAP_ATLAS_KINDS)[number];
 export type MapSkinTileKind = (typeof MAP_SKIN_TILE_KINDS)[number];

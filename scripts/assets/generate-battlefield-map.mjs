@@ -33,6 +33,13 @@ const PALETTE_KEYS = [
   "bridge",
   "bridgeLight",
   "canvas",
+  "trunk",
+  "foliage",
+  "foliageLight",
+  "stone",
+  "stoneLight",
+  "barricade",
+  "barricadeLight",
   "signal",
   "objective",
   "danger",
@@ -100,6 +107,12 @@ function frameArtwork(kind, palette) {
       return `${base}${polygon("13,72 31,45 51,72", palette.outline)}${polygon("17,70 31,49 47,70", palette.canvas)}${rect(29,42,3,30,palette.outline)}${rect(32,43,15,9,palette.danger)}${rect(19,70,28,9,palette.groundDark)}${rect(30,70,5,9,palette.outline)}`;
     case "civilian-shelter":
       return `${base}${polygon("11,69 31,48 54,69", palette.outline)}${polygon("16,68 32,52 49,68", palette.canvas)}${rect(16,68,33,11,palette.groundDark)}${rect(28,69,8,10,palette.outline)}${path("M39 57L45 62M39 62L45 57", palette.objective, 2)}`;
+    case "tree":
+      return `${rect(28,53,9,28,palette.outline)}${rect(31,54,5,26,palette.trunk)}${polygon("8,56 21,36 18,36 32,13 46,36 43,36 56,56", palette.outline)}${polygon("13,53 25,35 23,35 32,19 41,35 39,35 51,53", palette.foliage)}${polygon("19,42 27,30 32,19 35,36", palette.foliageLight)}`;
+    case "rock":
+      return `${polygon("9,80 15,61 29,52 47,58 56,80", palette.outline)}${polygon("14,77 19,63 30,56 44,61 51,77", palette.stone)}${polygon("20,63 30,57 38,61 29,66", palette.stoneLight)}${path("M42 62L35 70L38 77", palette.outline, 2)}`;
+    case "barricade":
+      return `${path("M13 80L50 48M14 49L51 80", palette.outline, 10)}${path("M13 80L50 48M14 49L51 80", palette.barricade, 6)}${path("M8 62L56 62M8 73L56 73", palette.outline, 9)}${path("M8 62L56 62M8 73L56 73", palette.barricadeLight, 5)}`;
     default:
       throw new Error(`지원하지 않는 map frame입니다: ${kind}`);
   }
@@ -118,7 +131,7 @@ function generate(recipe) {
       rect: { x, y, width: CELL_WIDTH, height: CELL_HEIGHT },
       anchor: ANCHOR,
     };
-    artwork.push(`<g transform="translate(${x} ${y})">${frameArtwork(kind, recipe.palette)}</g>`);
+    artwork.push(`<g data-kind="${kind}" transform="translate(${x} ${y})">${frameArtwork(kind, recipe.palette)}</g>`);
   });
   const rows = Math.ceil(MAP_ATLAS_KINDS.length / recipe.columns);
   const size = { width: recipe.columns * CELL_WIDTH, height: rows * CELL_HEIGHT };

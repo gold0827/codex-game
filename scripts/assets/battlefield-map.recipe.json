@@ -13,6 +13,13 @@
     "bridge": "#9a7445",
     "bridgeLight": "#c19a5d",
     "canvas": "#d1b873",
+    "trunk": "#704b32",
+    "foliage": "#315c3b",
+    "foliageLight": "#4f8050",
+    "stone": "#65716b",
+    "stoneLight": "#89958b",
+    "barricade": "#8a5f36",
+    "barricadeLight": "#c08a4b",
     "signal": "#73d5c8",
     "objective": "#e6cf72",
     "danger": "#ef6b61"
