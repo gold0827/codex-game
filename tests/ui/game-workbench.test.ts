@@ -7,7 +7,9 @@ import {
 import type { GameSession } from "../../src/application/game-session";
 import type { GameSessionResume } from "../../src/application/game-session";
 import { createCampaignCheckpoint } from "../../src/app/CampaignCheckpoint";
+import { mountProductionGame } from "../../src/app/createGameWorkbench";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { bridgeDefenseOperation } from "../../src/scenarios/bridgeDefenseOperation";
 import { productionSoundtrackCatalog } from "../../src/app/musicCatalog";
 import { flowCampaign } from "../fixtures/flow-campaign";
 import type { GameAudio } from "../../src/ui/GameAudio";
@@ -208,6 +210,36 @@ describe("game workbench", () => {
     action("close-manual").click();
     action("open-manual").click();
     expect(content.scrollTop).toBe(0);
+  });
+
+  it("mounts the one-round bridge prototype by default with a player-only manual", () => {
+    workbench.destroy();
+    window.localStorage.clear();
+    vi.stubGlobal("Audio", class {
+      src = "";
+      loop = false;
+      preload = "";
+      volume = 1;
+      muted = false;
+      currentTime = 0;
+      play = async () => undefined;
+      pause = () => undefined;
+      removeAttribute = () => undefined;
+      load = () => undefined;
+    });
+
+    workbench = mountProductionGame(root);
+    workbench.openTool("manual");
+    const manual = root.querySelector<HTMLElement>(".workbench-manual");
+
+    expect(workbench.session().read().scene.identity.id).toBe(
+      bridgeDefenseOperation.identity.id,
+    );
+    expect(root.querySelector('[data-action="open-editor"]')).toBeNull();
+    expect(manual?.textContent).toContain("해인교");
+    expect(manual?.textContent).toContain("공간 신호");
+    expect(manual?.textContent).not.toContain("여섯 작전");
+    expect(manual?.textContent).not.toContain("장면 편집");
   });
 
   it("pauses only an operation that the field manual found running", () => {
