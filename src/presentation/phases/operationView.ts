@@ -95,6 +95,18 @@ export function renderOperationView(
     const facts = node("dl", "officer-facts");
     selectedOfficer.facts.forEach(([term, value]) => facts.append(node("dt", undefined, term), node("dd", undefined, value)));
     detail.append(node("strong", "selected-officer-name", selectedOfficer.name), facts);
+    if (selectedOfficer.decision) {
+      const feedback = node("section", "decision-feedback");
+      feedback.setAttribute("aria-label", "선택 장교 판단 근거");
+      const reasons = node("ol", "decision-reasons");
+      selectedOfficer.decision.reasons.forEach((reason) => reasons.append(node("li", undefined, reason)));
+      feedback.append(
+        node("strong", "decision-action", `${selectedOfficer.decision.action} 선택 이유`),
+        reasons,
+        node("p", "decision-abandoned", `포기한 대안 · ${selectedOfficer.decision.abandoned}`),
+      );
+      detail.append(feedback);
+    }
     officers.append(detail);
   }
 

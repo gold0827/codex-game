@@ -29,6 +29,7 @@ describe("operation presentation projector", () => {
 
     const frame = projectBattlefieldFrame(snapshot);
     expect(frame?.actors).toHaveLength(operation.spatial.actors.length);
+    expect(frame?.effects.some(({ kind }) => kind === "movement")).toBe(true);
     frame?.actors.forEach((actor) => {
       const spatialActor = operation.spatial.actors.find(({ actorId }) => actorId === actor.id);
       expect(actor.position).toEqual(spatialActor?.position);

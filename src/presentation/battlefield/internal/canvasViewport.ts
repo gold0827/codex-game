@@ -168,6 +168,23 @@ export function createCanvasBattlefieldViewport(
       context.stroke();
     }
 
+    for (const effect of current.frame.effects) {
+      const { x, y } = camera.project(effect.position);
+      const effectRadius = effect.radius * camera.read().zoom;
+      context.save();
+      context.globalAlpha = effect.opacity;
+      context.strokeStyle = effect.color;
+      context.fillStyle = effect.color;
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(Math.round(x), Math.round(y), effectRadius, 0, Math.PI * 2);
+      context.stroke();
+      context.font = `${Math.max(9, Math.round(10 * camera.read().zoom))}px ui-monospace, monospace`;
+      context.textAlign = "center";
+      context.fillText(effect.glyph, Math.round(x), Math.round(y - effectRadius - 3));
+      context.restore();
+    }
+
     const actors = orderBattlefieldRenderables(drawList.actors.map((actor) => ({
       ...actor,
       kind: "actor" as const,
@@ -264,6 +281,13 @@ export function createCanvasBattlefieldViewport(
       const nextSelectedId = nextSelected?.id ?? null;
       if (nextSelectedId !== selectedActorId) followingSelected = true;
       selectedActorId = nextSelectedId;
+      const effectLabels = [...new Set(frame.effects.map(({ label }) => label))];
+      canvas.setAttribute(
+        "aria-label",
+        effectLabels.length > 0
+          ? `실시간 전장. 식별된 효과: ${effectLabels.join(", ")}.`
+          : "실시간 전장. 자율 장교의 위치와 상태를 표시합니다.",
+      );
       if (followingSelected && nextSelected) camera.follow(nextSelected.position);
       previous = current;
       current = { frame, receivedAt: now() };

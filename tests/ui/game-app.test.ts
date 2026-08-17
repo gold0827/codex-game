@@ -35,10 +35,10 @@ class DeterministicFrameScheduler implements GameFrameScheduler {
   }
 }
 
-function silentAudio(): GameAudio {
+function silentAudio(cues: string[] = []): GameAudio {
   let muted = false;
   return {
-    cue: () => undefined,
+    cue: (cue) => { cues.push(cue); },
     muted: () => muted,
     setMuted: (next) => {
       muted = next;
@@ -53,6 +53,7 @@ describe("production game app", () => {
   let scheduler: DeterministicFrameScheduler;
   let app: GameApp;
   let frameTime: number;
+  let audioCues: string[];
 
   const action = (name: string): HTMLButtonElement => {
     const result = root.querySelector<HTMLButtonElement>(`[data-action="${name}"]`);
@@ -99,9 +100,10 @@ describe("production game app", () => {
     session = createGameSession(completeCampaign, "ui-test-seed");
     scheduler = new DeterministicFrameScheduler();
     frameTime = 0;
+    audioCues = [];
     app = mountGameApp(root, completeCampaign, session, {
       frameScheduler: scheduler,
-      audio: silentAudio(),
+      audio: silentAudio(audioCues),
     });
   });
 
@@ -126,6 +128,7 @@ describe("production game app", () => {
     expect(session.read().harness.informationReach).not.toBe(1);
 
     startAttempt();
+    expect(audioCues).toContain("movement");
     expect(session.read().phase).toBe("operation");
     expect(root.querySelector("[data-phase='operation']")).not.toBeNull();
     expect(action("pause").textContent).toBe("일시정지");
@@ -200,6 +203,8 @@ describe("production game app", () => {
     expect(officerText).toContain("유지 중");
     expect(officerText).not.toContain(rawReason);
     expect(officerText).not.toContain(decisionBeat.id);
+    expect(root.querySelectorAll(".decision-reasons li")).toHaveLength(3);
+    expect(root.querySelector(".decision-abandoned")?.textContent).toContain("포기한 대안");
   });
 
   it("offers an authored retry after a poor configured attempt", () => {

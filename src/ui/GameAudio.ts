@@ -1,4 +1,16 @@
-export type GameAudioCue = "click" | "report" | "threat" | "success" | "failure";
+export type GameAudioCue =
+  | "click"
+  | "report"
+  | "threat"
+  | "success"
+  | "failure"
+  | "movement"
+  | "verification"
+  | "attack"
+  | "hit"
+  | "suppression"
+  | "panic"
+  | "retreat";
 export type GameAudio = Readonly<{
   cue: (cue: GameAudioCue) => void;
   muted: () => boolean;

@@ -243,6 +243,31 @@
   font-size: 10px;
 }
 
+.decision-feedback {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid #213b30;
+  font-size: 8px;
+}
+
+.decision-action {
+  color: var(--gold);
+}
+
+.decision-reasons {
+  display: grid;
+  gap: 3px;
+  margin: 5px 0;
+  padding-left: 16px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.decision-abandoned {
+  margin: 0;
+  color: var(--dim);
+}
+
 .officer-select {
   width: 100%;
   border-width: 0 0 1px;

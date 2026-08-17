@@ -37,4 +37,6 @@ export type BattlefieldActorFrame = Readonly<{
 
 export type BattlefieldFrame = Readonly<{
   actors: readonly BattlefieldActorFrame[];
+  effects: readonly EffectSample[];
 }>;
+import type { EffectSample } from "../effects/effectTrack";

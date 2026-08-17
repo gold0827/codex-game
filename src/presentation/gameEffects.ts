@@ -1,6 +1,9 @@
 import type { GameSession, GameSnapshot } from "../application/game-session";
 import type { GameAudio } from "../ui/GameAudio";
 import type { ThreatImpactViewModel } from "./gameViewModel";
+import { effectAssetManifest } from "./effects/effectAssets";
+import { createEffectCueProjector } from "./effects/effectCueProjector";
+import type { EffectTrack } from "./effects/effectTrack";
 
 export type GameFrameScheduler = Readonly<{
   request: (callback: FrameRequestCallback) => number;
@@ -9,6 +12,7 @@ export type GameFrameScheduler = Readonly<{
 
 export type GameEffects = Readonly<{
   threatImpacts: ReadonlyMap<string, ThreatImpactViewModel>;
+  effectTrack: EffectTrack;
   observe: (snapshot: GameSnapshot) => void;
   syncFrameLoop: () => void;
   restoreFocus: (focusKey?: string) => void;
@@ -28,8 +32,11 @@ export function createGameEffects(
   let previousRenderTime: number | null = null;
   let previousPhase = session.read().phase;
   let knownThreatIds = new Set<string>();
+  let knownEffectCueIds = new Set<string>();
   let destroyed = false;
   const threatImpacts = new Map<string, ThreatImpactViewModel>();
+  const effectCueProjector = createEffectCueProjector();
+  let effectTrack: EffectTrack = { cues: [] };
 
   const cancelFrame = (): void => {
     if (frameHandle !== null) scheduler.cancel(frameHandle);
@@ -60,10 +67,19 @@ export function createGameEffects(
 
   return {
     threatImpacts,
+    get effectTrack() { return effectTrack; },
     observe: (snapshot) => {
       const currentThreatIds = new Set(snapshot.operation?.threats.map(({ id }) => id));
       if ([...currentThreatIds].some((id) => !knownThreatIds.has(id))) audio.cue("threat");
       knownThreatIds = currentThreatIds;
+      effectTrack = effectCueProjector.observe(snapshot);
+      const effectCues = effectTrack.cues;
+      const currentEffectCueIds = new Set(effectCues.map(({ id }) => id));
+      const newEffectKinds = new Set(
+        effectCues.filter(({ id }) => !knownEffectCueIds.has(id)).map(({ kind }) => kind),
+      );
+      newEffectKinds.forEach((kind) => audio.cue(effectAssetManifest.effects[kind].audioCue));
+      knownEffectCueIds = currentEffectCueIds;
       if (previousPhase === "operation" && snapshot.phase === "debrief") {
         audio.cue(snapshot.debrief?.status === "success" ? "success" : "failure");
       }
@@ -96,6 +112,7 @@ export function createGameEffects(
     destroy: () => {
       destroyed = true;
       cancelFrame();
+      effectCueProjector.reset();
       audio.dispose();
     },
   };

@@ -63,6 +63,38 @@ const actionLabels = {
   retreat: "후퇴",
 } as const;
 
+const decisionReasonLabels: Readonly<Record<string, string>> = {
+  "initiative favors moving": "주도성이 현장 이동을 뒷받침했습니다.",
+  "the objective is still distant": "목표까지 거리가 남아 있습니다.",
+  "the route risk is acceptable": "경로 위험을 감수할 수 있습니다.",
+  "caution favors investigation": "신중한 성향이 조사를 요구합니다.",
+  "discipline favors gathering evidence": "규율에 따라 근거를 더 모아야 합니다.",
+  "belief confidence is low": "현재 판단 근거의 확신이 낮습니다.",
+  "caution favors holding ground": "신중한 성향이 현 위치 사수를 지지합니다.",
+  "discipline favors protecting the objective": "규율에 따라 목표 보호를 우선합니다.",
+  "local threat risk is high": "주변 위협 위험이 높습니다.",
+  "caution favors verification": "신중한 성향이 검증을 우선합니다.",
+  "discipline favors cross-checking": "규율에 따라 교차 확인이 필요합니다.",
+  "available evidence is uncertain": "확보한 증거가 아직 불확실합니다.",
+  "cooperation favors sharing information": "협동 성향이 정보 공유를 뒷받침합니다.",
+  "a credible belief is ready to share": "공유할 만큼 신뢰도 높은 판단이 있습니다.",
+  "the signal channel has capacity": "통신망에 전달 여유가 있습니다.",
+  "cooperation favors supporting a peer": "협동 성향이 동료 지원을 우선합니다.",
+  "a peer faces local danger": "동료가 인근 위험에 놓였습니다.",
+  "initiative favors acting on the request": "주도성이 지원 요청 대응을 뒷받침합니다.",
+  "caution favors breaking contact": "신중한 성향이 접촉 이탈을 지지합니다.",
+  "stress exceeds tolerance": "감당 가능한 긴장 수준을 넘었습니다.",
+  "local threat risk is overwhelming": "주변 위협을 감당하기 어렵습니다.",
+};
+
+const actionTargetLabels = {
+  position: "지정 위치",
+  belief: "현장 판단 근거",
+  officer: "동료 장교",
+  objective: "작전 목표",
+  area: "안전 구역",
+} as const;
+
 const verificationLabels = {
   unverified: "미검증",
   pending: "검증 대기",
@@ -216,6 +248,7 @@ export function projectHudViewModel(
           officers: operation.officers.map((officer) => {
             const authored = roster.get(officer.id);
             const unit = operation.units.find(({ officerId }) => officerId === officer.id);
+            const commitment = officer.committedAction;
             return {
               id: officer.id,
               name: `${authored?.rank ?? ""} ${authored?.name ?? officer.id}`.trim(),
@@ -229,12 +262,23 @@ export function projectHudViewModel(
                 ["확신", percentage(officer.confidence)],
                 ["현재 믿음", officer.currentBelief?.assertion ?? "관측 없음"],
                 ["검증", officer.currentBelief ? verificationLabels[officer.currentBelief.verificationState] : "해당 없음"],
-                ["실행 행동", officer.committedAction
-                  ? `유지 중 · ${actionLabels[officer.committedAction.trace.selectedAction.kind]}`
+                ["실행 행동", commitment
+                  ? `유지 중 · ${actionLabels[commitment.trace.selectedAction.kind]}`
                   : "대기 중"],
                 ["체력", unit ? `${Math.round(unit.health)}%` : "배치 없음"],
                 ["권한", officer.authorized ? "예외 승인" : "기본 경계"],
               ] as const,
+              decision: commitment
+                ? {
+                    action: actionLabels[commitment.trace.selectedAction.kind],
+                    reasons: [
+                      decisionReasonLabels[commitment.trace.topReason] ?? "현장 조건이 이 행동을 가장 강하게 뒷받침합니다.",
+                      `판단 효용 ${percentage(commitment.trace.utility)}`,
+                      `대상 유형 · ${actionTargetLabels[commitment.trace.selectedAction.target.kind]}`,
+                    ] as const,
+                    abandoned: `${actionLabels[commitment.trace.abandonedAlternative.action.kind]} · 효용 ${percentage(commitment.trace.abandonedAlternative.utility)}`,
+                  }
+                : null,
             };
           }),
           reports: [...operation.messages].reverse().map((report) => ({
