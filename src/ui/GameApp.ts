@@ -135,10 +135,11 @@ export function mountGameApp(
   function render(): void {
     if (destroyed) return;
     const snapshot = session.read();
+    const reducedMotion = prefersReducedMotion();
     options.onSnapshot?.(snapshot);
     effects.observe(snapshot);
     const battlefieldFrame = projectBattlefieldFrame(snapshot, {
-      reducedMotion: prefersReducedMotion(),
+      reducedMotion,
       effectTrack: effects.effectTrack,
     });
     if (battlefieldFrame) {
@@ -156,7 +157,7 @@ export function mountGameApp(
     }
     const view = projectGameViewModel(snapshot, campaignView);
     const shell = node("div", "game-shell");
-    shell.dataset.reducedMotion = String(prefersReducedMotion());
+    shell.dataset.reducedMotion = String(reducedMotion);
     shell.style.setProperty("--scene-accent", view.accentColor);
     shell.dataset.phase = view.phase;
     shell.append(renderGameHeader(view, audio, () => {

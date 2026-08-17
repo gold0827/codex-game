@@ -356,6 +356,19 @@ describe("production game app", () => {
     action("pause").click();
     expect(session.read().paused).toBe(true);
     expect(action("resume").getAttribute("aria-pressed")).toBe("true");
+    const pausedOperationTime = session.read().operation?.elapsedMs;
+    expect(scheduler.pending()).toBe(1);
+
+    frameTime += 5_000;
+    scheduler.frame(frameTime);
+    expect(scheduler.pending()).toBe(0);
+    expect(session.read().operation?.elapsedMs).toBe(pausedOperationTime);
+
+    action("resume").click();
+    scheduler.frame(frameTime);
+    expect(session.read().operation?.elapsedMs).toBe(pausedOperationTime);
+    advanceRealTime(16);
+    expect((session.read().operation?.elapsedMs ?? 0) - (pausedOperationTime ?? 0)).toBeLessThan(100);
   });
 
   it("issues a spatial signal at the battlefield tile selected by the player", () => {

@@ -171,6 +171,11 @@ export function projectBattlefieldFrame(
     map: projectMap(snapshot),
     actors,
     threats: operation.threats.map(projectThreat),
+    animation: {
+      operationTimeMs: operation.elapsedMs,
+      paused: snapshot.paused,
+      reducedMotion: options.reducedMotion ?? false,
+    },
     guidedTile:
       snapshot.tutorial.active && snapshot.tutorial.currentStep?.action === "signal"
         ? { ...snapshot.tutorial.currentStep.target.position }
