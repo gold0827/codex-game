@@ -386,6 +386,81 @@ describe("production game app", () => {
     expect(action("issue-spatial-signal").disabled).toBe(true);
   });
 
+  it("keeps battlefield keyboard focus while consecutive tile selections rerender controls", () => {
+    startAttempt();
+    const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
+    if (!canvas) throw new Error("battlefield canvas must be mounted");
+    canvas.focus();
+
+    const moves = [
+      ["ArrowRight", "13,8"],
+      ["ArrowDown", "13,9"],
+      ["ArrowLeft", "12,9"],
+    ] as const;
+    for (const [key, position] of moves) {
+      canvas.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+
+      expect(root.querySelector("canvas.battlefield-canvas")).toBe(canvas);
+      expect(document.activeElement).toBe(canvas);
+      expect(canvas.dataset.selectedTile).toBe(position);
+      expect(canvas.getAttribute("aria-label")).toContain(
+        `선택 타일 ${position.replace(",", ", ")}`,
+      );
+      expect(root.querySelector("[data-region='spatial-signal']")?.textContent).toContain(
+        `선택 타일 ${position.replace(",", ", ")}`,
+      );
+    }
+  });
+
+  it("does not move focus to the battlefield after pointer tile selection", () => {
+    startAttempt();
+    const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
+    if (!canvas) throw new Error("battlefield canvas must be mounted");
+    const outside = document.createElement("button");
+    document.body.prepend(outside);
+    outside.focus();
+
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 320, clientY: 180 }));
+    canvas.dispatchEvent(new MouseEvent("pointerup", { button: 0, clientX: 320, clientY: 180 }));
+
+    expect(document.activeElement).toBe(outside);
+    expect(canvas.dataset.selectedTile).toBe("12,8");
+    outside.remove();
+  });
+
+  it("does not restore battlefield focus after tile selection renders a terminal phase", () => {
+    app.destroy();
+    const campaign = structuredClone(flowCampaign) as CampaignDefinition;
+    const scene = campaign.scenes[0];
+    if (!scene || scene.identity.kind === "epilogue") {
+      throw new Error("Expected a playable flow scene.");
+    }
+    Object.assign(scene, {
+      guidance: [],
+      beats: [],
+      objectives: [],
+      encounterParameters: { ...scene.encounterParameters, durationMs: 50 },
+      gameplayTuning: { ...scene.gameplayTuning, simulationSpeed: 1 },
+    });
+    session = createGameSession(campaign, "terminal-tile-focus");
+    app = mountGameApp(root, campaign, session, {
+      frameScheduler: scheduler,
+      audio: silentAudio(),
+    });
+    startAttempt();
+    const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
+    if (!canvas) throw new Error("battlefield canvas must be mounted");
+    canvas.focus();
+    session.advance(50);
+    expect(session.read().phase).toBe("debrief");
+
+    canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(root.querySelector("[data-phase='debrief']")).not.toBeNull();
+    expect(canvas.isConnected).toBe(false);
+    expect(document.activeElement).not.toBe(canvas);
+  });
+
   it("keeps a spatial-signal tutorial target visible until the exact signal is issued", () => {
     app.destroy();
     const campaign = structuredClone(completeCampaign) as CampaignDefinition;
