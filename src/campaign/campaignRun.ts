@@ -120,9 +120,10 @@ export function createCampaignRun(
   definition: CampaignDefinition,
   baseSeed: string | number,
   initialMemory: readonly OfficerLessonMemory[] = [],
+  initialProgress?: CampaignProgressSnapshot,
 ): CampaignRun {
   assertSeed(baseSeed);
-  const progress = createCampaignProgress(definition);
+  const progress = createCampaignProgress(definition, initialProgress);
   const internalDefinition = progress.definition();
   const officerIds = new Set(internalDefinition.officers.map(({ id }) => id));
   const memory = validateMemory(internalDefinition.officers, clone(initialMemory));
