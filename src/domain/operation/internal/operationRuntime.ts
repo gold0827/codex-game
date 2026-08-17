@@ -1,5 +1,5 @@
 import type { CampaignOfficer, CampaignScene, ThreatLane } from "../../../campaign/types";
-import { createSeededRandom, type RandomSeed } from "../../../simulation/seededRandom";
+import { deriveRandomStreamSeed, type RandomSeed } from "../../../simulation/seededRandom";
 import type {
   HarnessConfiguration,
   HarnessConsequence,
@@ -25,6 +25,10 @@ import type {
   OperationRuntimeState,
 } from "./operationTypes";
 import { LANES, clamp, clone, rounded } from "./operationTypes";
+import {
+  createOperationRandomStreams,
+  operationRandomStreamKey,
+} from "./randomStreams";
 
 function assertHarness(harness: HarnessConfiguration): void {
   const fields = ["informationReach", "authorityClarity", "verificationDepth", "feedbackCompression"] as const;
@@ -74,8 +78,12 @@ export function createOperationSimulation(
   const scene = clone(suppliedScene);
   const roster = clone(suppliedRoster);
   const harness = clone(suppliedHarness);
-  createSeededRandom(runSeed);
-  const random = createSeededRandom(`${scene.identity.id}:${String(runSeed)}`);
+  const randomStreams = createOperationRandomStreams(
+    deriveRandomStreamSeed(
+      runSeed,
+      operationRandomStreamKey.encounter(scene.identity.id),
+    ),
+  );
   const durationMs = scene.encounterParameters.durationMs;
   const consequences = detectConsequences(harness);
   const readiness = harnessReadiness(harness, consequences);
@@ -161,14 +169,48 @@ export function createOperationSimulation(
     });
     replaySequence += 1;
   };
-  const selectAlternative = <Value extends string>(reason: string, alternatives: readonly Value[], timeMs: number): Value => {
-    const selected = alternatives[random.integer(alternatives.length)] as Value;
+  const selectAlternative = <Value extends string>(
+    stableKey: string,
+    reason: string,
+    alternatives: readonly Value[],
+    timeMs: number,
+  ): Value => {
+    const selected = alternatives[
+      randomStreams.stream(stableKey).integer(alternatives.length)
+    ] as Value;
     appendReplay("random-choice", timeMs, `Random choice for ${reason}: ${selected}.`, { reason, selected, alternatives });
     return selected;
   };
+  const selectDecisionAlternative = <Value extends string>(
+    reason: string,
+    alternatives: readonly Value[],
+    timeMs: number,
+  ): Value => {
+    const officerId = roster.find(({ id }) => reason.startsWith(`${id} `))?.id;
+    return selectAlternative(
+      operationRandomStreamKey.officerDecision(officerId ?? reason),
+      reason,
+      alternatives,
+      timeMs,
+    );
+  };
+  const selectSignalAlternative = <Value extends string>(
+    reason: string,
+    alternatives: readonly Value[],
+    timeMs: number,
+  ): Value => {
+    const sourceOfficerId = roster.find(({ id }) => reason.endsWith(id))?.id;
+    return selectAlternative(
+      operationRandomStreamKey.signal(sourceOfficerId ?? reason),
+      reason,
+      alternatives,
+      timeMs,
+    );
+  };
 
   const signals = createSignals({
-    roster, harness, consequences, durationMs, state, officers, messages, metrics, appendReplay, selectAlternative,
+    roster, harness, consequences, durationMs, state, officers, messages, metrics, appendReplay,
+    selectAlternative: selectSignalAlternative,
   });
   const threatRuntime = createThreats({
     harness, durationMs, readiness, state, officers, threats, objectives, units, metrics, appendReplay,
@@ -180,7 +222,8 @@ export function createOperationSimulation(
   });
   const decisions = createDecisions({
     scene, roster, harness, durationMs, compoundReplanRequired, state, officers, messages, threats, units,
-    metrics, appendReplay, selectAlternative, updateBacklog: signals.updateBacklog, snapshot: outcome.snapshot,
+    metrics, appendReplay, selectAlternative: selectDecisionAlternative,
+    updateBacklog: signals.updateBacklog, snapshot: outcome.snapshot,
   });
   const timeline = createTimeline({
     sceneId: scene.identity.id,

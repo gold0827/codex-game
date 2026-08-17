@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { CampaignOfficer, CampaignScene } from "../../src/campaign";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import {
+  createOperationRandomStreams,
+  operationRandomStreamKey,
+} from "../../src/domain/operation/internal/randomStreams";
 import { createOperationSimulation } from "../../src/simulation/operationSimulation";
 import {
   createSeededRandom,
+  deriveRandomStreamSeed,
   deriveRunSeed,
 } from "../../src/simulation/seededRandom";
 import {
@@ -62,6 +67,39 @@ describe("seeded random", () => {
     expect(() => createSeededRandom("")).toThrow(TypeError);
     expect(() => createSeededRandom(1).integer(0)).toThrow(RangeError);
     expect(() => createSeededRandom(1).pick([])).toThrow(RangeError);
+  });
+
+  it("derives stable keyed stream seeds without delimiter collisions", () => {
+    expect(deriveRandomStreamSeed("campaign:scene:attempt-7", "signal:report-1")).toBe(
+      deriveRandomStreamSeed("campaign:scene:attempt-7", "signal:report-1"),
+    );
+    expect(deriveRandomStreamSeed("a:b", "c")).not.toBe(
+      deriveRandomStreamSeed("a", "b:c"),
+    );
+    expect(() => deriveRandomStreamSeed("valid", "")).toThrow(TypeError);
+  });
+
+  it("keeps stable actor and subsystem streams independent when one consumes extra draws", () => {
+    const control = createOperationRandomStreams("stream-isolation");
+    const perturbed = createOperationRandomStreams("stream-isolation");
+    const baekDecision = operationRandomStreamKey.officerDecision("major-baek");
+    const hanDecision = operationRandomStreamKey.officerDecision("captain-han");
+    const signal = operationRandomStreamKey.signal("school-baek-ready");
+
+    expect(baekDecision).toBe("officer:major-baek:decision");
+    expect(signal).toBe("signal:school-baek-ready");
+    expect(operationRandomStreamKey.encounter("school-channel-saturation")).toBe(
+      "encounter:school-channel-saturation",
+    );
+
+    Array.from({ length: 25 }, () => perturbed.stream(baekDecision).next());
+
+    expect(
+      Array.from({ length: 12 }, () => perturbed.stream(hanDecision).next()),
+    ).toEqual(Array.from({ length: 12 }, () => control.stream(hanDecision).next()));
+    expect(
+      Array.from({ length: 12 }, () => perturbed.stream(signal).next()),
+    ).toEqual(Array.from({ length: 12 }, () => control.stream(signal).next()));
   });
 });
 
