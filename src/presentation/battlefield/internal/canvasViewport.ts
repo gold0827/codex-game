@@ -51,6 +51,43 @@ type AtlasImageSlot = {
   url: string;
 };
 
+const tileHighlightStyle = {
+  guided: {
+    fill: "rgba(115, 185, 162, 0.28)",
+    stroke: "#f4d77d",
+    lineWidth: 3,
+  },
+  selected: {
+    fill: "rgba(230, 207, 114, 0.18)",
+    stroke: "#e6cf72",
+    lineWidth: 2,
+  },
+} as const;
+
+export function drawTileHighlight(
+  context: CanvasRenderingContext2D,
+  center: WorldPosition,
+  scale: number,
+  kind: keyof typeof tileHighlightStyle,
+): void {
+  const style = tileHighlightStyle[kind];
+  const halfWidth = (ISOMETRIC_TILE_SIZE.width * scale) / 2;
+  const halfHeight = (ISOMETRIC_TILE_SIZE.height * scale) / 2;
+  context.save();
+  context.fillStyle = style.fill;
+  context.strokeStyle = style.stroke;
+  context.lineWidth = style.lineWidth;
+  context.beginPath();
+  context.moveTo(center.x, center.y - halfHeight);
+  context.lineTo(center.x + halfWidth, center.y);
+  context.lineTo(center.x, center.y + halfHeight);
+  context.lineTo(center.x - halfWidth, center.y);
+  context.closePath();
+  context.fill();
+  context.stroke();
+  context.restore();
+}
+
 function browserScheduler(): FrameScheduler {
   return {
     request: (callback) => window.requestAnimationFrame(callback),
@@ -306,41 +343,11 @@ export function createCanvasBattlefieldViewport(
     for (const tile of currentMapDrawList.tiles) drawMapAsset(tile.kind, tile.position, scale);
 
     if (guidedTile) {
-      const center = camera.project(guidedTile);
-      const halfWidth = (ISOMETRIC_TILE_SIZE.width * camera.read().zoom) / 2;
-      const halfHeight = (ISOMETRIC_TILE_SIZE.height * camera.read().zoom) / 2;
-      context.save();
-      context.fillStyle = "rgba(115, 185, 162, 0.28)";
-      context.strokeStyle = "#f4d77d";
-      context.lineWidth = 3;
-      context.beginPath();
-      context.moveTo(center.x, center.y - halfHeight);
-      context.lineTo(center.x + halfWidth, center.y);
-      context.lineTo(center.x, center.y + halfHeight);
-      context.lineTo(center.x - halfWidth, center.y);
-      context.closePath();
-      context.fill();
-      context.stroke();
-      context.restore();
+      drawTileHighlight(context, camera.project(guidedTile), scale, "guided");
     }
 
     if (selectedTile) {
-      const center = camera.project(selectedTile);
-      const halfWidth = (ISOMETRIC_TILE_SIZE.width * camera.read().zoom) / 2;
-      const halfHeight = (ISOMETRIC_TILE_SIZE.height * camera.read().zoom) / 2;
-      context.save();
-      context.fillStyle = "rgba(230, 207, 114, 0.18)";
-      context.strokeStyle = "#e6cf72";
-      context.lineWidth = 2;
-      context.beginPath();
-      context.moveTo(center.x, center.y - halfHeight);
-      context.lineTo(center.x + halfWidth, center.y);
-      context.lineTo(center.x, center.y + halfHeight);
-      context.lineTo(center.x - halfWidth, center.y);
-      context.closePath();
-      context.fill();
-      context.stroke();
-      context.restore();
+      drawTileHighlight(context, camera.project(selectedTile), scale, "selected");
     }
 
     const renderables = orderBattlefieldRenderables([
