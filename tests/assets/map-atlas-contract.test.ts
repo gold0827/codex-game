@@ -70,6 +70,8 @@ describe("battlefield map atlas asset contract", () => {
     const skins = manifest.skins as Record<string, { props: unknown[] }>;
     const bridgeSkin = skins[bridgeDefenseMapSkin.id];
     if (!bridgeSkin) throw new Error("bridge skin must exist");
+    const invalidKindIndex = bridgeSkin.props.length;
+    const invalidPositionIndex = invalidKindIndex + 1;
     frames.tree = {
       rect: { x: 0, y: 0, width: 0, height: 96 },
       anchor: { x: 32, y: 80 },
@@ -83,8 +85,12 @@ describe("battlefield map atlas asset contract", () => {
       ok: false,
       issues: expect.arrayContaining([
         expect.objectContaining({ path: "frames.tree.rect" }),
-        expect.objectContaining({ path: `skins.${bridgeDefenseMapSkin.id}.props[2]` }),
-        expect.objectContaining({ path: `skins.${bridgeDefenseMapSkin.id}.props[3]` }),
+        expect.objectContaining({
+          path: `skins.${bridgeDefenseMapSkin.id}.props[${invalidKindIndex}]`,
+        }),
+        expect.objectContaining({
+          path: `skins.${bridgeDefenseMapSkin.id}.props[${invalidPositionIndex}]`,
+        }),
       ]),
     });
   });
@@ -101,7 +107,8 @@ describe("battlefield map atlas asset contract", () => {
     expect(runtime.status).toBe("degraded");
     expect(runtime.frame("water")).toBeNull();
     expect(runtime.frame("bridge")).not.toBeNull();
-    expect(runtime.skin(bridgeDefenseMapSkin.id).props).toHaveLength(2);
+    expect(runtime.skin(bridgeDefenseMapSkin.id).props)
+      .toHaveLength(bridgeDefenseMapSkin.landmarks.length);
     expect(runtime.skin("unknown-map")).toEqual({ tiles: [], props: [] });
   });
 
