@@ -283,6 +283,13 @@ describe("production game app", () => {
     expect(root.querySelector("[data-phase='debrief']")?.textContent).toContain(
       session.read().scene.copy.failure,
     );
+    expect(root.querySelector("[data-region='objective-results']")?.textContent).toContain("미달성");
+    expect(root.querySelector("[data-region='failure-causes']")?.textContent).toContain(
+      "보고가 필요한 장교에게 전달되지 않았습니다.",
+    );
+    expect(root.querySelector("[data-phase='debrief']")?.textContent).not.toMatch(
+      /point-not-preserved|threat-not-neutralized|report-not-routed|signal-school:event/,
+    );
     expect(action("continue-campaign").textContent).toBe("다시 시도");
     action("continue-campaign").click();
     expect(session.read()).toMatchObject({ phase: "briefing", attemptNumber: 2 });
@@ -319,6 +326,8 @@ describe("production game app", () => {
       expect(root.querySelector("[data-phase='debrief']")?.textContent).toContain(
         session.read().scene.copy.success,
       );
+      expect(root.querySelector("[data-region='objective-results']")?.textContent).toContain("달성");
+      expect(root.querySelector("[data-region='failure-causes']")).toBeNull();
       expect(action("continue-campaign").textContent).toBe("다음 작전");
       action("continue-campaign").click();
     }

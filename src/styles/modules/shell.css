@@ -309,6 +309,83 @@
   line-height: 1.55;
 }
 
+.debrief-results,
+.debrief-failures {
+  margin-top: 18px;
+  text-align: left;
+}
+
+.debrief-results h3,
+.debrief-failures h3 {
+  margin: 0 0 8px;
+  color: var(--scene-accent);
+  font-size: 11px;
+}
+
+.debrief-objective-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.debrief-objective {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--line);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 10px;
+}
+
+.debrief-objective strong {
+  color: var(--muted);
+}
+
+.debrief-objective.objective-passed {
+  border-left-color: var(--mint);
+}
+
+.debrief-objective.objective-passed strong {
+  color: var(--mint);
+}
+
+.debrief-objective.objective-failed {
+  border-left-color: var(--red);
+}
+
+.debrief-objective.objective-failed strong {
+  color: var(--red);
+}
+
+.debrief-failures {
+  display: grid;
+  gap: 6px;
+}
+
+.debrief-failure {
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--red) 55%, var(--line));
+  background: rgba(255, 129, 119, 0.055);
+}
+
+.debrief-failure strong {
+  color: #ffd1cd;
+  font-size: 11px;
+}
+
+.debrief-failure p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.debrief-card > .primary-button {
+  margin-top: 20px;
+}
+
 .epilogue-screen {
   min-height: 0;
   display: grid;

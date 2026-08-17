@@ -20,6 +20,8 @@ export type ThreatImpactViewModel = Readonly<{
 export type HudViewModel = ReturnType<typeof projectHudViewModel>;
 type OperationHudViewModel = NonNullable<HudViewModel["operation"]>;
 type LegacyBattlefieldViewModel = NonNullable<ReturnType<typeof projectLegacyBattlefield>>;
+type OperationResult = NonNullable<NonNullable<GameSnapshot["operation"]>["result"]>;
+type FailureCauseCode = OperationResult["failureCauses"][number]["code"];
 export type GameViewModel = Omit<HudViewModel, "operation"> & Readonly<{
   operation: (OperationHudViewModel & Readonly<{
     battlefield: LegacyBattlefieldViewModel;
@@ -121,6 +123,18 @@ const threatKindLabels = {
 } as const;
 const threatResultLabels = { blocked: "차단", "damaged-objective": "목표 피해" } as const;
 
+const failureCauseLabels = {
+  "vehicle-not-arrived": "부대가 지정 목적지에 도착하지 못했습니다.",
+  "point-not-preserved": "보호해야 할 작전 지점이 피해를 입었습니다.",
+  "civilian-survival-failed": "민간인 안전 기준을 지키지 못했습니다.",
+  "threat-not-neutralized": "작전 종료 전에 위협을 차단하지 못했습니다.",
+  "report-not-routed": "보고가 필요한 장교에게 전달되지 않았습니다.",
+  "report-not-verified": "위협이 닥치기 전에 보고를 검증하지 못했습니다.",
+  "shared-belief-not-aligned": "장교들의 전장 인식이 하나로 맞춰지지 않았습니다.",
+  "command-channel-congested": "지휘 회선의 신호 적체를 해소하지 못했습니다.",
+  "autonomous-replan-not-achieved": "장교들이 스스로 계획과 권한을 재조정하지 못했습니다.",
+} as const satisfies Readonly<Record<FailureCauseCode, string>>;
+
 export function formatGameTime(milliseconds: number): string {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1_000));
   return `${String(Math.floor(totalSeconds / 60)).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}`;
@@ -161,6 +175,37 @@ function guidanceTargetLabel(step: NonNullable<GameSnapshot["tutorial"]["current
   if (step.action === "resume") return "작전 재개";
   if (step.action === "inspect") return `장교 ${step.target.officerId}`;
   return `보고 ${step.target.reportId} → ${step.target.recipientOfficerId}`;
+}
+
+function projectDebrief(
+  snapshot: GameSnapshot,
+  roster: ReadonlyMap<string, Readonly<{ id: string; rank: string; name: string }>>,
+) {
+  if (!snapshot.debrief) return null;
+  const result = snapshot.operation?.result ?? null;
+  return {
+    success: snapshot.debrief.status === "success",
+    copy: snapshot.debrief.copy,
+    lesson: snapshot.scene.copy.lesson,
+    objectives: snapshot.scene.objectives.map((objective) => {
+      const facts = result?.objectiveFacts.filter(({ objectiveId }) => objectiveId === objective.id) ?? [];
+      return {
+        id: objective.id,
+        label: `${objective.required ? "필수" : "선택"} · ${objective.description}`,
+        passed: facts.length > 0 && facts.every(({ passed }) => passed),
+      };
+    }),
+    failures: result?.failureCauses.map((failure) => {
+      const officer = failure.actorId ? roster.get(failure.actorId) : undefined;
+      return {
+        reason: failureCauseLabels[failure.code],
+        objective:
+          snapshot.scene.objectives.find(({ id }) => id === failure.objectiveId)?.description ??
+          "작전 전체 조건",
+        officer: officer ? `${officer.rank} ${officer.name}` : null,
+      };
+    }) ?? [],
+  } as const;
 }
 
 export function projectHudViewModel(
@@ -306,13 +351,7 @@ export function projectHudViewModel(
           })),
         }
       : null,
-    debrief: snapshot.debrief
-      ? {
-          success: snapshot.debrief.status === "success",
-          copy: snapshot.debrief.copy,
-          lesson: snapshot.scene.copy.lesson,
-        }
-      : null,
+    debrief: projectDebrief(snapshot, roster),
     epilogue: {
       title: snapshot.scene.copy.title,
       subtitle: snapshot.scene.copy.subtitle,
