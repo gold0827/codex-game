@@ -65,6 +65,7 @@ export function mountGameApp(
   let message = "";
   let destroyed = false;
   let battlefield: MountedCanvasBattlefield | null = null;
+  let selectedSignalPosition: Readonly<{ x: number; y: number }> | null = null;
   const reducedMotion = options.reducedMotion ?? globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
   const dispatch: CommandDispatcher = (command: GameCommand, cue = "click", focusKey) => {
@@ -92,11 +93,17 @@ export function mountGameApp(
       effectTrack: effects.effectTrack,
     });
     if (battlefieldFrame) {
-      battlefield ??= mountCanvasBattlefield(scheduler);
+      battlefield ??= mountCanvasBattlefield(scheduler, {
+        onTileSelected: (position) => {
+          selectedSignalPosition = position;
+          render();
+        },
+      });
       battlefield.update(battlefieldFrame);
     } else if (battlefield) {
       battlefield.destroy();
       battlefield = null;
+      selectedSignalPosition = null;
     }
     const view = projectGameViewModel(snapshot, campaignView);
     const shell = node("div", "game-shell");
@@ -114,7 +121,9 @@ export function mountGameApp(
     }
     if (view.phase === "briefing") shell.append(renderBriefingView(view, dispatch));
     else if (view.phase === "operation" && battlefield) {
-      shell.append(renderOperationView(view, dispatch, battlefield.element));
+      shell.append(renderOperationView(view, dispatch, battlefield.element, {
+        selectedSignalPosition,
+      }));
     }
     else if (view.phase === "debrief") shell.append(renderDebriefView(view, dispatch));
     else shell.append(renderEpilogueView(view, dispatch));

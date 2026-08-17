@@ -28,6 +28,7 @@ export type IsometricCameraSnapshot = Readonly<{
 export type IsometricCamera = Readonly<{
   read: () => IsometricCameraSnapshot;
   project: (position: WorldPosition) => ScreenPosition;
+  unproject: (position: ScreenPosition) => WorldPosition;
   follow: (position: WorldPosition) => IsometricCameraSnapshot;
   panBy: (screenDelta: ScreenPosition) => IsometricCameraSnapshot;
   setZoom: (zoom: number, anchor?: ScreenPosition) => IsometricCameraSnapshot;
@@ -138,6 +139,15 @@ export function createIsometricCamera(options: Readonly<{
     };
   };
 
+  const unproject = (position: ScreenPosition): WorldPosition => {
+    assertFinitePoint(position, "Screen position");
+    const projectedCenter = projectIsometric(center);
+    return unprojectIsometric({
+      x: projectedCenter.x + (position.x - viewport.width / 2) / zoom,
+      y: projectedCenter.y + (position.y - viewport.height / 2) / zoom,
+    });
+  };
+
   const follow = (position: WorldPosition): IsometricCameraSnapshot => {
     assertFinitePoint(position, "Follow position");
     center = clampCenter(position, options.bounds);
@@ -180,7 +190,7 @@ export function createIsometricCamera(options: Readonly<{
     return read();
   };
 
-  return { read, project, follow, panBy, setZoom, resize };
+  return { read, project, unproject, follow, panBy, setZoom, resize };
 }
 
 export function configureCanvasViewport(

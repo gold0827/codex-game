@@ -299,6 +299,29 @@
   overflow-x: auto;
 }
 
+.spatial-signal-controls {
+  min-width: max-content;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+  border-right: 1px solid var(--line);
+}
+
+.spatial-signal-target {
+  min-width: 126px;
+  color: var(--gold);
+  font: 800 9px ui-monospace, monospace;
+}
+
+.spatial-signal-controls select {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  background: #102019;
+  color: var(--ink);
+  font-size: 10px;
+}
+
 .intervention-actions .game-button {
   min-width: 150px;
 }

@@ -128,6 +128,57 @@ describe("persistent Canvas battlefield viewport", () => {
     viewport.destroy();
   });
 
+  it("selects bounded battlefield tiles without treating pointer pans as selections", () => {
+    const host = document.createElement("section");
+    const selected: Array<Readonly<{ x: number; y: number }>> = [];
+    const viewport = createCanvasBattlefieldViewport(host, {
+      scheduler: new TestScheduler(),
+      resizeObserver: TestResizeObserver as unknown as typeof ResizeObserver,
+      fetchManifest: async () => { throw new Error("offline"); },
+      onTileSelected: (position) => selected.push(position),
+    });
+    const canvas = host.querySelector<HTMLCanvasElement>("canvas");
+    if (!canvas) throw new Error("canvas must be mounted");
+
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 320, clientY: 180 }));
+    canvas.dispatchEvent(new MouseEvent("pointerup", { button: 0, clientX: 320, clientY: 180 }));
+
+    expect(selected).toEqual([{ x: 12, y: 8 }]);
+    expect(canvas.dataset.selectedTile).toBe("12,8");
+    expect(canvas.getAttribute("aria-label")).toContain("선택 타일 12, 8");
+
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 320, clientY: 180 }));
+    canvas.dispatchEvent(new MouseEvent("pointermove", { button: 0, clientX: 420, clientY: 180 }));
+    canvas.dispatchEvent(new MouseEvent("pointerup", { button: 0, clientX: 420, clientY: 180 }));
+
+    expect(selected).toHaveLength(1);
+
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: -10_000, clientY: -10_000 }));
+    canvas.dispatchEvent(new MouseEvent("pointerup", { button: 0, clientX: -10_000, clientY: -10_000 }));
+    expect(selected).toHaveLength(1);
+    viewport.destroy();
+  });
+
+  it("moves the selected battlefield tile with the keyboard", () => {
+    const host = document.createElement("section");
+    const selected: Array<Readonly<{ x: number; y: number }>> = [];
+    const viewport = createCanvasBattlefieldViewport(host, {
+      scheduler: new TestScheduler(),
+      resizeObserver: TestResizeObserver as unknown as typeof ResizeObserver,
+      fetchManifest: async () => { throw new Error("offline"); },
+      onTileSelected: (position) => selected.push(position),
+    });
+    const canvas = host.querySelector<HTMLCanvasElement>("canvas");
+    if (!canvas) throw new Error("canvas must be mounted");
+
+    canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+    expect(selected).toEqual([{ x: 13, y: 8 }, { x: 13, y: 9 }]);
+    expect(canvas.dataset.selectedTile).toBe("13,9");
+    viewport.destroy();
+  });
+
   it("caps the backing store DPR and leaves bitmap smoothing disabled", () => {
     const context = {
       setTransform: vi.fn(),

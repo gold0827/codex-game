@@ -1,6 +1,21 @@
+import type { GameCommand } from "../../application/game-session";
 import { commandButton, node, type CommandDispatcher } from "../dom";
 import type { GameViewModel } from "../gameViewModel";
 import { renderHarnessControls } from "../gameChrome";
+
+type SpatialSignalCommand = Extract<GameCommand, { type: "issue-spatial-signal" }>;
+
+export type OperationViewOptions = Readonly<{
+  selectedSignalPosition?: SpatialSignalCommand["position"] | null;
+}>;
+
+const signalKinds = ["investigate", "defend", "avoid"] as const satisfies readonly SpatialSignalCommand["signal"][];
+const signalKindLabels = {
+  investigate: "조사",
+  defend: "방어",
+  avoid: "회피",
+} as const satisfies Readonly<Record<SpatialSignalCommand["signal"], string>>;
+const signalStrengths = [1, 2, 3] as const satisfies readonly SpatialSignalCommand["strength"][];
 
 function renderMeter(label: string, value: number): HTMLElement {
   const row = node("div", "metric-row");
@@ -16,6 +31,7 @@ export function renderOperationView(
   view: GameViewModel,
   dispatch: CommandDispatcher,
   battlefield: HTMLElement,
+  options: OperationViewOptions = {},
 ): HTMLElement {
   const operation = view.operation;
   const main = node("main", "operation-screen");
@@ -57,7 +73,7 @@ export function renderOperationView(
   commandBar.append(
     node("div", "operation-clock", operation.elapsed),
     timeControls,
-    node("div", "intervention-budget", `남은 직접 개입 ${operation.remainingInterventions}회`),
+    node("div", "intervention-budget", `남은 개입 자원 ${operation.remainingAttention}`),
   );
 
   const status = node("section", "operation-status panel-card");
@@ -163,9 +179,66 @@ export function renderOperationView(
   const interventionHeading = node("div", "intervention-heading");
   interventionHeading.append(
     node("div", undefined, "직접 개입 트레이"),
-    node("strong", undefined, `${operation.remainingInterventions}회 남음`),
+    node("strong", undefined, `개입 자원 ${operation.remainingAttention}`),
   );
   const interventionActions = node("div", "intervention-actions");
+  const signalControls = node("div", "spatial-signal-controls");
+  signalControls.dataset.region = "spatial-signal";
+  const selectedPosition = options.selectedSignalPosition ?? null;
+  const selectedLabel = node(
+    "span",
+    "spatial-signal-target",
+    selectedPosition
+      ? `선택 타일 ${selectedPosition.x}, ${selectedPosition.y}`
+      : "전장에서 신호 타일을 선택합니다.",
+  );
+  const kind = node("select");
+  kind.dataset.signalKind = "";
+  kind.setAttribute("aria-label", "공간 신호 종류");
+  signalKinds.forEach((value) => {
+    const option = node("option", undefined, signalKindLabels[value]);
+    option.value = value;
+    kind.append(option);
+  });
+  const strength = node("select");
+  strength.dataset.signalStrength = "";
+  strength.setAttribute("aria-label", "공간 신호 강도");
+  signalStrengths.forEach((value) => {
+    const option = node("option", undefined, `강도 ${value}`);
+    option.value = String(value);
+    option.disabled = value > operation.remainingAttention;
+    strength.append(option);
+  });
+  const issue = commandButton(
+    "공간 신호 발행",
+    "issue-spatial-signal",
+    {
+      type: "issue-spatial-signal",
+      signal: "investigate",
+      strength: 1,
+      position: selectedPosition ?? { x: 0, y: 0 },
+    },
+    (command, cue, focusKey) => {
+      if (command.type !== "issue-spatial-signal" || !selectedPosition) return;
+      dispatch({
+        ...command,
+        signal: kind.value as SpatialSignalCommand["signal"],
+        strength: Number(strength.value) as SpatialSignalCommand["strength"],
+        position: selectedPosition,
+      }, cue, focusKey);
+    },
+    { focusKey: "issue-spatial-signal" },
+  );
+  const syncSignalAvailability = (): void => {
+    const requestedStrength = Number(strength.value);
+    issue.disabled = selectedPosition === null ||
+      requestedStrength < 1 ||
+      requestedStrength > operation.remainingAttention;
+  };
+  strength.addEventListener("change", syncSignalAvailability);
+  syncSignalAvailability();
+  signalControls.append(selectedLabel, kind, strength, issue);
+  interventionActions.append(signalControls);
   if (selectedOfficer) {
     interventionActions.append(commandButton(
       `${selectedOfficer.name} 예외 권한`,
