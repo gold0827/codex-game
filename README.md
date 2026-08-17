@@ -19,7 +19,15 @@ npm run check
 ```
 
 `npm run check`는 asset 산출물 일치, TypeScript build, 전체 test, module 의존
-방향 검사를 실행합니다.
+방향 검사를 실행합니다. 고비용 몬테카를로 검증은 로컬 전체 검사에 포함되며,
+따로 반복하려면 다음 명령을 사용합니다.
+
+```sh
+npm run test:monte-carlo
+```
+
+GitHub CI는 제한된 runner에서 발생하는 몬테카를로 timeout을 피하기 위해
+`npm run check:ci`로 build, asset, module 의존 방향과 나머지 test를 검사합니다.
 
 ## 전장 asset 생성
 
