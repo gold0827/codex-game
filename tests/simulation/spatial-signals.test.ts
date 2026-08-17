@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { CampaignScene } from "../../src/campaign";
 import { createGameSession } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import {
+  bridgeDefenseOfficers,
+  bridgeDefenseOperation,
+} from "../../src/scenarios/bridgeDefenseOperation";
 import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 import {
   BALANCED_HARNESS,
@@ -92,6 +96,28 @@ describe("spatial command signal runtime", () => {
     expect(after).not.toEqual(before);
     expect(after.every((trace) => trace?.selectedAction.kind === action)).toBe(true);
     expect(after.every((trace) => trace?.selectedAction.target.id === `${target.x},${target.y}`)).toBe(true);
+  });
+
+  it("stops an old bridge signal from dictating every later threat decision", () => {
+    const simulation = createOperationSimulation(
+      bridgeDefenseOperation,
+      bridgeDefenseOfficers,
+      0,
+      BALANCED_HARNESS,
+    );
+    simulation.intervene({
+      kind: "issue-spatial-signal",
+      signal: "defend",
+      strength: 2,
+      position: { x: 11, y: 7 },
+    });
+
+    simulation.advance(21_000);
+
+    const actions = simulation.snapshot().officers.map(
+      ({ committedAction }) => committedAction?.trace.selectedAction.kind,
+    );
+    expect(actions.every((action) => action === "defend")).toBe(false);
   });
 
   it("rejects a signal whose strength would exceed the authored attention budget without mutation", () => {

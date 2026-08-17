@@ -20,6 +20,8 @@ import type {
 } from "./operationTypes";
 import { clamp, clone } from "./operationTypes";
 import type { SpatialWorld } from "./spatial";
+
+const SPATIAL_SIGNAL_DIRECTIVE_DURATION_MS = 20_000;
 import { intentForAction } from "./agent/actions";
 import { createOfficerMind, type OfficerMindContext } from "./agent/officerMind";
 import { perceive } from "./agent/perception";
@@ -108,6 +110,7 @@ export function createDecisions(context: DecisionContext) {
     const targetObjective = objectives.find(({ id }) => id === unit?.objectiveId) ?? objectives[0];
     const supportOfficer = officers.find(({ id }) => id !== officer.id) ?? officer;
     const acceptedSignal = [...spatialSignals].reverse().find((signal) =>
+      state.elapsedMs - signal.issuedAtMs <= SPATIAL_SIGNAL_DIRECTIVE_DURATION_MS &&
       signal.recipients.some(({ officerId, response }) => officerId === officer.id && response === "accepted")
     );
     const activeThreatIds = new Set(threats
