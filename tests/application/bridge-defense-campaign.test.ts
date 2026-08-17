@@ -8,29 +8,15 @@ import {
   bridgeDefenseMapSkin,
   bridgeDefenseOperation,
 } from "../../src/scenarios/bridgeDefenseOperation";
+import { completeBridgeTutorial } from "../fixtures/bridge-tutorial";
 
 describe("bridge-defense tutorial and debrief integration", () => {
   it("runs the guidance, all three signals, and six attention through the session seam", () => {
     const session = createGameSession(bridgeDefenseCampaign, "bridge-tutorial");
-    session.dispatch({ type: "start-attempt" });
-
-    expect(session.read().tutorial.currentStep?.action).toBe("pause");
-    session.dispatch({ type: "pause" });
-    expect(session.read().tutorial.currentStep?.action).toBe("inspect");
-    session.dispatch({ type: "inspect-officer", officerId: "captain-han" });
+    completeBridgeTutorial(session);
 
     const [north, bridge, south] = bridgeDefenseMapSkin.crossings;
     if (!north || !bridge || !south) throw new Error("Missing bridge crossing fixture.");
-    expect(session.read().tutorial.currentStep?.action).toBe("signal");
-    session.dispatch({
-      type: "issue-spatial-signal",
-      signal: "defend",
-      strength: 2,
-      position: bridge.position,
-    });
-    expect(session.read().tutorial.currentStep?.action).toBe("resume");
-    session.dispatch({ type: "resume" });
-    expect(session.read().tutorial.currentStep).toBeNull();
 
     session.dispatch({
       type: "issue-spatial-signal",
