@@ -1,90 +1,255 @@
-import { createGameSession } from "../../src/application/game-session";
 import {
   bridgeDefenseCampaign,
   bridgeDefenseMapSkin,
 } from "../../src/scenarios/bridgeDefenseOperation";
-import "../../src/styles/main.css";
-import { mountGameApp } from "../../src/ui/GameApp";
 
-const root = document.querySelector<HTMLElement>("#fixture-root");
+const root = document.querySelector<HTMLElement>("#app");
 if (!root) throw new Error("Chrome fixture root is missing.");
 
-async function waitForFrameCondition(condition: () => boolean): Promise<boolean> {
-  for (let frame = 0; frame < 120; frame += 1) {
+const errors: string[] = [];
+window.addEventListener("error", (event) => errors.push(event.message));
+window.addEventListener("unhandledrejection", (event) => errors.push(String(event.reason)));
+const originalConsoleError = console.error.bind(console);
+console.error = (...values: unknown[]) => {
+  errors.push(values.map(String).join(" "));
+  originalConsoleError(...values);
+};
+
+const settingsKey = `player-settings:${bridgeDefenseCampaign.id}:v1`;
+const progressKey = `campaign-progress:${bridgeDefenseCampaign.id}:v1`;
+localStorage.removeItem(settingsKey);
+localStorage.removeItem(progressKey);
+localStorage.removeItem(`campaign-document:${bridgeDefenseCampaign.id}`);
+
+async function nextFrame(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    window.requestAnimationFrame(finish);
+    window.setTimeout(finish, 20);
+  });
+}
+
+async function waitFor(condition: () => boolean, maxFrames = 180): Promise<boolean> {
+  for (let frame = 0; frame < maxFrames; frame += 1) {
     if (condition()) return true;
-    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    await nextFrame();
   }
   return condition();
 }
 
-const session = createGameSession(bridgeDefenseCampaign, "chrome-fixture");
-const mapPreview = new URLSearchParams(window.location.search).has("map-preview");
-const app = mountGameApp(root, bridgeDefenseCampaign, session, {
-  frameScheduler: {
-    request: (callback) => window.requestAnimationFrame(callback),
-    cancel: (handle) => window.cancelAnimationFrame(handle),
-  },
-});
-
-root.querySelector<HTMLButtonElement>('[data-action="start-attempt"]')?.click();
-await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-const grid = root.querySelector<HTMLElement>(".operation-grid");
-const battlefield = root.querySelector<HTMLElement>("[data-region='battlefield']");
-const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
-const mapImageReady = mapPreview && canvas
-  ? await waitForFrameCondition(() => canvas.dataset.mapImage === "ready")
-  : false;
-const gridWidth = grid?.getBoundingClientRect().width ?? 0;
-const battlefieldWidth = battlefield?.getBoundingClientRect().width ?? 0;
-const centralShare = gridWidth === 0 ? 0 : battlefieldWidth / gridWidth;
-
-if (!mapPreview) {
-  root.querySelector<HTMLButtonElement>('[data-action="pause"]')?.click();
-  root.querySelector<HTMLElement>('[data-officer-id="captain-han"]')
-    ?.querySelector<HTMLButtonElement>('[data-action="inspect-officer"]')
-    ?.click();
-  root.querySelector<HTMLButtonElement>('[data-action="resume"]')?.click();
-  const remainingMs = (session.read().operation?.durationMs ?? 0) -
-    (session.read().operation?.elapsedMs ?? 0);
-  session.advance(remainingMs);
-  app.render();
+async function waitForDuration(
+  condition: () => boolean,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = performance.now() + timeoutMs;
+  while (performance.now() < deadline) {
+    if (condition()) return true;
+    await nextFrame();
+  }
+  return condition();
 }
-const tutorialCompleted = session.read().tutorial.currentStep === null;
+
+const action = (name: string): HTMLButtonElement => {
+  const button = root.querySelector<HTMLButtonElement>(`[data-action="${name}"]`);
+  if (!button) throw new Error(`Missing Chrome fixture action ${name}.`);
+  return button;
+};
+
+const selectedTile = (canvas: HTMLCanvasElement): Readonly<{ x: number; y: number }> | null => {
+  const [x, y] = (canvas.dataset.selectedTile ?? "").split(",").map(Number);
+  return Number.isSafeInteger(x) && Number.isSafeInteger(y) ? { x, y } : null;
+};
+
+function moveSelectionTo(
+  canvas: HTMLCanvasElement,
+  target: Readonly<{ x: number; y: number }>,
+): boolean {
+  canvas.focus();
+  for (let move = 0; move < 64; move += 1) {
+    const selected = selectedTile(canvas);
+    if (selected?.x === target.x && selected.y === target.y) return true;
+    const key = selected === null || selected.x < target.x
+      ? "ArrowRight"
+      : selected.x > target.x
+        ? "ArrowLeft"
+        : selected.y < target.y
+          ? "ArrowDown"
+          : "ArrowUp";
+    canvas.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  }
+  const selected = selectedTile(canvas);
+  return selected?.x === target.x && selected.y === target.y;
+}
+
+function overlaps(left: DOMRect, right: DOMRect): boolean {
+  return left.left < right.right && left.right > right.left &&
+    left.top < right.bottom && left.bottom > right.top;
+}
+
+const mapPreview = new URLSearchParams(window.location.search).has("map-preview");
+await import("../../src/main");
+const bridgeBriefing = root.textContent?.includes(
+  bridgeDefenseCampaign.scenes[0].copy.briefing,
+) ?? false;
+
+action("start-attempt").click();
+action("pause").click();
+root.querySelector<HTMLElement>('[data-officer-id="captain-han"]')
+  ?.querySelector<HTMLButtonElement>('[data-action="inspect-officer"]')
+  ?.click();
+
+const canvas = root.querySelector<HTMLCanvasElement>("canvas.battlefield-canvas");
+const battlefield = root.querySelector<HTMLElement>("[data-region='battlefield']");
+const grid = root.querySelector<HTMLElement>(".operation-grid");
+const controls = root.querySelector<HTMLElement>("[data-region='spatial-signal']");
+const tutorialGuidance = root.querySelector<HTMLElement>(".tutorial-guidance");
+if (!canvas || !battlefield || !grid || !controls || !tutorialGuidance) {
+  throw new Error("Production operation UI did not mount.");
+}
+
+const targetBeforeSignal = {
+  tutorialAction: root.querySelector<HTMLElement>(".tutorial-guidance")?.dataset.tutorialAction,
+  guidanceTile: canvas.dataset.guidanceTile,
+  controlsGuided: controls.classList.contains("guidance-target"),
+  kind: controls.querySelector<HTMLSelectElement>("[data-signal-kind]")?.value,
+  strength: controls.querySelector<HTMLSelectElement>("[data-signal-strength]")?.value,
+};
+const assetsReady = await waitFor(() =>
+  canvas.dataset.spriteAssets === "ready" &&
+  canvas.dataset.mapAssets === "ready" &&
+  canvas.dataset.spriteImage === "ready" &&
+  canvas.dataset.mapImage === "ready"
+);
+const gridWidth = grid.getBoundingClientRect().width;
+const battlefieldWidth = battlefield.getBoundingClientRect().width;
+const operationLayout = {
+  viewport: [innerWidth, innerHeight],
+  centralShare: gridWidth === 0 ? 0 : battlefieldWidth / gridWidth,
+  overflowX: document.documentElement.scrollWidth > innerWidth,
+  overflowY: document.documentElement.scrollHeight > innerHeight,
+  controlsOverlapBattlefield: overlaps(
+    controls.getBoundingClientRect(),
+    battlefield.getBoundingClientRect(),
+  ),
+  guidanceOverlapBattlefield: overlaps(
+    tutorialGuidance.getBoundingClientRect(),
+    battlefield.getBoundingClientRect(),
+  ),
+  guidanceOverlapControls: overlaps(
+    tutorialGuidance.getBoundingClientRect(),
+    controls.getBoundingClientRect(),
+  ),
+};
+const selectedBridge = moveSelectionTo(canvas, { x: 11, y: 7 });
+action("issue-spatial-signal").click();
+action("resume").click();
+await nextFrame();
+const tutorialCompleted = root.querySelector(".tutorial-guidance") === null;
+
+let completedFlow = {
+  debriefStatus: null as string | null,
+  debriefCopyVisible: false,
+  epilogueReached: false,
+  resetToBridge: false,
+  playerManual: false,
+};
+if (!mapPreview) {
+  action("speed-2").click();
+  const debriefReached = await waitForDuration(
+    () => root.querySelector("[data-phase='debrief']") !== null,
+    90_000,
+  );
+  completedFlow = {
+    ...completedFlow,
+    debriefStatus: debriefReached && root.querySelector(".debrief-success")
+      ? "success"
+      : debriefReached
+        ? "retry"
+        : null,
+    debriefCopyVisible: root.textContent?.includes(
+      bridgeDefenseCampaign.scenes[0].copy.success,
+    ) ?? false,
+  };
+  if (completedFlow.debriefStatus === "success") {
+    action("choose-lesson").click();
+    completedFlow.epilogueReached = root.querySelector("[data-phase='epilogue']") !== null &&
+      (root.textContent?.includes(bridgeDefenseCampaign.scenes[1].copy.title) ?? false);
+    action("reset-campaign").click();
+    completedFlow.resetToBridge = root.querySelector("[data-phase='briefing']") !== null &&
+      (root.textContent?.includes(bridgeDefenseCampaign.scenes[0].copy.briefing) ?? false);
+    action("open-manual").click();
+    const manualCopy = root.querySelector<HTMLElement>(".workbench-manual")?.textContent ?? "";
+    completedFlow.playerManual = manualCopy.includes("해인교") &&
+      manualCopy.includes("공간 신호") &&
+      !manualCopy.includes("여섯 작전") &&
+      !manualCopy.includes("장면 편집");
+  }
+}
 
 const result = {
   mapPreview,
-  phase: session.read().phase,
-  sceneId: session.read().scene.identity.id,
-  mapId: battlefield?.dataset.mapId ?? null,
-  centralShare: Math.round(centralShare * 1_000) / 1_000,
-  canvasWidth: canvas?.width ?? 0,
-  canvasHeight: canvas?.height ?? 0,
-  mapImageReady,
-  mapTileCount: Number(canvas?.dataset.mapTileCount ?? 0),
-  mapPropCount: Number(canvas?.dataset.mapPropCount ?? 0),
-  officerCount: session.read().operation?.officers.length ?? 0,
+  productionEntrypoint: true,
+  bridgeBriefing,
+  editorHidden: root.querySelector('[data-action="open-editor"]') === null,
+  mapId: battlefield.dataset.mapId ?? null,
+  canvasWidth: canvas.width,
+  canvasHeight: canvas.height,
+  mapTileCount: Number(canvas.dataset.mapTileCount ?? 0),
+  mapPropCount: Number(canvas.dataset.mapPropCount ?? 0),
+  assetStatus: {
+    spriteManifest: canvas.dataset.spriteAssets ?? null,
+    mapManifest: canvas.dataset.mapAssets ?? null,
+    spriteImage: canvas.dataset.spriteImage ?? null,
+    mapImage: canvas.dataset.mapImage ?? null,
+  },
+  assetsReady,
+  targetBeforeSignal,
+  selectedBridge,
   tutorialCompleted,
-  debriefStatus: session.read().debrief?.status ?? null,
-  debriefCopyVisible: root.textContent?.includes(
-    bridgeDefenseCampaign.scenes[0].copy.success,
-  ) ?? false,
+  operationLayout: {
+    ...operationLayout,
+    centralShare: Math.round(operationLayout.centralShare * 1_000) / 1_000,
+  },
+  completedFlow,
+  errors,
 };
-const passed = result.sceneId === "haein-bridge-defense" &&
+const passed = result.productionEntrypoint &&
+  result.bridgeBriefing &&
+  result.editorHidden &&
   result.mapId === bridgeDefenseMapSkin.id &&
-  result.centralShare >= 0.7 &&
   result.canvasWidth > 0 &&
   result.canvasHeight > 0 &&
-  result.officerCount === 4 &&
-  (mapPreview
-    ? result.phase === "operation" &&
-      result.mapImageReady &&
-      result.mapTileCount > 24 * 16 &&
-      result.mapPropCount === bridgeDefenseMapSkin.landmarks.length
-    : result.phase === "debrief" &&
-      result.tutorialCompleted &&
-      result.debriefStatus === "success" &&
-      result.debriefCopyVisible);
+  result.mapTileCount > 24 * 16 &&
+  result.mapPropCount === bridgeDefenseMapSkin.landmarks.length &&
+  result.assetsReady &&
+  result.targetBeforeSignal.tutorialAction === "signal" &&
+  result.targetBeforeSignal.guidanceTile === "11,7" &&
+  result.targetBeforeSignal.controlsGuided &&
+  result.targetBeforeSignal.kind === "defend" &&
+  result.targetBeforeSignal.strength === "2" &&
+  result.selectedBridge &&
+  result.tutorialCompleted &&
+  result.operationLayout.viewport[0] === 1440 &&
+  result.operationLayout.viewport[1] === 900 &&
+  result.operationLayout.centralShare >= 0.45 &&
+  !result.operationLayout.overflowX &&
+  !result.operationLayout.overflowY &&
+  !result.operationLayout.controlsOverlapBattlefield &&
+  !result.operationLayout.guidanceOverlapBattlefield &&
+  !result.operationLayout.guidanceOverlapControls &&
+  errors.length === 0 &&
+  (mapPreview || (
+    result.completedFlow.debriefStatus === "success" &&
+    result.completedFlow.debriefCopyVisible &&
+    result.completedFlow.epilogueReached &&
+    result.completedFlow.resetToBridge &&
+    result.completedFlow.playerManual
+  ));
 
 const output = document.createElement("pre");
 output.id = "fixture-result";
@@ -92,6 +257,4 @@ output.textContent = JSON.stringify({ passed, ...result });
 document.body.append(output);
 document.body.dataset.fixtureStatus = passed ? "passed" : "failed";
 
-if (!passed) console.error("Bridge defense Chrome fixture failed", result);
-
-window.addEventListener("pagehide", () => app.destroy(), { once: true });
+if (!passed) originalConsoleError("Bridge defense Chrome fixture failed", result);
