@@ -8,6 +8,10 @@ import {
 } from "../campaign";
 
 const riverTiles = Array.from({ length: 16 }, (_, y) => ({ x: 11, y }));
+const eastEmbankmentTiles = Array.from({ length: 9 }, (_, index) => ({
+  x: 15 + index,
+  y: 8,
+}));
 
 export const bridgeDefenseMap = {
   width: 24,
@@ -19,6 +23,7 @@ export const bridgeDefenseMap = {
     { position: { x: 10, y: 3 }, movementCost: 3 },
     { position: { x: 12, y: 3 }, movementCost: 3 },
     { position: { x: 13, y: 3 }, movementCost: 3 },
+    ...eastEmbankmentTiles.map((position) => ({ position, movementCost: 2 })),
   ],
   spawns: [
     { id: "command-post", position: { x: 1, y: 2 } },
@@ -28,7 +33,7 @@ export const bridgeDefenseMap = {
   ],
   destinations: [
     { id: "north-observation", position: { x: 22, y: 3 } },
-    { id: "bridge-east-bank", position: { x: 22, y: 7 } },
+    { id: "haein-bridge", position: { x: 11, y: 7 } },
     { id: "civilian-shelter", position: { x: 22, y: 13 } },
     { id: "south-relay", position: { x: 22, y: 15 } },
   ],
@@ -102,9 +107,10 @@ export const bridgeDefenseOperation = {
     briefing:
       "해인교를 지키며 동쪽 둔치의 민간인을 대피시킨다. 북쪽 여울과 남쪽 농로가 우회로지만, 실제 포격 좌표와 가짜 관측 보고가 동시에 올라온다.",
     lesson:
-      "조사·방어·회피 신호에 여섯 attention을 나눠 장교들이 서로 다른 목표와 경로를 스스로 맡게 한다.",
+      "조사·방어·회피 신호에 여섯 개입 자원을 나눠 장교들이 서로 다른 목표와 경로를 스스로 맡게 한다.",
     success: "해인교와 민간인 대피로가 모두 남았고, 실제 포격만 무력화됐다.",
-    failure: "오보를 좇는 사이 교량이나 민간인 대피로를 잃었다.",
+    failure:
+      "오보를 좇는 사이 교량이나 민간인 대피로를 잃었다. 다음 시도에는 해인교 방어를 먼저 확보하고, 북쪽 보고는 조사하며 남쪽 대피로는 별도로 보호한다.",
   },
   presentation: {
     mapId: bridgeDefenseMapSkin.id,
@@ -129,8 +135,20 @@ export const bridgeDefenseOperation = {
       completionEvent: "officer-inspected",
     },
     {
+      id: "bridge-defend-signal",
+      instruction: "해인교 타일에 강도 2 방어 신호를 보내 실제 포격에 대비한다.",
+      action: "signal",
+      target: {
+        kind: "spatial-signal",
+        signal: "defend",
+        strength: 2,
+        position: { x: 11, y: 7 },
+      },
+      completionEvent: "spatial-signal-issued",
+    },
+    {
       id: "bridge-resume",
-      instruction: "신호를 보낼 준비가 되면 작전 시간을 다시 흐르게 한다.",
+      instruction: "교량 방어 신호를 확인했으면 작전 시간을 다시 흐르게 한다.",
       action: "resume",
       target: { kind: "operation-clock" },
       completionEvent: "operation-resumed",
@@ -170,7 +188,7 @@ export const bridgeDefenseOperation = {
           id: "bridge-east-bank-artillery",
           kind: "artillery",
           lane: "center",
-          severity: "critical",
+          severity: "medium",
           telegraphDurationMs: 8_000,
         },
       ],
@@ -192,7 +210,7 @@ export const bridgeDefenseOperation = {
         {
           id: "bridge-north-bank-misinformation",
           kind: "misinformation",
-          lane: "north",
+          lane: "command",
           severity: "high",
           telegraphDurationMs: 9_000,
         },
