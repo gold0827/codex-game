@@ -328,6 +328,7 @@
 
 .game-shell {
   --scene-accent: var(--mint);
+  --phase-backdrop-image: url("/assets/campaign-battlefield.png");
   width: 100vw;
   height: 100vh;
   min-width: 1024px;
@@ -466,14 +467,16 @@
 }
 
 .debrief-screen {
+  --phase-backdrop-overlay:
+    linear-gradient(rgba(4, 10, 8, 0.78), rgba(4, 10, 8, 0.92));
   min-height: 0;
   display: grid;
   place-items: center;
   padding: 32px;
   overflow: hidden;
   background:
-    linear-gradient(rgba(4, 10, 8, 0.74), rgba(4, 10, 8, 0.9)),
-    url("/assets/campaign-battlefield.png") center / cover;
+    var(--phase-backdrop-overlay),
+    var(--phase-backdrop-image) center / cover;
 }
 
 .debrief-card {
@@ -590,11 +593,15 @@
 }
 
 .epilogue-screen {
+  --phase-backdrop-overlay:
+    linear-gradient(125deg, rgba(241, 229, 179, 0.93), rgba(151, 183, 142, 0.78));
   min-height: 0;
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;
   overflow: hidden;
-  background: #e9e1b5;
+  background:
+    var(--phase-backdrop-overlay),
+    var(--phase-backdrop-image) center / cover;
   color: #24382b;
 }
 
@@ -603,7 +610,7 @@
   flex-direction: column;
   justify-content: center;
   padding: clamp(34px, 7vw, 94px);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.36), transparent), #e9e1b5;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(233, 225, 181, 0.78));
 }
 
 .epilogue-copy .eyebrow {

@@ -4,6 +4,8 @@ import type { GameViewModel } from "../gameViewModel";
 export function renderEpilogueView(view: GameViewModel, dispatch: CommandDispatcher): HTMLElement {
   const main = node("main", "epilogue-screen");
   main.dataset.phase = "epilogue";
+  main.dataset.backdropId = view.backdrop.id;
+  main.dataset.backdropStyle = view.backdrop.style;
   const copy = node("section", "epilogue-copy");
   copy.append(
     node("p", "eyebrow", "지휘 종료"),
