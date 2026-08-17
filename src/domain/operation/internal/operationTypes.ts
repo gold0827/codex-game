@@ -40,3 +40,6 @@ export type MutableMetrics = {
 export const LANES: readonly ThreatLane[] = ["north", "center", "south", "command"];
 export const SEVERITY_THRESHOLD = { low: 0.3, medium: 0.42, high: 0.52, critical: 0.58 } as const;
 export const SEVERITY_DAMAGE = { low: 4, medium: 8, high: 13, critical: 19 } as const;
+export function clone<Value>(value: Value): Value { return JSON.parse(JSON.stringify(value)) as Value; }
+export function clamp(value: number, minimum = 0, maximum = 1): number { return Math.min(maximum, Math.max(minimum, value)); }
+export function rounded(value: number): number { return Math.round(value * 10_000) / 10_000; }

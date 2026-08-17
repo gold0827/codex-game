@@ -31,7 +31,8 @@ import {
 } from "../../simulation/simulationTypes";
 import { projectOperationReplay, type OperationEvent } from "./operationEvent";
 import { confidenceFor as engineConfidenceFor, intentAlternatives as engineIntentAlternatives } from "./internal/decisions";
-import { orderBeats, dueBeats } from "./internal/timeline";
+import { orderBeats, dueBeats, assertPlayableScene } from "./internal/timeline";
+import { clone, clamp, rounded } from "./internal/operationTypes";
 import { deliveryDelay as signalDeliveryDelay, verificationDelay as signalVerificationDelay, reportReliability } from "./internal/signals";
 import { isThreatBlocked, threatDamage } from "./internal/threats";
 import { operationSucceeded } from "./internal/outcome";
@@ -98,18 +99,6 @@ type MutableMetrics = {
 };
 
 const lanes: readonly ThreatLane[] = ["north", "center", "south", "command"];
-function clone<Value>(value: Value): Value {
-  return JSON.parse(JSON.stringify(value)) as Value;
-}
-
-function clamp(value: number, minimum = 0, maximum = 1): number {
-  return Math.min(maximum, Math.max(minimum, value));
-}
-
-function rounded(value: number): number {
-  return Math.round(value * 10_000) / 10_000;
-}
-
 function assertHarness(harness: HarnessConfiguration): void {
   const fields = [
     "informationReach",
@@ -126,67 +115,13 @@ function assertHarness(harness: HarnessConfiguration): void {
   });
 }
 
+/* scene validation is kept in the timeline boundary */
 function assertSceneAndRoster(
   scene: CampaignScene,
   roster: readonly CampaignOfficer[],
 ): void {
-  if (scene.identity.kind === "epilogue") {
-    throw new RangeError("Operation simulation requires a playable scene.");
-  }
-  if (
-    !Number.isSafeInteger(scene.encounterParameters.durationMs) ||
-    scene.encounterParameters.durationMs <= 0
-  ) {
-    throw new RangeError("A playable scene must have a positive safe duration.");
-  }
-  if (!Array.isArray(roster) || roster.length === 0) {
-    throw new RangeError("Operation simulation requires at least one officer.");
-  }
-
-  const officerIds = new Set<string>();
-  roster.forEach((officer) => {
-    if (officerIds.has(officer.id)) {
-      throw new RangeError(`Duplicate officer identifier "${officer.id}".`);
-    }
-    officerIds.add(officer.id);
-  });
-
-  scene.beats.forEach((beat) => {
-    if (
-      !Number.isSafeInteger(beat.timeMs) ||
-      beat.timeMs < 0 ||
-      beat.timeMs > scene.encounterParameters.durationMs
-    ) {
-      throw new RangeError(`Beat "${beat.id}" has an invalid activation time.`);
-    }
-    beat.reports.forEach((report) => {
-      if (!officerIds.has(report.officerId)) {
-        throw new RangeError(
-          `Report "${report.id}" references an officer outside the roster.`,
-        );
-      }
-    });
-    beat.threats.forEach((threat) => {
-      if (
-        !Number.isSafeInteger(threat.telegraphDurationMs) ||
-        threat.telegraphDurationMs <= 0 ||
-        threat.telegraphDurationMs >
-          scene.encounterParameters.durationMs - beat.timeMs
-      ) {
-        throw new RangeError(
-          `Threat "${threat.id}" cannot complete its telegraph before the operation ends.`,
-        );
-      }
-    });
-  });
-
-  const retry = scene.transitions.some(({ outcomeId }) => outcomeId === "retry");
-  const success = scene.transitions.some(({ outcomeId }) => outcomeId !== "retry");
-  if (!retry || !success) {
-    throw new RangeError(
-      "A playable scene must declare retry and non-retry outcomes.",
-    );
-  }
+  assertPlayableScene(scene, roster);
+  return;
 }
 
 function detectConsequences(
