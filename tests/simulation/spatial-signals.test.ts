@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CampaignScene } from "../../src/campaign";
 import { createGameSession } from "../../src/application/game-session";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
-import { createOperationSimulation } from "../../src/simulation/operationSimulation";
+import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 import {
   BALANCED_HARNESS,
   type SpatialSignalKind,

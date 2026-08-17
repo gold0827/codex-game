@@ -11,7 +11,7 @@ import {
   bridgeDefenseOfficers,
   bridgeDefenseOperation,
 } from "../../src/scenarios/bridgeDefenseOperation";
-import { createOperationSimulation } from "../../src/simulation/operationSimulation";
+import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 import { BALANCED_HARNESS } from "../../src/simulation/simulationTypes";
 
 const poorHarness = {

@@ -118,7 +118,7 @@ game session이나 operation을 import하지 않는다.
 
 현재 경로명이 module명과 다른 경우에도 표의 책임이 기준이다. 예를 들어
 `src/ui/GameApp.ts`는 presentation mount adapter이고,
-`src/simulation/operationSimulation.ts`는 operation domain의 public entrypoint다.
+`src/domain/operation/operationEngine.ts`는 operation domain의 단일 public entrypoint다.
 
 ## 허용 의존
 

@@ -11,7 +11,7 @@ import {
 } from "../../src/presentation/effects/effectCueProjector";
 import { sampleEffectTrack, type EffectTrack } from "../../src/presentation/effects/effectTrack";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
-import { createOperationSimulation } from "../../src/simulation/operationSimulation";
+import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 import type { HarnessConfiguration } from "../../src/simulation/simulationTypes";
 
 const fixtureTrack: EffectTrack = {

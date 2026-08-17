@@ -6,7 +6,7 @@ import {
   createOperationRandomStreams,
   operationRandomStreamKey,
 } from "../../src/domain/operation/internal/randomStreams";
-import { createOperationSimulation } from "../../src/simulation/operationSimulation";
+import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 import {
   createSeededRandom,
   deriveRandomStreamSeed,

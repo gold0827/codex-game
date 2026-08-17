@@ -455,5 +455,3 @@ export function createOperationSimulation(
     intervene: decisions.intervene,
   };
 }
-
-export const createOperationEngine = createOperationSimulation;
