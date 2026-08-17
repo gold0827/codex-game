@@ -180,6 +180,14 @@ export interface OperationReplayEntry {
   readonly data: Readonly<Record<string, ReplayDataValue>>;
 }
 
+export type OperationEvent = Readonly<{
+  readonly id: string;
+  readonly sequence: number;
+  readonly timeMs: number;
+  readonly kind: OperationReplayKind;
+  readonly data: Readonly<Record<string, ReplayDataValue>>;
+}>;
+
 export type OperationIntervention =
   | Readonly<{
       kind: "route-report";
@@ -198,6 +206,7 @@ export type OperationIntervention =
 export type OperationSimulation = Readonly<{
   snapshot: () => OperationSnapshot;
   replay: () => readonly OperationReplayEntry[];
+  events: () => readonly OperationEvent[];
   advance: (elapsedMs: number) => OperationSnapshot;
   intervene: (command: OperationIntervention) => OperationSnapshot;
 }>;

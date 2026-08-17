@@ -30,6 +30,7 @@ import {
   type ReplayDataValue,
   type VerificationState,
 } from "./simulationTypes";
+import { projectOperationReplay, type OperationEvent } from "../domain/operation/operationEvent";
 
 type MutableOfficer = {
   id: string;
@@ -328,6 +329,7 @@ export function createOperationSimulation(
   let autonomousReplan = false;
 
   const replayEntries: OperationReplayEntry[] = [];
+  const operationEvents: OperationEvent[] = [];
   const messages: MutableMessage[] = [];
   const threats: MutableThreat[] = [];
   const objectives: MutableObjective[] = scene.objectives.map((objective) => ({
@@ -374,12 +376,23 @@ export function createOperationSimulation(
     description: string,
     data: Readonly<Record<string, ReplayDataValue>> = {},
   ): void => {
-    replayEntries.push({
+    const event: OperationEvent = {
+      id: `${scene.identity.id}:event-${replaySequence}`,
       sequence: replaySequence,
       timeMs,
       kind,
-      description,
       data: clone(data),
+    };
+    operationEvents.push(event);
+    const projected = projectOperationReplay({ ...event, data: { ...event.data, description } });
+    const projectedDescription = projected.description;
+    const { description: _legacyDescription, ...projectedEvent } = projected;
+    replayEntries.push({
+      sequence: projectedEvent.sequence,
+      timeMs: projectedEvent.timeMs,
+      kind: projectedEvent.kind,
+      description: projectedDescription,
+      data: Object.fromEntries(Object.entries(projectedEvent.data).filter(([key]) => key !== "description")),
     });
     replaySequence += 1;
   };
@@ -965,6 +978,7 @@ export function createOperationSimulation(
     });
 
   const replay = (): readonly OperationReplayEntry[] => clone(replayEntries);
+  const events = (): readonly OperationEvent[] => clone(operationEvents);
 
   const advance = (advanceMs: number): OperationSnapshot => {
     if (!Number.isSafeInteger(advanceMs) || advanceMs < 0) {
@@ -1080,5 +1094,5 @@ export function createOperationSimulation(
     refreshDecisions("operation start", 0);
   }
 
-  return { snapshot, replay, advance, intervene };
+  return { snapshot, replay, events, advance, intervene };
 }
