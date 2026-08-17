@@ -8,8 +8,8 @@ import type {
   CampaignSceneCopy,
   CampaignScenePresentation,
   CampaignTilePosition,
-} from "../campaign";
-import type { RandomSeed } from "../simulation/seededRandom";
+} from "../../campaign";
+import type { RandomSeed } from "../../simulation/seededRandom";
 import type {
   HarnessConfiguration,
   OperationEvent,
@@ -19,7 +19,7 @@ import type {
   OperationStatus,
   SpatialSignalKind,
   SpatialSignalStrength,
-} from "../simulation/simulationTypes";
+} from "../../simulation/simulationTypes";
 
 export type GamePhase = "briefing" | "operation" | "debrief" | "epilogue";
 export type PlayerSpeed = 0.5 | 1 | 2;
@@ -81,30 +81,41 @@ export type GameSnapshot = Readonly<{
   debrief: GameDebriefSnapshot | null;
 }>;
 
-export type GameController = Readonly<{
-  snapshot: () => GameSnapshot;
-  configureHarness: (axis: HarnessAxis, value: number) => GameSnapshot;
-  setHarness: (harness: HarnessConfiguration) => GameSnapshot;
-  startAttempt: () => GameSnapshot;
-  tick: (realElapsedMs: number) => GameSnapshot;
-  setPlayerSpeed: (speed: PlayerSpeed) => GameSnapshot;
-  pause: () => GameSnapshot;
-  resume: () => GameSnapshot;
-  inspectOfficer: (officerId: string) => GameSnapshot;
-  issueSpatialSignal: (
-    signal: SpatialSignalKind,
-    strength: SpatialSignalStrength,
-    position: CampaignTilePosition,
-  ) => GameSnapshot;
-  routeReport: (reportId: string, recipientOfficerId: string) => GameSnapshot;
-  authorizeOfficer: (officerId: string) => GameSnapshot;
-  prioritizeVerification: (reportId: string) => GameSnapshot;
-  continueCampaign: () => GameSnapshot;
-  chooseLesson: (lessonId: string) => GameSnapshot;
-  reset: () => GameSnapshot;
+export type GameCommand =
+  | Readonly<{ type: "configure-harness"; axis: HarnessAxis; value: number }>
+  | Readonly<{ type: "set-harness"; harness: HarnessConfiguration }>
+  | Readonly<{ type: "start-attempt" }>
+  | Readonly<{ type: "set-player-speed"; speed: PlayerSpeed }>
+  | Readonly<{ type: "pause" }>
+  | Readonly<{ type: "resume" }>
+  | Readonly<{ type: "inspect-officer"; officerId: string }>
+  | Readonly<{
+      type: "issue-spatial-signal";
+      signal: SpatialSignalKind;
+      strength: SpatialSignalStrength;
+      position: CampaignTilePosition;
+    }>
+  /** @deprecated Remove with route tutorial and legacy operation controls. */
+  | Readonly<{
+      type: "route-report";
+      reportId: string;
+      recipientOfficerId: string;
+    }>
+  /** @deprecated Remove with route tutorial and legacy operation controls. */
+  | Readonly<{ type: "authorize-officer"; officerId: string }>
+  /** @deprecated Remove with route tutorial and legacy operation controls. */
+  | Readonly<{ type: "prioritize-verification"; reportId: string }>
+  | Readonly<{ type: "continue-campaign" }>
+  | Readonly<{ type: "choose-lesson"; lessonId: string }>
+  | Readonly<{ type: "reset" }>;
+
+export type GameSession = Readonly<{
+  read: () => GameSnapshot;
+  dispatch: (command: GameCommand) => GameSnapshot;
+  advance: (realElapsedMs: number) => GameSnapshot;
 }>;
 
-export type GameControllerErrorCode =
+export type GameSessionErrorCode =
   | "invalid-phase"
   | "invalid-harness"
   | "harness-over-budget"
@@ -112,12 +123,12 @@ export type GameControllerErrorCode =
   | "invalid-time"
   | "invalid-target";
 
-export class GameControllerError extends Error {
-  readonly code: GameControllerErrorCode;
+export class GameSessionError extends Error {
+  readonly code: GameSessionErrorCode;
 
-  constructor(code: GameControllerErrorCode, message: string) {
+  constructor(code: GameSessionErrorCode, message: string) {
     super(message);
-    this.name = "GameControllerError";
+    this.name = "GameSessionError";
     this.code = code;
   }
 }

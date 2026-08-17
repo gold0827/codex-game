@@ -94,7 +94,6 @@ function classifyModule(sourceRelativePath) {
     content: "content",
     campaign: "domain/campaign",
     simulation: "domain/operation",
-    game: "application",
     ui: "presentation",
     styles: "presentation",
     editor: "authoring",
