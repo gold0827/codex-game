@@ -36,6 +36,7 @@ type PlayerSettingsPanelOptions = Readonly<{
   onRequestClose: () => void;
   onChange: () => void;
   onLoadFailure?: () => void;
+  onNewGame?: () => void;
 }>;
 
 const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
@@ -163,6 +164,22 @@ export function mountPlayerSettingsPanel(
       </div>
     </article>
   `;
+  if (options.onNewGame) {
+    root.querySelector(".settings-content")?.insertAdjacentHTML("beforeend", `
+      <section class="settings-section settings-danger" aria-labelledby="progress-settings-title">
+        <h2 id="progress-settings-title">캠페인 진행</h2>
+        <p>진행은 장면이 바뀔 때 자동 저장됩니다. 작전 중 새로고침하면 현재 장면의 브리핑에서 안전하게 이어집니다.</p>
+        <button type="button" class="editor-button" data-action="request-new-game">새 게임</button>
+        <div class="new-game-confirmation" data-region="new-game-confirmation" hidden>
+          <strong>저장된 진행을 지우고 처음부터 시작할까요?</strong>
+          <div>
+            <button type="button" class="editor-button editor-button-danger" data-action="confirm-new-game">처음부터 시작</button>
+            <button type="button" class="editor-button" data-action="cancel-new-game">취소</button>
+          </div>
+        </div>
+      </section>
+    `);
+  }
   host.append(root);
 
   const syncControls = (): void => {
@@ -246,6 +263,23 @@ export function mountPlayerSettingsPanel(
       : shell.requestFullscreen?.();
     if (change) void change.catch(() => undefined);
   });
+  const confirmation = root.querySelector<HTMLElement>(
+    '[data-region="new-game-confirmation"]',
+  );
+  root.querySelector<HTMLButtonElement>('[data-action="request-new-game"]')
+    ?.addEventListener("click", () => {
+      if (!confirmation) return;
+      confirmation.hidden = false;
+      root.querySelector<HTMLButtonElement>('[data-action="confirm-new-game"]')?.focus();
+    });
+  root.querySelector<HTMLButtonElement>('[data-action="cancel-new-game"]')
+    ?.addEventListener("click", () => {
+      if (!confirmation) return;
+      confirmation.hidden = true;
+      root.querySelector<HTMLButtonElement>('[data-action="request-new-game"]')?.focus();
+    });
+  root.querySelector<HTMLButtonElement>('[data-action="confirm-new-game"]')
+    ?.addEventListener("click", () => options.onNewGame?.());
 
   const handleKeyDown = (event: KeyboardEvent): void => {
     if (!open) return;
@@ -287,6 +321,7 @@ export function mountPlayerSettingsPanel(
       if (destroyed || !open) return;
       open = false;
       root.hidden = true;
+      if (confirmation) confirmation.hidden = true;
     },
     connectAudio: (nextAudio) => {
       audio = nextAudio;

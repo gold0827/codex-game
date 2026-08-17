@@ -560,6 +560,25 @@ describe("campaign progress", () => {
     });
   });
 
+  it("restores a validated campaign checkpoint", () => {
+    const progress = createCampaignProgress(createDefinition(), {
+      currentSceneId: "operation",
+      completedSceneIds: ["tutorial"],
+      completed: false,
+    });
+
+    expect(progress.snapshot()).toEqual({
+      currentSceneId: "operation",
+      completedSceneIds: ["tutorial"],
+      completed: false,
+    });
+    expect(() => createCampaignProgress(createDefinition(), {
+      currentSceneId: "missing",
+      completedSceneIds: ["tutorial"],
+      completed: false,
+    })).toThrow(CampaignProgressError);
+  });
+
   it("isolates source data, returned definitions, scenes, and snapshots", () => {
     const source = createDefinition();
     const progress = createCampaignProgress(source);

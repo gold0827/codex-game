@@ -7,6 +7,10 @@ import {
 import { mountGameWorkbench, type GameWorkbench } from "./GameWorkbench";
 import { productionSoundtrackCatalog } from "./musicCatalog";
 import { createPlayerSettingsStore } from "./PlayerSettings";
+import {
+  createCampaignCheckpoint,
+  createCampaignCheckpointStore,
+} from "./CampaignCheckpoint";
 
 type AuthoredCampaign = Parameters<typeof mountGameWorkbench>[1];
 
@@ -22,5 +26,9 @@ export function mountProductionGame(root: HTMLElement, campaign: AuthoredCampaig
       storage,
       `player-settings:${campaign.id}:v1`,
     ),
+    checkpoint: createCampaignCheckpoint(createCampaignCheckpointStore(
+      storage,
+      `campaign-progress:${campaign.id}:v1`,
+    )),
   });
 }

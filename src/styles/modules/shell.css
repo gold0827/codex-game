@@ -170,6 +170,37 @@
   accent-color: var(--mint);
 }
 
+.settings-danger {
+  grid-column: 1 / -1;
+  border-color: color-mix(in srgb, var(--red) 50%, var(--line));
+}
+
+.new-game-confirmation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--red);
+  background: rgba(240, 109, 99, 0.08);
+  color: #ffd1cd;
+  font-size: 11px;
+}
+
+.new-game-confirmation[hidden] {
+  display: none;
+}
+
+.new-game-confirmation > div {
+  display: flex;
+  gap: 7px;
+}
+
+.editor-button-danger {
+  border-color: var(--red);
+  color: #ffd1cd;
+}
+
 .game-workbench[data-reduced-motion="true"] *,
 .game-workbench[data-reduced-motion="true"] *::before,
 .game-workbench[data-reduced-motion="true"] *::after {
@@ -192,6 +223,10 @@
 @media (max-width: 1100px) {
   .settings-content {
     grid-template-columns: 1fr;
+  }
+
+  .settings-danger {
+    grid-column: auto;
   }
 }
 

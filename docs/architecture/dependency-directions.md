@@ -45,6 +45,8 @@ src/main.ts
       ├─ PlayerSettingsPanel                   app settings interface
       │  ├─ PlayerSettingsStore                browser/in-memory adapter seam
       │  └─ GameAudio                          volume + mute interface
+      ├─ CampaignCheckpoint                    app persistence interface
+      │  └─ CampaignCheckpointStore            browser/in-memory adapter seam
       ├─ CampaignDocument + CampaignWorkshop   authoring
       │  └─ CampaignRepository                 domain/campaign seam
       ├─ GameSession                           application interface
@@ -75,6 +77,21 @@ src/main.ts
 
 `GameWorkbench`는 설정 필드, JSON 형식, audio volume 계산을 알지 않는다.
 테스트도 같은 `PlayerSettingsPanel` interface에서 저장·DOM·audio 결과를 확인한다.
+
+진행 저장도 JSON과 localStorage를 workbench 밖에 숨긴다.
+
+```text
+GameApp render ─→ CampaignCheckpoint.capture(GameSnapshot)
+                       │  progress + officerMemory만 추출·중복 제거
+새 방문 ─────────→ CampaignCheckpoint.restore()
+                       │  구조 오류 격리
+                       └─→ GameSessionResume ─→ GameSession ─→ 안전한 briefing
+새 게임 확인 ────→ CampaignCheckpoint.clear()
+```
+
+`GameWorkbench`는 checkpoint의 `restore/capture/clear` interface만 사용한다.
+campaign module은 장면 진행의 의미를, application module은 briefing 복원을
+검증하며 app module은 저장 매체 오류가 플레이를 막지 않도록 격리한다.
 
 입력과 출력은 서로 반대 방향으로 흐른다.
 

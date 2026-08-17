@@ -29,6 +29,7 @@ export class CampaignProgressError extends Error {
 
 export function createCampaignProgress(
   definition: CampaignDefinition,
+  initial?: CampaignProgressSnapshot,
 ): CampaignProgress {
   const internalDefinition = structuredClone(definition);
   assertValidCampaignDefinition(internalDefinition);
@@ -36,8 +37,28 @@ export function createCampaignProgress(
   const scenesById = new Map(
     internalDefinition.scenes.map((scene) => [scene.identity.id, scene]),
   );
-  let currentSceneId = internalDefinition.startSceneId;
-  let completedSceneIds: string[] = [];
+  const knownSceneIds = new Set(internalDefinition.scenes.map(({ identity }) => identity.id));
+  const restoredCompletedSceneIds = initial?.completedSceneIds ?? [];
+  if (initial && !knownSceneIds.has(initial.currentSceneId)) {
+    throw new CampaignProgressError(
+      initial.currentSceneId,
+      "currentSceneId",
+      `Campaign state references missing scene "${initial.currentSceneId}".`,
+    );
+  }
+  if (
+    new Set(restoredCompletedSceneIds).size !== restoredCompletedSceneIds.length
+    || restoredCompletedSceneIds.some((sceneId) => !knownSceneIds.has(sceneId))
+    || restoredCompletedSceneIds.includes(initial?.currentSceneId ?? "")
+  ) {
+    throw new CampaignProgressError(
+      initial?.currentSceneId ?? internalDefinition.startSceneId,
+      "completedSceneIds",
+      "Campaign state contains invalid completed scenes.",
+    );
+  }
+  let currentSceneId = initial?.currentSceneId ?? internalDefinition.startSceneId;
+  let completedSceneIds: string[] = [...restoredCompletedSceneIds];
 
   const internalCurrentScene = (): CampaignScene => {
     const scene = scenesById.get(currentSceneId);
@@ -56,6 +77,14 @@ export function createCampaignProgress(
     completedSceneIds: [...completedSceneIds],
     completed: internalCurrentScene().identity.kind === "epilogue",
   });
+
+  if (initial && initial.completed !== snapshot().completed) {
+    throw new CampaignProgressError(
+      initial.currentSceneId,
+      "completed",
+      "Campaign completion state does not match the current scene.",
+    );
+  }
 
   const recordOutcome = (outcomeId: string): CampaignProgressSnapshot => {
     const scene = internalCurrentScene();

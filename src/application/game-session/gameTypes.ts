@@ -81,6 +81,11 @@ export type GameSnapshot = Readonly<{
   debrief: GameDebriefSnapshot | null;
 }>;
 
+export type GameSessionResume = Readonly<{
+  progress: CampaignProgressSnapshot;
+  officerMemory: readonly OfficerLessonMemory[];
+}>;
+
 export type GameCommand =
   | Readonly<{ type: "configure-harness"; axis: HarnessAxis; value: number }>
   | Readonly<{ type: "set-harness"; harness: HarnessConfiguration }>

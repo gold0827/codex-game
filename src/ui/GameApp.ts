@@ -30,6 +30,7 @@ export type GameAppOptions = Readonly<{
   frameScheduler?: GameFrameScheduler;
   audio?: GameAudio;
   reducedMotion?: boolean | (() => boolean);
+  onSnapshot?: (snapshot: ReturnType<GameSession["read"]>) => void;
   onMutedChange?: (muted: boolean) => void;
 }>;
 
@@ -134,6 +135,7 @@ export function mountGameApp(
   function render(): void {
     if (destroyed) return;
     const snapshot = session.read();
+    options.onSnapshot?.(snapshot);
     effects.observe(snapshot);
     const battlefieldFrame = projectBattlefieldFrame(snapshot, {
       reducedMotion: prefersReducedMotion(),

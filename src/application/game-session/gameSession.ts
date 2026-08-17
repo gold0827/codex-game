@@ -26,6 +26,7 @@ import {
   type GameDebriefSnapshot,
   type GamePhase,
   type GameSession,
+  type GameSessionResume,
   type GameSnapshot,
   type HarnessAxis,
   type HarnessBudgetSnapshot,
@@ -135,10 +136,16 @@ function matchesGuidance(
 export function createGameSession(
   suppliedDefinition: CampaignDefinition,
   baseSeed: RandomSeed,
+  restored?: GameSessionResume,
 ): GameSession {
   hashSeed(baseSeed);
   const definition = clone(suppliedDefinition);
-  let run: CampaignRun = createCampaignRun(definition, baseSeed);
+  let run: CampaignRun = createCampaignRun(
+    definition,
+    baseSeed,
+    restored?.officerMemory,
+    restored?.progress,
+  );
   const sceneFromRun = (state: CampaignRunSnapshot): CampaignScene => {
     if (state.launch) return state.launch.scene;
     const current = definition.scenes.find(

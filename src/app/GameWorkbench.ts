@@ -1,4 +1,8 @@
-import { createGameSession, type GameSession } from "../application/game-session";
+import {
+  createGameSession,
+  type GameSession,
+  type GameSessionResume,
+} from "../application/game-session";
 import {
   createCampaignDocument,
   mountCampaignWorkshop,
@@ -18,6 +22,7 @@ import {
   type PlayerSettingsPanel,
   type PlayerSettingsStore,
 } from "./PlayerSettings";
+import type { CampaignCheckpoint } from "./CampaignCheckpoint";
 
 export type { PlayerSettings, PlayerSettingsStore, PlayerUiScale } from "./PlayerSettings";
 
@@ -37,6 +42,7 @@ export type GameWorkbenchOptions = Readonly<{
   seed?: string | number;
   editorEnabled?: boolean;
   settingsStore?: PlayerSettingsStore;
+  checkpoint?: CampaignCheckpoint;
 }>;
 
 export type GameWorkbench = Readonly<{
@@ -193,14 +199,15 @@ export function mountGameWorkbench(
     frameScheduler: options.frameScheduler,
     audio,
     reducedMotion: () => settingsPanel.read().reducedMotion,
+    onSnapshot: (snapshot) => options.checkpoint?.capture(snapshot),
     onMutedChange: (muted) => settingsPanel.setMuted(muted),
   });
 
-  const createFreshGame = (): GameApp => {
+  const createFreshGame = (resume?: GameSessionResume): GameApp => {
     const snapshot = structuredClone(campaignDocument.snapshot());
     const seed = `${String(options.seed ?? "production-campaign")}:restart-${generation}`;
+    const session = createGameSession(snapshot, seed, resume);
     generation += 1;
-    const session = createGameSession(snapshot, seed);
     const audio = options.audioFactory?.();
     activeAudio = audio ?? null;
     settingsPanel.connectAudio(activeAudio);
@@ -209,6 +216,7 @@ export function mountGameWorkbench(
 
   const restartGame = (): void => {
     if (destroyed) return;
+    options.checkpoint?.clear();
     gameApp.destroy();
     gameApp = createFreshGame();
     pausedForManual = false;
@@ -337,8 +345,30 @@ export function mountGameWorkbench(
       notice.textContent = "저장된 설정을 불러오지 못해 기본값을 사용합니다.";
       shell.append(notice);
     },
+    onNewGame: () => {
+      restartGame();
+      closeSettings();
+    },
   });
-  gameApp = createFreshGame();
+  const restored = options.checkpoint?.restore();
+  if (restored?.recoveredFromFailure) {
+    const notice = document.createElement("div");
+    notice.className = "workbench-notice";
+    notice.setAttribute("role", "alert");
+    notice.textContent = "저장된 진행을 불러오지 못해 새 게임으로 시작했습니다.";
+    shell.append(notice);
+  }
+  try {
+    gameApp = createFreshGame(restored?.resume);
+  } catch {
+    options.checkpoint?.clear();
+    gameApp = createFreshGame();
+    const notice = document.createElement("div");
+    notice.className = "workbench-notice";
+    notice.setAttribute("role", "alert");
+    notice.textContent = "저장된 진행이 현재 캠페인과 맞지 않아 새 게임으로 시작했습니다.";
+    shell.append(notice);
+  }
   workshop = mountCampaignWorkshop(editorRoot, campaignDocument, {
     onClose: closeEditor,
     onRestart: restartGame,
