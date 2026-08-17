@@ -180,6 +180,20 @@ game session이나 operation을 import하지 않는다.
 `src/ui/GameApp.ts`는 presentation mount adapter이고,
 `src/domain/operation/operationEngine.ts`는 operation domain의 단일 public entrypoint다.
 
+## 변경 경로
+
+변경 의도에 맞는 행에서 시작한다. 책임과 불변식은 링크된 기존 section을 읽고,
+첫 소유 심볼에서 구현을 좁힌 뒤 focused test와 최소 검증을 실행한다.
+
+| 변경 의도 | canonical section | 첫 소유 entrypoint · public symbol | focused test | 최소 validation |
+| --- | --- | --- | --- | --- |
+| campaign 콘텐츠·parse·validation | [Module 책임과 현재 경로](#module-책임과-현재-경로) | `src/campaign/index.ts` · `parseCampaignJson`, `validateCampaignDefinition`; `src/scenarios/` | `npx vitest run tests/campaign/campaign-parsing.test.ts tests/campaign/campaign.test.ts` | `npm run build && npm run check:dependencies` |
+| operation 규칙·장교 판단·결과 | [실행 배선](#실행-배선) | `src/domain/operation/operationEngine.ts` · `createOperationSimulation` | `npx vitest run tests/simulation/operation-simulation.test.ts` | `npm run test:monte-carlo` |
+| game session·campaign 진행 | [Public interface](#public-interface) | `src/application/game-session/index.ts` · `createGameSession`, `GameSession` | `npx vitest run tests/game/game-session.test.ts tests/game/game-session-flow.test.ts` | `npm run build && npm run check:dependencies` |
+| presentation·battlefield projection/rendering | [실행 배선](#실행-배선) | `src/presentation/gameViewModel.ts` · `projectGameViewModel`; `src/presentation/battlefield/canvasBattlefield.ts` · `mountCanvasBattlefield` | `npx vitest run tests/ui/game-view-model.test.ts tests/ui/operation-projector.test.ts tests/ui/canvas-viewport.test.ts` | `npm run build && node tests/fixtures/run-bridge-defense-chrome.mjs` |
+| authoring·`CampaignRepository` | [Public interface](#public-interface) | `src/authoring/campaign-workshop/index.ts` · `createCampaignDocument`, `mountCampaignWorkshop`; `src/campaign/repository.ts` · `CampaignRepository` | `npx vitest run tests/campaign/campaign-repository.test.ts tests/ui/campaign-editor.test.ts` | `npm run build && npm run check:dependencies` |
+| browser platform adapter | [Module 책임과 현재 경로](#module-책임과-현재-경로) | `src/platform/browser/adapters.ts` · `createBrowserFrameScheduler`, `createBrowserStorage`, `createBrowserCampaignRepository`, `createBrowserAudio` | `npx vitest run tests/ui/browser-audio.test.ts tests/ui/campaign-checkpoint.test.ts tests/ui/player-settings.test.ts` | `npm run build && node tests/fixtures/run-bridge-defense-chrome.mjs` |
+
 ## 허용 의존
 
 화살표 왼쪽 module만 오른쪽 module을 알 수 있다. 같은 module 내부 의존은
