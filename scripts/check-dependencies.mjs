@@ -20,10 +20,7 @@ const TARGET_DEPENDENCIES = Object.freeze({
   "domain/campaign": ["domain/campaign"],
 });
 
-const MIGRATION_EXCEPTIONS = Object.freeze({
-  "ui/CommandRoom.ts -> scenarios/commandRoomScenario.ts": "Remove when #72 replaces the legacy scenario-backed view.",
-  "ui/TacticalMap.ts -> scenarios/commandRoomScenario.ts": "Remove when #72 replaces the legacy scenario-backed view.",
-});
+const MIGRATION_EXCEPTIONS = Object.freeze({});
 
 const SOURCE_EXTENSIONS = Object.freeze([
   ".ts",
