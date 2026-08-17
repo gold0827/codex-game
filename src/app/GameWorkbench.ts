@@ -1,18 +1,21 @@
-import type { CampaignDefinition } from "../campaign";
 import { createGameSession, type GameSession } from "../application/game-session";
-import { createCampaignDocument, type CampaignStorage } from "../editor";
-import { mountCampaignEditor, type CampaignEditor } from "./CampaignEditor";
+import {
+  createCampaignDocument,
+  mountCampaignWorkshop,
+  type CampaignDefinition,
+  type CampaignEditor,
+  type CampaignRepository,
+} from "../authoring/campaign-workshop";
 import {
   mountGameApp,
   type GameApp,
   type GameAppOptions,
   type GameFrameScheduler,
-} from "./GameApp";
-import type { GameAudio } from "./GameAudio";
+} from "../ui/GameApp";
+import type { GameAudio } from "../ui/GameAudio";
 
 export type GameWorkbenchOptions = Readonly<{
-  storage?: CampaignStorage;
-  storageKey?: string;
+  repository?: CampaignRepository;
   frameScheduler?: GameFrameScheduler;
   audioFactory?: () => GameAudio;
   seed?: string | number;
@@ -34,10 +37,8 @@ export function mountGameWorkbench(
   authoredCampaign: CampaignDefinition,
   options: GameWorkbenchOptions = {},
 ): GameWorkbench {
-  const storage = options.storage;
   const campaignDocument = createCampaignDocument(authoredCampaign, {
-    storage,
-    storageKey: options.storageKey,
+    repository: options.repository,
   });
   const loadResult = campaignDocument.load();
   const shell = document.createElement("main");
@@ -217,7 +218,7 @@ export function mountGameWorkbench(
   };
 
   gameApp = createFreshGame();
-  editor = mountCampaignEditor(editorRoot, campaignDocument, {
+  editor = mountCampaignWorkshop(editorRoot, campaignDocument, {
     onClose: closeEditor,
     onRestart: restartGame,
   });

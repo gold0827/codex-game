@@ -25,6 +25,13 @@ export function createBrowserStorage() {
   };
 }
 
+export function createBrowserCampaignRepository(
+  campaign: CampaignDefinition,
+  storageKey?: string,
+): CampaignRepository {
+  return createLocalStorageCampaignRepository(campaign, createBrowserStorage(), storageKey);
+}
+
 export function createBrowserAudio() {
   let context: AudioContext | null = null;
   let isMuted = false;
@@ -68,3 +75,8 @@ export function createBrowserAudio() {
     },
   };
 }
+import {
+  createLocalStorageCampaignRepository,
+  type CampaignDefinition,
+  type CampaignRepository,
+} from "../../campaign";

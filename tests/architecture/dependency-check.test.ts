@@ -32,7 +32,7 @@ describe("dependency direction checker", () => {
     const result = runChecker();
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("6 migration exceptions");
+    expect(result.stdout).toContain("2 migration exceptions");
   });
 
   it("rejects a new presentation import from the campaign domain", () => {

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { CampaignDefinition, CampaignScene } from "../../src/campaign";
+import {
+  createLocalStorageCampaignRepository,
+  type CampaignDefinition,
+  type CampaignKeyValueStore,
+  type CampaignScene,
+} from "../../src/campaign";
 import {
   createCampaignDocument,
-  type CampaignStorage,
-} from "../../src/editor";
+} from "../../src/authoring/campaign-workshop";
 import { completeCampaign } from "../../src/scenarios/completeCampaign";
 
 const sceneIds = [
@@ -17,7 +21,7 @@ const sceneIds = [
   "greenhouse-epilogue",
 ];
 
-class MemoryStorage implements CampaignStorage {
+class MemoryStorage implements CampaignKeyValueStore {
   readonly values = new Map<string, string>();
   failRead = false;
   failWrite = false;
@@ -38,6 +42,9 @@ class MemoryStorage implements CampaignStorage {
     this.values.delete(key);
   }
 }
+
+const repository = (storage: MemoryStorage, key = "test-campaign") =>
+  createLocalStorageCampaignRepository(completeCampaign, storage, key);
 
 function editedScene(
   document: ReturnType<typeof createCampaignDocument>,
@@ -65,7 +72,7 @@ describe("campaign document", () => {
 
   it("round-trips an edit through pretty JSON and storage reload", () => {
     const storage = new MemoryStorage();
-    const options = { storage, storageKey: "test-campaign" };
+    const options = { repository: repository(storage) };
     const first = createCampaignDocument(completeCampaign, options);
     expect(first.replaceScene(sceneIds[1], editedScene(first, sceneIds[1])).ok).toBe(
       true,
@@ -140,13 +147,12 @@ describe("campaign document", () => {
     const storage = new MemoryStorage();
     storage.values.set("test-campaign", "not json");
     const document = createCampaignDocument(completeCampaign, {
-      storage,
-      storageKey: "test-campaign",
+      repository: repository(storage),
     });
 
     expect(document.load()).toMatchObject({
       ok: false,
-      diagnostics: [{ kind: "json" }],
+      diagnostics: [{ kind: "storage", code: "storage-read" }],
     });
     expect(document.snapshot()).toEqual(completeCampaign);
     expect(storage.values.get("test-campaign")).toBe("not json");
@@ -176,8 +182,7 @@ describe("campaign document", () => {
   it("restores the exact authored campaign and removes the override", () => {
     const storage = new MemoryStorage();
     const document = createCampaignDocument(completeCampaign, {
-      storage,
-      storageKey: "test-campaign",
+      repository: repository(storage),
     });
     document.replaceScene(sceneIds[0], editedScene(document));
     document.save();
@@ -193,8 +198,7 @@ describe("campaign document", () => {
   ] as const)("reports storage %s failures without changing state", (operation, code) => {
     const storage = new MemoryStorage();
     const document = createCampaignDocument(completeCampaign, {
-      storage,
-      storageKey: "test-campaign",
+      repository: repository(storage),
     });
     document.replaceScene(sceneIds[0], editedScene(document));
     const before = document.snapshot();

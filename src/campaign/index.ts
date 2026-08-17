@@ -41,3 +41,10 @@ export {
   type CampaignDiagnosticCode,
   type CampaignValidationResult,
 } from "./validation";
+export {
+  createBuiltInCampaignRepository,
+  createInMemoryCampaignRepository,
+  createLocalStorageCampaignRepository,
+  type CampaignKeyValueStore,
+  type CampaignRepository,
+} from "./repository";

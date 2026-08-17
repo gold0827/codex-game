@@ -1,8 +1,8 @@
-import type { CampaignScene, SceneKind } from "../campaign";
+import type { CampaignScene, SceneKind } from "../../campaign";
 import {
   type CampaignDocument,
   type CampaignDocumentDiagnostic,
-} from "../editor";
+} from "./CampaignDocument";
 
 export type CampaignEditorOptions = Readonly<{
   onClose: () => void;
