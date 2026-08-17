@@ -45,6 +45,7 @@ src/main.ts
    └─ mountGameWorkbench                       app
       ├─ WorkbenchOverlays                     overlay 상호 배제 + pause ownership
       │  └─ manual/settings/editor adapter     show/hide/focus
+      ├─ WorkbenchManual                       교범 문구 + DOM + 음원 출처
       ├─ PlayerSettingsPanel                   app settings interface
       │  ├─ PlayerSettingsStore                browser/in-memory adapter seam
       │  └─ GameAudio                          volume + mute interface
@@ -81,6 +82,11 @@ src/main.ts
 
 `GameWorkbench`는 설정 필드, JSON 형식, audio volume 계산을 알지 않는다.
 테스트도 같은 `PlayerSettingsPanel` interface에서 저장·DOM·audio 결과를 확인한다.
+
+교범도 `WorkbenchManual`의 `element/show/hide/destroy` 인터페이스 뒤에 있다. 교범
+variant 문구, DOM 조립, audio credit 링크와 열 때의 scroll/focus 초기화는 이
+module이 숨기고, `GameWorkbench`는 element를 shell에 놓아 overlay adapter로
+연결하기만 한다.
 
 진행 저장도 JSON과 localStorage를 workbench 밖에 숨긴다.
 
