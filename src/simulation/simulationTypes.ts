@@ -52,7 +52,7 @@ export type VerificationState =
 
 export interface OfficerBeliefSnapshot {
   readonly subjectId: string;
-  readonly category: "report" | "threat" | "outcome";
+  readonly category: "report" | "signal" | "threat" | "outcome";
   readonly assertion: string;
   readonly origin: "direct" | "received";
   readonly sourceOfficerId: string | null;
@@ -89,7 +89,28 @@ export interface OperationMessageSnapshot {
   readonly verificationState: VerificationState;
   readonly deliveryState: MessageDeliveryState;
   readonly text: string;
+  readonly receivedText: string;
   readonly prioritized: boolean;
+}
+
+export type SpatialSignalKind = "investigate" | "defend" | "avoid";
+export type SpatialSignalStrength = 1 | 2 | 3;
+export type SpatialSignalResponse = "in-transit" | "delayed" | "accepted" | "ignored";
+
+export interface SpatialSignalRecipientSnapshot {
+  readonly officerId: string;
+  readonly deliveryAtMs: number;
+  readonly reactionAtMs: number;
+  readonly response: SpatialSignalResponse;
+}
+
+export interface OperationSpatialSignalSnapshot {
+  readonly id: string;
+  readonly kind: SpatialSignalKind;
+  readonly strength: SpatialSignalStrength;
+  readonly position: CampaignTilePosition;
+  readonly issuedAtMs: number;
+  readonly recipients: readonly SpatialSignalRecipientSnapshot[];
 }
 
 export type ThreatState = "telegraphed" | "resolved";
@@ -151,6 +172,7 @@ export interface OperationMetricsSnapshot {
   readonly organizationTrust: number;
   readonly signalBacklog: number;
   readonly interventionCount: number;
+  readonly attentionSpent: number;
   readonly autonomyScore: number;
 }
 
@@ -173,6 +195,7 @@ export interface OperationSnapshot {
   readonly harness: HarnessConfiguration;
   readonly officers: readonly OfficerSimulationSnapshot[];
   readonly messages: readonly OperationMessageSnapshot[];
+  readonly signals: readonly OperationSpatialSignalSnapshot[];
   readonly threats: readonly OperationThreatSnapshot[];
   readonly units: readonly OperationUnitSnapshot[];
   readonly spatial: OperationSpatialSnapshot;
@@ -231,14 +254,23 @@ export type OperationEvent = Readonly<{
 
 export type OperationIntervention =
   | Readonly<{
+      kind: "issue-spatial-signal";
+      signal: SpatialSignalKind;
+      strength: SpatialSignalStrength;
+      position: CampaignTilePosition;
+    }>
+  /** @deprecated Remove after campaign guidance and presentation dispatch spatial signals. */
+  | Readonly<{
       kind: "route-report";
       reportId: string;
       recipientOfficerId: string;
     }>
+  /** @deprecated Remove after campaign guidance and presentation dispatch spatial signals. */
   | Readonly<{
       kind: "authorize-officer";
       officerId: string;
     }>
+  /** @deprecated Remove after campaign guidance and presentation dispatch spatial signals. */
   | Readonly<{
       kind: "prioritize-verification";
       reportId: string;

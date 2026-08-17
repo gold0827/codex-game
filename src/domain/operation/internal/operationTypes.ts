@@ -7,6 +7,7 @@ import type {
   OfficerIntent,
   OperationThreatSnapshot,
   OperationMessageSnapshot,
+  OperationSpatialSignalSnapshot,
   OperationReplayKind,
   OperationWorldEventKind,
   OperationStatus,
@@ -27,6 +28,9 @@ export type MutableOfficer = {
 type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
 export type MutableMessage = Mutable<Omit<OperationMessageSnapshot, "verificationDueAtMs">> & {
   verificationDueAtMs: number | null;
+};
+export type MutableSpatialSignal = Mutable<Omit<OperationSpatialSignalSnapshot, "recipients">> & {
+  recipients: Array<Mutable<OperationSpatialSignalSnapshot["recipients"][number]>>;
 };
 export type MutableThreat = Omit<OperationThreatSnapshot, "state" | "result"> & {
   state: "telegraphed" | "resolved";
@@ -49,6 +53,7 @@ export type MutableMetrics = {
   organizationTrust: number;
   signalBacklog: number;
   interventionCount: number;
+  attentionSpent: number;
   autonomyScore: number;
 };
 export type OperationRuntimeState = {
@@ -58,6 +63,7 @@ export type OperationRuntimeState = {
   outcomeId: string | null;
   nextBeatIndex: number;
   messageSequence: number;
+  signalSequence: number;
   crossChecked: boolean;
   authorityReassigned: boolean;
   autonomousReplan: boolean;

@@ -10,7 +10,7 @@ import {
   type MemoryEntry,
 } from "./memory";
 
-export type PerceptionCategory = "report" | "threat" | "outcome";
+export type PerceptionCategory = "report" | "signal" | "threat" | "outcome";
 export type BeliefOrigin = "direct" | "received";
 
 export interface ObservedFact {

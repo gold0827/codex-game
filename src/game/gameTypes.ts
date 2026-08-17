@@ -5,6 +5,7 @@ import type {
   CampaignScene,
   CampaignSceneCopy,
   CampaignScenePresentation,
+  CampaignTilePosition,
 } from "../campaign";
 import type { RandomSeed } from "../simulation/seededRandom";
 import type {
@@ -13,6 +14,8 @@ import type {
   OperationReplayEntry,
   OperationSnapshot,
   OperationStatus,
+  SpatialSignalKind,
+  SpatialSignalStrength,
 } from "../simulation/simulationTypes";
 
 export type GamePhase = "briefing" | "operation" | "debrief" | "epilogue";
@@ -82,6 +85,11 @@ export type GameController = Readonly<{
   pause: () => GameSnapshot;
   resume: () => GameSnapshot;
   inspectOfficer: (officerId: string) => GameSnapshot;
+  issueSpatialSignal: (
+    signal: SpatialSignalKind,
+    strength: SpatialSignalStrength,
+    position: CampaignTilePosition,
+  ) => GameSnapshot;
   routeReport: (reportId: string, recipientOfficerId: string) => GameSnapshot;
   authorizeOfficer: (officerId: string) => GameSnapshot;
   prioritizeVerification: (reportId: string) => GameSnapshot;

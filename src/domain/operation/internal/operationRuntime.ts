@@ -31,6 +31,7 @@ import type {
   MutableMetrics,
   MutableObjective,
   MutableOfficer,
+  MutableSpatialSignal,
   MutableThreat,
   MutableUnit,
   OperationRuntimeState,
@@ -153,6 +154,7 @@ export function createOperationSimulation(
     outcomeId: null,
     nextBeatIndex: 0,
     messageSequence: 0,
+    signalSequence: 0,
     crossChecked: false,
     authorityReassigned: false,
     autonomousReplan: false,
@@ -160,6 +162,7 @@ export function createOperationSimulation(
   const replayEntries: OperationReplayEntry[] = [];
   const operationEvents: OperationEvent[] = [];
   const messages: MutableMessage[] = [];
+  const spatialSignals: MutableSpatialSignal[] = [];
   const threats: MutableThreat[] = [];
   const objectives: MutableObjective[] = scene.objectives.map((objective) => ({
     id: objective.id,
@@ -264,6 +267,7 @@ export function createOperationSimulation(
     organizationTrust: 100,
     signalBacklog: 0,
     interventionCount: 0,
+    attentionSpent: 0,
     autonomyScore: 100,
   };
 
@@ -336,7 +340,7 @@ export function createOperationSimulation(
   };
 
   const signals = createSignals({
-    roster, harness, consequences, durationMs, state, officers, messages, metrics, appendReplay,
+    roster, harness, consequences, durationMs, state, officers, messages, spatialSignals, metrics, appendReplay,
     selectAlternative: selectSignalAlternative,
   });
   const queueReport: typeof signals.queueReport = (report, timeMs) => {
@@ -358,14 +362,15 @@ export function createOperationSimulation(
   });
   const outcome = createOutcome({
     scene, harness, consequences, durationMs, readiness, compoundReplanRequired, state,
-    officers, messages, threats, units, objectives, metrics, replayEntries, operationEvents, appendReplay,
+    officers, messages, spatialSignals, threats, units, objectives, metrics, replayEntries, operationEvents, appendReplay,
     spatialWorld,
   });
   const decisions = createDecisions({
-    scene, roster, harness, durationMs, compoundReplanRequired, state, officers, messages, threats, units,
+    scene, roster, harness, durationMs, compoundReplanRequired, state, officers, messages, spatialSignals, threats, units,
     objectives, metrics, appendReplay, spatialWorld,
     decisionRandom: (officerId) => randomStreams.stream(operationRandomStreamKey.officerDecision(officerId)),
     updateBacklog: signals.updateBacklog, snapshot: outcome.snapshot,
+    issueSpatialSignal: signals.issueSpatialSignal,
   });
   const timeline = createTimeline({
     sceneId: scene.identity.id,
@@ -377,6 +382,7 @@ export function createOperationSimulation(
     telegraphThreat: threatRuntime.telegraphThreat,
     refreshDecisions: decisions.refreshDecisions,
     processMessages: signals.processMessages,
+    processSpatialSignals: signals.processSpatialSignals,
     processCrossCheckAndReplan: decisions.processCrossCheckAndReplan,
     processThreats: threatRuntime.processThreats,
     updateProgress: threatRuntime.updateProgress,

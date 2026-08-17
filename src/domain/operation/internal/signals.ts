@@ -1,8 +1,10 @@
-import type { CampaignOfficer, CampaignOfficerReport } from "../../../campaign/types";
+import type { CampaignOfficer, CampaignOfficerReport, CampaignTilePosition } from "../../../campaign/types";
 import type {
   HarnessConfiguration,
   HarnessConsequence,
   OfficerBeliefSnapshot,
+  SpatialSignalKind,
+  SpatialSignalStrength,
   VerificationState,
 } from "../../../simulation/simulationTypes";
 import type {
@@ -10,6 +12,7 @@ import type {
   MutableMessage,
   MutableMetrics,
   MutableOfficer,
+  MutableSpatialSignal,
   OperationRuntimeState,
   SelectAlternative,
 } from "./operationTypes";
@@ -26,6 +29,19 @@ export function reportReliability(harness: HarnessConfiguration, verificationOff
   return Math.round(Math.min(1, Math.max(0, 0.52 + harness.feedbackCompression * 0.28 + (verificationOfficer ? 0.1 : 0) - (saturated ? 0.08 : 0))) * 10_000) / 10_000;
 }
 
+export function distortReport(text: string, reliability: number): string {
+  return reliability < 0.6 ? `[불확실한 송신] ${text}` : text;
+}
+
+export function signalResponseScore(
+  officer: Pick<MutableOfficer, "profile">,
+  strength: SpatialSignalStrength,
+): number {
+  return rounded(
+    strength / 3 * 0.65 + officer.profile.discipline * 0.2 + officer.profile.cooperation * 0.15,
+  );
+}
+
 type SignalContext = {
   roster: readonly CampaignOfficer[];
   harness: HarnessConfiguration;
@@ -34,18 +50,26 @@ type SignalContext = {
   state: OperationRuntimeState;
   officers: MutableOfficer[];
   messages: MutableMessage[];
+  spatialSignals: MutableSpatialSignal[];
   metrics: MutableMetrics;
   appendReplay: AppendReplay;
   selectAlternative: SelectAlternative;
 };
 
 export function createSignals(context: SignalContext) {
-  const { roster, harness, consequences, durationMs, state, officers, messages, metrics, appendReplay, selectAlternative } = context;
+  const {
+    roster, harness, consequences, durationMs, state, officers, messages, spatialSignals,
+    metrics, appendReplay, selectAlternative,
+  } = context;
 
   const updateBacklog = (): void => {
-    metrics.signalBacklog = messages.filter(
+    const reportBacklog = messages.filter(
       (message) => message.deliveryState === "queued" || message.verificationState === "pending",
     ).length;
+    const spatialBacklog = spatialSignals.filter((signal) =>
+      signal.recipients.some(({ response }) => response === "in-transit" || response === "delayed")
+    ).length;
+    metrics.signalBacklog = reportBacklog + spatialBacklog;
   };
 
   const addBelief = (officer: MutableOfficer, belief: OfficerBeliefSnapshot): void => {
@@ -124,6 +148,7 @@ export function createSignals(context: SignalContext) {
       verificationState,
       deliveryState: "queued",
       text: report.text,
+      receivedText: distortReport(report.text, reliability),
       prioritized: false,
     };
     messages.push(message);
@@ -153,6 +178,19 @@ export function createSignals(context: SignalContext) {
     updateBacklog();
   };
 
+  const updateSourceTrust = (officer: MutableOfficer, sourceOfficerId: string, verified: boolean): void => {
+    const current = officer.profile.sourceTrust.find(({ officerId }) => officerId === sourceOfficerId)?.trust ??
+      clamp(0.45 + officer.profile.cooperation * 0.35 - officer.profile.caution * 0.15);
+    const trust = rounded(clamp(current + (verified ? 0.08 : -0.18)));
+    officer.profile = {
+      ...officer.profile,
+      sourceTrust: [
+        ...officer.profile.sourceTrust.filter(({ officerId }) => officerId !== sourceOfficerId),
+        { officerId: sourceOfficerId, trust },
+      ].sort((left, right) => left.officerId.localeCompare(right.officerId)),
+    };
+  };
+
   const updateBeliefVerification = (message: MutableMessage): void => {
     officers.forEach((officer) => {
       const belief = perceive({
@@ -162,7 +200,15 @@ export function createSignals(context: SignalContext) {
         memory: officer.memory,
         nowMs: state.elapsedMs,
       }).beliefs.find(({ subjectId }) => subjectId === message.authoredReportId);
-      if (belief) addBelief(officer, { ...belief, verificationState: message.verificationState, reliability: message.reliability });
+      if (!belief) return;
+      const verified = message.verificationState === "verified";
+      if (belief.origin === "received") updateSourceTrust(officer, message.sourceOfficerId, verified);
+      addBelief(officer, {
+        ...belief,
+        assertion: verified ? message.text : message.receivedText,
+        verificationState: message.verificationState,
+        reliability: verified ? message.reliability : Math.min(message.reliability, 0.25),
+      });
     });
   };
 
@@ -176,7 +222,7 @@ export function createSignals(context: SignalContext) {
             addBelief(recipient, {
               subjectId: message.authoredReportId,
               category: "report",
-              assertion: message.text,
+              assertion: message.receivedText,
               origin: "received",
               sourceOfficerId: message.sourceOfficerId,
               receivedAtMs: message.deliveryAtMs,
@@ -212,5 +258,95 @@ export function createSignals(context: SignalContext) {
     updateBacklog();
   };
 
-  return { addBelief, recipientIdsFor, queueReport, updateBeliefVerification, processMessages, updateBacklog };
+  const issueSpatialSignal = (
+    signal: SpatialSignalKind,
+    strength: SpatialSignalStrength,
+    position: CampaignTilePosition,
+    actorPositions: ReadonlyMap<string, CampaignTilePosition>,
+  ): MutableSpatialSignal => {
+    state.signalSequence += 1;
+    const issuedAtMs = state.elapsedMs;
+    const recipients = officers.map((officer) => {
+      const actorPosition = actorPositions.get(officer.id);
+      if (!actorPosition) throw new Error(`Missing spatial actor "${officer.id}".`);
+      const distance = Math.abs(actorPosition.x - position.x) + Math.abs(actorPosition.y - position.y);
+      const deliveryAtMs = Math.min(
+        durationMs,
+        issuedAtMs + 200 + distance * 100 + Math.round((1 - harness.informationReach) * 400),
+      );
+      const score = signalResponseScore(officer, strength);
+      const reactionAtMs = score < 0.45
+        ? deliveryAtMs
+        : Math.min(durationMs, deliveryAtMs + (score < 0.7 ? Math.round(500 + (1 - officer.profile.initiative) * 1_500) : 0));
+      return { officerId: officer.id, deliveryAtMs, reactionAtMs, response: "in-transit" as const };
+    });
+    const created: MutableSpatialSignal = {
+      id: `player-signal-${state.signalSequence}`,
+      kind: signal,
+      strength,
+      position: { ...position },
+      issuedAtMs,
+      recipients,
+    };
+    spatialSignals.push(created);
+    updateBacklog();
+    return created;
+  };
+
+  const receiveSpatialSignal = (
+    signal: MutableSpatialSignal,
+    recipient: MutableSpatialSignal["recipients"][number],
+  ): void => {
+    const officer = officers.find(({ id }) => id === recipient.officerId);
+    if (!officer) return;
+    addBelief(officer, {
+      subjectId: signal.id,
+      category: "signal",
+      assertion: `${signal.kind}@${signal.position.x},${signal.position.y}`,
+      origin: "received",
+      sourceOfficerId: "player-command",
+      receivedAtMs: recipient.reactionAtMs,
+      reliability: signal.strength / 3,
+      confidence: signal.strength / 3,
+      verificationState: "verified",
+    });
+    appendReplay("decision", recipient.reactionAtMs, `${officer.id} reacted to ${signal.id}.`, {
+      event: "signal-reacted",
+      signalId: signal.id,
+      officerId: officer.id,
+      signal: signal.kind,
+      strength: signal.strength,
+    });
+  };
+
+  const processSpatialSignals = (): void => {
+    spatialSignals.forEach((signal) => {
+      signal.recipients.forEach((recipient) => {
+        if (recipient.response === "in-transit" && recipient.deliveryAtMs <= state.elapsedMs) {
+          const officer = officers.find(({ id }) => id === recipient.officerId);
+          if (!officer) return;
+          const score = signalResponseScore(officer, signal.strength);
+          recipient.response = score < 0.45 ? "ignored" : score < 0.7 ? "delayed" : "accepted";
+          appendReplay("decision", recipient.deliveryAtMs, `${officer.id} ${recipient.response} ${signal.id}.`, {
+            event: "signal-delivered",
+            signalId: signal.id,
+            officerId: officer.id,
+            response: recipient.response,
+            reactionAtMs: recipient.reactionAtMs,
+          });
+          if (recipient.response === "accepted") receiveSpatialSignal(signal, recipient);
+        }
+        if (recipient.response === "delayed" && recipient.reactionAtMs <= state.elapsedMs) {
+          recipient.response = "accepted";
+          receiveSpatialSignal(signal, recipient);
+        }
+      });
+    });
+    updateBacklog();
+  };
+
+  return {
+    addBelief, recipientIdsFor, queueReport, updateBeliefVerification, processMessages,
+    issueSpatialSignal, processSpatialSignals, updateBacklog,
+  };
 }
