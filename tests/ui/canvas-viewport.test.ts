@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BattlefieldFrame } from "../../src/presentation/battlefield/battlefieldFrame";
-import { createCanvasBattlefieldViewport } from "../../src/presentation/battlefield/internal/canvasViewport";
+import {
+  createCanvasBattlefieldViewport,
+  drawTileHighlight,
+} from "../../src/presentation/battlefield/internal/canvasViewport";
 import { createBattlefieldDrawList } from "../../src/presentation/battlefield/internal/drawList";
 
 class TestScheduler {
@@ -85,6 +88,76 @@ describe("persistent Canvas battlefield viewport", () => {
     expect(createBattlefieldDrawList(previous, current, 100).actors[0]?.x).toBe(2);
     expect(createBattlefieldDrawList(previous, current, 150).actors[0]?.x).toBe(6);
     expect(createBattlefieldDrawList(previous, current, 200).actors[0]?.x).toBe(10);
+  });
+
+  it("draws guided then selected tile diamonds with their established styles", () => {
+    const operations: Array<Readonly<{
+      kind: "fill" | "stroke";
+      fill: string;
+      stroke: string;
+      lineWidth: number;
+    }>> = [];
+    const context = {
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 0,
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+    vi.mocked(context.fill).mockImplementation(() => operations.push({
+      kind: "fill",
+      fill: String(context.fillStyle),
+      stroke: String(context.strokeStyle),
+      lineWidth: context.lineWidth,
+    }));
+    vi.mocked(context.stroke).mockImplementation(() => operations.push({
+      kind: "stroke",
+      fill: String(context.fillStyle),
+      stroke: String(context.strokeStyle),
+      lineWidth: context.lineWidth,
+    }));
+
+    drawTileHighlight(context, { x: 100, y: 50 }, 1, "guided");
+    drawTileHighlight(context, { x: 200, y: 80 }, 1, "selected");
+
+    expect(context.moveTo).toHaveBeenNthCalledWith(1, 100, 34);
+    expect(context.moveTo).toHaveBeenNthCalledWith(2, 200, 64);
+    expect(context.lineTo).toHaveBeenNthCalledWith(1, 132, 50);
+    expect(context.lineTo).toHaveBeenNthCalledWith(4, 232, 80);
+    expect(context.save).toHaveBeenCalledTimes(2);
+    expect(context.restore).toHaveBeenCalledTimes(2);
+    expect(operations).toEqual([
+      {
+        kind: "fill",
+        fill: "rgba(115, 185, 162, 0.28)",
+        stroke: "#f4d77d",
+        lineWidth: 3,
+      },
+      {
+        kind: "stroke",
+        fill: "rgba(115, 185, 162, 0.28)",
+        stroke: "#f4d77d",
+        lineWidth: 3,
+      },
+      {
+        kind: "fill",
+        fill: "rgba(230, 207, 114, 0.18)",
+        stroke: "#e6cf72",
+        lineWidth: 2,
+      },
+      {
+        kind: "stroke",
+        fill: "rgba(230, 207, 114, 0.18)",
+        stroke: "#e6cf72",
+        lineWidth: 2,
+      },
+    ]);
   });
 
   it("interpolates threat positions without changing the friendly actor path", () => {
