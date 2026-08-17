@@ -13,7 +13,8 @@ import type {
   OperationRuntimeState,
   SelectAlternative,
 } from "./operationTypes";
-import { clamp, clone, rounded } from "./operationTypes";
+import { clamp, rounded } from "./operationTypes";
+import { perceive } from "./agent/perception";
 
 export function deliveryDelay(harness: HarnessConfiguration, queuedBefore: number): number {
   return Math.round(600 + harness.informationReach * 1_000 + (1 - harness.feedbackCompression) * 1_200 + queuedBefore * 120);
@@ -48,9 +49,37 @@ export function createSignals(context: SignalContext) {
   };
 
   const addBelief = (officer: MutableOfficer, belief: OfficerBeliefSnapshot): void => {
-    const existingIndex = officer.beliefs.findIndex(({ subjectId }) => subjectId === belief.subjectId);
-    if (existingIndex >= 0) officer.beliefs[existingIndex] = clone(belief);
-    else officer.beliefs.push(clone(belief));
+    const perception = perceive({
+      observation: {
+        observedAtMs: belief.receivedAtMs,
+        facts: belief.origin === "direct"
+          ? [{
+              subjectId: belief.subjectId,
+              category: belief.category,
+              assertion: belief.assertion,
+              confidence: belief.reliability,
+              sourceOfficerId: belief.sourceOfficerId,
+              verificationState: belief.verificationState,
+            }]
+          : [],
+      },
+      receivedReports: belief.origin === "received"
+        ? [{
+            reportId: belief.subjectId,
+            subjectId: belief.subjectId,
+            category: belief.category,
+            assertion: belief.assertion,
+            sourceOfficerId: belief.sourceOfficerId ?? officer.id,
+            receivedAtMs: belief.receivedAtMs,
+            reliability: belief.reliability,
+            verificationState: belief.verificationState,
+          }]
+        : [],
+      profile: officer.profile,
+      memory: officer.memory,
+      nowMs: state.elapsedMs,
+    });
+    officer.memory = perception.memory;
   };
 
   const recipientIdsFor = (sourceOfficerId: string, timeMs: number): string[] => {
@@ -104,9 +133,11 @@ export function createSignals(context: SignalContext) {
         subjectId: report.id,
         category: "report",
         assertion: report.text,
+        origin: "direct",
         sourceOfficerId: report.officerId,
         receivedAtMs: timeMs,
         reliability,
+        confidence: reliability,
         verificationState,
       });
     }
@@ -124,7 +155,13 @@ export function createSignals(context: SignalContext) {
 
   const updateBeliefVerification = (message: MutableMessage): void => {
     officers.forEach((officer) => {
-      const belief = officer.beliefs.find(({ subjectId }) => subjectId === message.authoredReportId);
+      const belief = perceive({
+        observation: { observedAtMs: state.elapsedMs, facts: [] },
+        receivedReports: [],
+        profile: officer.profile,
+        memory: officer.memory,
+        nowMs: state.elapsedMs,
+      }).beliefs.find(({ subjectId }) => subjectId === message.authoredReportId);
       if (belief) addBelief(officer, { ...belief, verificationState: message.verificationState, reliability: message.reliability });
     });
   };
@@ -140,9 +177,11 @@ export function createSignals(context: SignalContext) {
               subjectId: message.authoredReportId,
               category: "report",
               assertion: message.text,
+              origin: "received",
               sourceOfficerId: message.sourceOfficerId,
               receivedAtMs: message.deliveryAtMs,
               reliability: message.reliability,
+              confidence: message.reliability,
               verificationState: message.verificationState,
             });
             recipient.confidence = rounded(clamp(

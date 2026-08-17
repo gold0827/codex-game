@@ -1,5 +1,6 @@
 import type {
   CampaignOfficer,
+  AgentProfile,
   CampaignMapTopology,
   CampaignScene,
   CampaignTilePosition,
@@ -47,9 +48,11 @@ export interface OfficerBeliefSnapshot {
   readonly subjectId: string;
   readonly category: "report" | "threat" | "outcome";
   readonly assertion: string;
+  readonly origin: "direct" | "received";
   readonly sourceOfficerId: string | null;
   readonly receivedAtMs: number;
   readonly reliability: number;
+  readonly confidence: number;
   readonly verificationState: VerificationState;
 }
 
@@ -61,6 +64,8 @@ export interface OfficerDecisionSnapshot {
 
 export interface OfficerSimulationSnapshot {
   readonly id: string;
+  readonly profile: AgentProfile;
+  readonly memorySize: number;
   readonly disposition: OfficerDisposition;
   readonly intent: OfficerIntent;
   readonly confidence: number;

@@ -30,6 +30,8 @@ import {
   operationRandomStreamKey,
 } from "./randomStreams";
 import { createSpatialWorld } from "./spatial";
+import { createBoundedMemory } from "./agent/memory";
+import { defaultAgentProfile } from "./agent/perception";
 
 function assertHarness(harness: HarnessConfiguration): void {
   const fields = ["informationReach", "authorityClarity", "verificationDepth", "feedbackCompression"] as const;
@@ -118,16 +120,20 @@ export function createOperationSimulation(
     progress: 0,
     completed: false,
   }));
-  const officers: MutableOfficer[] = roster.map((officer) => ({
-    id: officer.id,
-    disposition: officer.disposition,
-    intent: intentAlternatives(officer.disposition)[0],
-    confidence: confidenceFor(officer.disposition, harness),
-    beliefs: [],
-    pendingDecision: null,
-    authorized: !compoundReplanRequired && officer.disposition === "action" &&
-      harness.authorityClarity >= 0.45 && harness.authorityClarity <= 0.88,
-  }));
+  const officers: MutableOfficer[] = roster.map((officer) => {
+    const profile = officer.profile ?? defaultAgentProfile(officer.disposition);
+    return {
+      id: officer.id,
+      disposition: officer.disposition,
+      intent: intentAlternatives(officer.disposition)[0],
+      confidence: confidenceFor(officer.disposition, harness),
+      profile,
+      memory: createBoundedMemory(profile.memoryCapacity),
+      pendingDecision: null,
+      authorized: !compoundReplanRequired && officer.disposition === "action" &&
+        harness.authorityClarity >= 0.45 && harness.authorityClarity <= 0.88,
+    };
+  });
   const units: MutableUnit[] = roster.map((officer, index) => ({
     officerId: officer.id,
     lane: LANES[index % LANES.length] as ThreatLane,
