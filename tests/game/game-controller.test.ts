@@ -56,9 +56,22 @@ function finishAttempt(controller: GameController): void {
   controller.tick(remaining / snapshot.scene.gameplayTuning.simulationSpeed + 1);
 }
 
+function completeSharedBeliefObjective(controller: GameController): void {
+  const snapshot = controller.snapshot();
+  if (snapshot.scene.identity.id !== "night-switchboard") return;
+  const message = snapshot.operation?.messages[0];
+  const missingRecipient = completeCampaign.officers.find(({ id }) =>
+    id !== message?.sourceOfficerId && !message?.recipientOfficerIds.includes(id));
+  if (!message || !missingRecipient) {
+    throw new Error("Night switchboard requires one missing report recipient.");
+  }
+  controller.routeReport(message.authoredReportId, missingRecipient.id);
+}
+
 function playBalancedAttempt(controller: GameController): void {
   controller.startAttempt();
   completeTutorial(controller);
+  completeSharedBeliefObjective(controller);
   finishAttempt(controller);
 }
 
@@ -270,8 +283,14 @@ describe("game controller campaign flow", () => {
   it("plays all six operations through the authored epilogue and resets cleanly", () => {
     const controller = createGameController(completeCampaign, "complete-run");
     const playedSceneIds: string[] = [];
+    const operationCount = completeCampaign.scenes.filter(
+      ({ identity }) => identity.kind !== "epilogue",
+    ).length;
 
     while (controller.snapshot().phase !== "epilogue") {
+      if (playedSceneIds.length >= operationCount) {
+        throw new Error("Campaign did not reach the epilogue within the authored operations.");
+      }
       const sceneId = controller.snapshot().scene.identity.id;
       playedSceneIds.push(sceneId);
       playBalancedAttempt(controller);

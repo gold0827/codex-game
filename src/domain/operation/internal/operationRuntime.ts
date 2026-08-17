@@ -361,7 +361,7 @@ export function createOperationSimulation(
     threatActorId,
   });
   const outcome = createOutcome({
-    scene, harness, consequences, durationMs, readiness, compoundReplanRequired, state,
+    scene, harness, consequences, durationMs, state,
     officers, messages, spatialSignals, threats, units, objectives, metrics, replayEntries, operationEvents, appendReplay,
     spatialWorld,
   });

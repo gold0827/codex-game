@@ -70,6 +70,20 @@ function finishSuccessfulAttempt(session: GameSession): void {
       session.dispatch({ type: "resume" });
     }
   }
+  const operation = session.read();
+  if (operation.scene.identity.id === "night-switchboard") {
+    const message = operation.operation?.messages[0];
+    const missingRecipient = completeCampaign.officers.find(({ id }) =>
+      id !== message?.sourceOfficerId && !message?.recipientOfficerIds.includes(id));
+    if (!message || !missingRecipient) {
+      throw new Error("Night switchboard requires one missing report recipient.");
+    }
+    session.dispatch({
+      type: "route-report",
+      reportId: message.authoredReportId,
+      recipientOfficerId: missingRecipient.id,
+    });
+  }
   const snapshot = session.read();
   const remaining =
     snapshot.scene.encounterParameters.durationMs -
@@ -134,11 +148,19 @@ describe("game workbench", () => {
     expect(workbench.session().read().phase).toBe("debrief");
     expectManualOpens();
 
+    const operationCount = completeCampaign.scenes.filter(
+      ({ identity }) => identity.kind !== "epilogue",
+    ).length;
+    let completedOperations = 1;
     while (workbench.session().read().phase !== "epilogue") {
       workbench.session().dispatch({ type: "continue-campaign" });
       if (workbench.session().read().phase === "epilogue") break;
+      if (completedOperations >= operationCount) {
+        throw new Error("Campaign did not reach the epilogue within the authored operations.");
+      }
       workbench.session().dispatch({ type: "start-attempt" });
       finishSuccessfulAttempt(workbench.session());
+      completedOperations += 1;
     }
     expect(workbench.session().read().phase).toBe("epilogue");
     expectManualOpens();

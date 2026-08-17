@@ -74,15 +74,38 @@ describe("operation evaluation", () => {
     expect(result.successCount).toBe(0);
     expect(result.failureReasons).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ value: "readiness-below-threshold", count: 8 }),
+        expect.objectContaining({ value: "point-not-preserved", count: 8 }),
         expect.objectContaining({
-          value: "threat-control-below-threshold",
+          value: "threat-not-neutralized",
           count: 8,
         }),
+        expect.objectContaining({ value: "report-not-routed", count: 8 }),
       ]),
     );
     expect(result.unclassifiedFailureCount).toBe(0);
   });
+
+  it(
+    "keeps the optimal physical outcome fallible and distinct from poor settings",
+    () => {
+      const common = {
+        scene,
+        roster: completeCampaign.officers,
+        seedRange: { start: 0, count: 32 },
+        policy: NO_INTERVENTION_POLICY,
+      };
+      const optimal = evaluateOperations({ ...common, harness: BALANCED_HARNESS });
+      const poor = evaluateOperations({ ...common, harness: poorHarness });
+
+      expect(optimal.successCount).toBeGreaterThan(0);
+      expect(optimal.successCount).toBeLessThan(optimal.runCount);
+      expect(optimal.successCount).toBeGreaterThan(poor.successCount);
+      expect(optimal.failureReasons).not.toEqual(poor.failureReasons);
+      expect(optimal.unclassifiedFailureCount).toBe(0);
+      expect(poor.unclassifiedFailureCount).toBe(0);
+    },
+    30_000,
+  );
 
   it("runs paired policies over identical seeds without exposing replay entries", () => {
     const scripted = createScriptedPolicy("authorize-at-start", [

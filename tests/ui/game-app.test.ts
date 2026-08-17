@@ -93,6 +93,22 @@ describe("production game app", () => {
     expect(root.querySelector(".tutorial-guidance")).toBeNull();
   };
 
+  const completeSharedBeliefObjective = (): void => {
+    const snapshot = session.read();
+    if (snapshot.scene.identity.id !== "night-switchboard") return;
+    const message = snapshot.operation?.messages[0];
+    const missingRecipient = completeCampaign.officers.find(({ id }) =>
+      id !== message?.sourceOfficerId && !message?.recipientOfficerIds.includes(id));
+    if (!message || !missingRecipient) {
+      throw new Error("Night switchboard requires one missing report recipient.");
+    }
+    session.dispatch({
+      type: "route-report",
+      reportId: message.authoredReportId,
+      recipientOfficerId: missingRecipient.id,
+    });
+  };
+
   beforeEach(() => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     document.body.innerHTML = '<div id="test-root"></div>';
@@ -241,11 +257,18 @@ describe("production game app", () => {
 
   it("continues every successful debrief into the epilogue and resets", () => {
     const playedScenes: string[] = [];
+    const operationCount = completeCampaign.scenes.filter(
+      ({ identity }) => identity.kind !== "epilogue",
+    ).length;
 
     while (session.read().phase !== "epilogue") {
+      if (playedScenes.length >= operationCount) {
+        throw new Error("Campaign did not reach the epilogue within the authored operations.");
+      }
       playedScenes.push(session.read().scene.identity.id);
       startAttempt();
       if (session.read().scene.identity.kind === "tutorial") completeTutorial();
+      completeSharedBeliefObjective();
 
       const snapshot = session.read();
       const remaining =
