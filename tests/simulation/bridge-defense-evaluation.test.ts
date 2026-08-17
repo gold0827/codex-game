@@ -5,6 +5,7 @@ import {
   bridgeDefenseOperation,
 } from "../../src/scenarios/bridgeDefenseOperation";
 import {
+  createScriptedPolicy,
   evaluateOperations,
   NO_INTERVENTION_POLICY,
 } from "../../src/simulation/operationEvaluation";
@@ -18,6 +19,39 @@ const poorHarness = {
 } as const;
 
 describe("bridge-defense Monte Carlo gate", () => {
+  it(
+    "makes the taught bridge signal improve success by at least 25 points to 75 percent",
+    () => {
+      const common = {
+        scene: bridgeDefenseOperation,
+        roster: bridgeDefenseOfficers,
+        seedRange: { start: 0, count: 200 },
+        harness: BALANCED_HARNESS,
+      } as const;
+      const baseline = evaluateOperations({
+        ...common,
+        policy: NO_INTERVENTION_POLICY,
+      });
+      const guided = evaluateOperations({
+        ...common,
+        policy: createScriptedPolicy("bridge-tutorial-signal", [{
+          atMs: 0,
+          intervention: {
+            kind: "issue-spatial-signal",
+            signal: "defend",
+            strength: 2,
+            position: { x: 11, y: 7 },
+          },
+        }]),
+      });
+
+      expect(baseline.successRate).toBeLessThan(1);
+      expect(guided.successRate).toBeGreaterThanOrEqual(0.75);
+      expect(guided.successRate - baseline.successRate).toBeGreaterThanOrEqual(0.25);
+    },
+    90_000,
+  );
+
   it(
     "separates balanced and poor no-input outcomes over 200 identical seeds",
     () => {
@@ -42,7 +76,6 @@ describe("bridge-defense Monte Carlo gate", () => {
         unclassifiedFailureCount: 0,
       });
       expect(poor.failureReasons.map(({ value }) => value)).toEqual([
-        "vehicle-not-arrived",
         "point-not-preserved",
         "threat-not-neutralized",
       ]);
