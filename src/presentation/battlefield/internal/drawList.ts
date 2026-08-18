@@ -2,6 +2,7 @@ import type {
   BattlefieldAction,
   BattlefieldFacing,
   BattlefieldFrame,
+  BattlefieldTeam,
   BattlefieldThreatFrame,
 } from "../battlefieldFrame";
 
@@ -13,6 +14,7 @@ export type BattlefieldDrawActor = Readonly<{
   facing: BattlefieldFacing;
   health: number;
   selected: boolean;
+  team?: BattlefieldTeam;
 }>;
 
 export type BattlefieldDrawList = Readonly<{
@@ -66,6 +68,7 @@ export function createBattlefieldDrawList(
         facing: actor.facing,
         health: actor.health,
         selected: actor.selected,
+        ...(actor.team ? { team: actor.team } : {}),
       };
     }),
     threats: current.frame.threats.map((threat) => {

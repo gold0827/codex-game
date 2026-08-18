@@ -6,30 +6,28 @@
 
 ## 화면 와이어프레임
 
-작전 단계의 1440×900 고정 데스크톱 화면은 다음 순서로 조립된다.
+기본 두 부대 난전 화면은 다음 순서로 조립된다.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ 게임 제목 │ 장면/시도 │ 작전 시간·배속·상태 │ 음소거                       │
+│ 해인교 두 부대 난전                              │ 작전 시간·전투 상태        │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ 튜토리얼 안내 · 현재 행동 · 대상                              (선택 영역) │
+│ 일시정지·재개 │ 0.5배·1배·2배 │ 같은 seed로 재시작                       │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ 작전 시계 │ 일시정지·재개 │ 0.5배·1배·2배 │ 남은 직접 개입              │
-├──────────────────┬────────────────────────────────┬──────────────────────────┤
-│ 작전 상태        │                                │ 선택 장교                │
-│ 지표·목표        │                                │ 역할·의도·상태           │
-│                  │        실시간 전장             ├──────────────────────────┤
-│ 하네스 조정      │ unit · threat · objective      │ 보고 기록                │
-│ 정보·권한        │ movement · impact              │ 전달 대상·검증 행동      │
-│ 검증·피드백      │                                │                          │
-├──────────────────┴────────────────────────────────┴──────────────────────────┤
-│ 사건 흐름 · 최근 operation event 여섯 건                                    │
+│ 해인교 내구도                         │ 수송대 통과                         │
+├────────────────────────────────────────────────┬─────────────────────────────┤
+│                                                │ 본대·지원대                │
+│             36명 실시간 Canvas 전장            │ 적 선봉·적 증원            │
+│                                                │ 생존·사기·피로·현재 명령   │
+├────────────────────────────────────────────────┴─────────────────────────────┤
+│ 본대 명령 │ 지원대 투입 경로 │ 지원대 명령                               │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ 직접 개입 트레이 · 예외 권한 · 최신 보고 전달 · 최신 보고 검증 우선         │
+│ 최근 전황                                                                    │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-브리핑, 디브리핑, 졸업은 같은 header와 shell 안에서 각 phase view만 교체한다.
+기존 브리핑, 디브리핑, 졸업 화면은 `?legacy=1`에서 같은 header와 shell 안의
+각 phase view를 교체한다.
 `작전 교범`, `설정`, 개발용 `장면 편집`은 workbench shell에 놓이며
 `WorkbenchOverlays`가 활성 overlay와 pause ownership을 단독 소유한다. 세 화면은
 동시에 열리지 않고, 진행 중인 작전에서 하나를 열면 작전을 멈추며 닫으면 필요한
@@ -39,7 +37,16 @@
 
 ```text
 src/main.ts
-└─ mountProductionGame                         app composition
+├─ mountProductionSquadBattle                  기본 app composition
+│  ├─ bridgeDefenseMap                         content
+│  ├─ browser frame scheduler                  platform
+│  ├─ SquadBattleSession                       application interface
+│  │  └─ operationEngine.createSquadBattle     domain/operation interface
+│  │     └─ squadBattleRuntime → encounters    부대 규칙 → 병사 교전
+│  └─ SquadBattleApp                           presentation mount adapter
+│     ├─ projectSquadBattleFrame               snapshot → BattlefieldFrame
+│     └─ Canvas battlefield + DOM controls
+└─ ?legacy=1 → mountProductionGame             기존 app composition
    ├─ CC0 music catalog                        app asset composition
    ├─ browser frame/audio/localStorage adapter platform
    └─ mountGameWorkbench                       app
@@ -139,7 +146,7 @@ operation domain은 asset 파일을 알지 않는다. Canvas 카메라 범위는
 
 ## Public interface
 
-application의 깊은 interface는 세 동작뿐이다.
+기존 campaign application의 깊은 interface는 세 동작뿐이다.
 
 ```ts
 type GameSession = Readonly<{
@@ -149,20 +156,18 @@ type GameSession = Readonly<{
 }>;
 ```
 
-UI에 연결하지 않은 두 부대 난전은 production wiring과 별도로 같은 domain
-facade를 직접 실행한다.
+두 부대 난전은 브라우저 session과 headless CLI가 같은 domain facade를 실행한다.
 
 ```text
-scripts/simulate-squad-battle.ts              headless adapter
-└─ operationEngine                            domain/operation interface
-   └─ squadBattleRuntime                      부대 명령·행군·피로·사기·호송
-      └─ encounters                           병사 명중·체력·제압·패닉
+SquadBattleApp ─→ SquadBattleSession ─┐
+                                     ├─→ operationEngine
+scripts/simulate-squad-battle.ts ─────┘      └─ squadBattleRuntime
+                                                  └─ encounters
 ```
 
-UI에 아직 연결하지 않은 두 부대 난전도 같은 operation facade에서 별도 깊은
-interface로 실행한다. 기존 `encounters`가 36명 개별 병사의 명중, 체력, 제압과
-패닉을 소유하고, `squadBattleRuntime`은 명령 지연, 지정 행군 경로, 증원, 피로,
-사기, 패주와 교량 호송 판정만 조율한다.
+기존 `encounters`가 36명 개별 병사의 명중, 체력, 제압과 패닉을 소유하고,
+`squadBattleRuntime`은 명령 지연, 지정 행군 경로, 증원, 피로, 사기, 패주와
+교량 호송 판정만 조율한다.
 
 ```ts
 type SquadBattleSimulation = Readonly<{
@@ -172,7 +177,17 @@ type SquadBattleSimulation = Readonly<{
 }>;
 ```
 
-`npm run simulate:squad-battle`은 이 interface를 직접 사용하는 headless adapter다.
+브라우저는 pause, speed, reset을 감싼 application interface만 사용한다.
+
+```ts
+type SquadBattleSession = Readonly<{
+  read: () => SquadBattleSessionSnapshot;
+  dispatch: (command: SquadBattleGameCommand) => SquadBattleSessionSnapshot;
+  advance: (realElapsedMs: number) => SquadBattleSessionSnapshot;
+}>;
+```
+
+`npm run simulate:squad-battle`은 domain interface를 직접 사용하는 headless adapter다.
 
 authoring은 저장 방식 대신 repository seam만 안다.
 
@@ -214,10 +229,10 @@ game session이나 operation을 import하지 않는다.
 | --- | --- | --- | --- | --- |
 | campaign 콘텐츠·parse·validation | [Module 책임과 현재 경로](#module-책임과-현재-경로) | `src/campaign/index.ts` · `parseCampaignJson`, `validateCampaignDefinition`; `src/scenarios/` | `npx vitest run tests/campaign/campaign-parsing.test.ts tests/campaign/campaign.test.ts` | `npm run build && npm run check:dependencies` |
 | operation 규칙·장교 판단·두 부대 난전·결과 | [실행 배선](#실행-배선) | `src/domain/operation/operationEngine.ts` · `createOperationSimulation`, `createSquadBattle` | `npx vitest run tests/simulation/operation-simulation.test.ts tests/domain/operation/squad-battle.test.ts` | `npm run test:monte-carlo && npm run simulate:squad-battle` |
-| game session·campaign 진행 | [Public interface](#public-interface) | `src/application/game-session/index.ts` · `createGameSession`, `GameSession` | `npx vitest run tests/game/game-session.test.ts tests/game/game-session-flow.test.ts` | `npm run build && npm run check:dependencies` |
-| presentation·battlefield projection/rendering | [실행 배선](#실행-배선) | `src/presentation/gameViewModel.ts` · `projectGameViewModel`; `src/presentation/battlefield/canvasBattlefield.ts` · `mountCanvasBattlefield` | `npx vitest run tests/ui/game-view-model.test.ts tests/ui/operation-projector.test.ts tests/ui/canvas-viewport.test.ts` | `npm run build && node tests/fixtures/run-bridge-defense-chrome.mjs` |
+| game session·campaign 진행 | [Public interface](#public-interface) | `src/application/game-session/index.ts` · `createGameSession`, `GameSession`; `src/application/squad-battle-session.ts` · `createSquadBattleSession` | `npx vitest run tests/game/game-session.test.ts tests/game/game-session-flow.test.ts tests/application/squad-battle-session.test.ts` | `npm run build && npm run check:dependencies` |
+| presentation·battlefield projection/rendering | [실행 배선](#실행-배선) | `src/presentation/operation/squadBattleProjector.ts` · `projectSquadBattleFrame`; `src/presentation/battlefield/canvasBattlefield.ts` · `mountCanvasBattlefield` | `npx vitest run tests/ui/squad-battle-projector.test.ts tests/ui/squad-battle-app.test.ts tests/ui/canvas-viewport.test.ts` | `npm run build && node tests/fixtures/run-squad-battle-chrome.mjs` |
 | authoring·`CampaignRepository` | [Public interface](#public-interface) | `src/authoring/campaign-workshop/index.ts` · `createCampaignDocument`, `mountCampaignWorkshop`; `src/campaign/repository.ts` · `CampaignRepository` | `npx vitest run tests/campaign/campaign-repository.test.ts tests/ui/campaign-editor.test.ts` | `npm run build && npm run check:dependencies` |
-| browser platform adapter | [Module 책임과 현재 경로](#module-책임과-현재-경로) | `src/platform/browser/adapters.ts` · `createBrowserFrameScheduler`, `createBrowserStorage`, `createBrowserCampaignRepository`, `createBrowserAudio` | `npx vitest run tests/ui/browser-audio.test.ts tests/ui/campaign-checkpoint.test.ts tests/ui/player-settings.test.ts` | `npm run build && node tests/fixtures/run-bridge-defense-chrome.mjs` |
+| browser platform adapter | [Module 책임과 현재 경로](#module-책임과-현재-경로) | `src/platform/browser/adapters.ts` · `createBrowserFrameScheduler`, `createBrowserStorage`, `createBrowserCampaignRepository`, `createBrowserAudio` | `npx vitest run tests/ui/browser-audio.test.ts tests/ui/campaign-checkpoint.test.ts tests/ui/player-settings.test.ts` | `npm run build && node tests/fixtures/run-squad-battle-chrome.mjs` |
 
 ## 허용 의존
 

@@ -435,6 +435,25 @@ export function createCanvasBattlefieldViewport(
       }
       const actor = renderable;
       const { x, y } = camera.project(actor.position);
+      if (actor.team) {
+        context.save();
+        context.fillStyle = actor.team === "ally" ? "rgba(70, 205, 146, 0.45)" : "rgba(230, 91, 76, 0.45)";
+        context.strokeStyle = actor.team === "ally" ? "#7de1ad" : "#ff8177";
+        context.lineWidth = Math.max(1, 1.5 * scale);
+        context.beginPath();
+        context.ellipse(
+          Math.round(x),
+          Math.round(y + 5 * scale),
+          Math.max(4, 9 * scale),
+          Math.max(2, 4 * scale),
+          0,
+          0,
+          Math.PI * 2,
+        );
+        context.fill();
+        context.stroke();
+        context.restore();
+      }
       const sample = spriteAtlas.sample(actor.action, actor.facing, animation.spriteTimeMs);
       spriteFrameIndices.push(sample.frameIndex);
       const image = sample.placeholder
@@ -460,7 +479,9 @@ export function createCanvasBattlefieldViewport(
           Math.round(rect.height * scale),
         );
       } else {
-        context.fillStyle = actor.health <= 0 ? "#756b67" : "#e6cf72";
+        context.fillStyle = actor.health <= 0
+          ? "#756b67"
+          : actor.team === "enemy" ? "#ff8177" : "#e6cf72";
         context.fillRect(Math.round(x - 6 * scale), Math.round(y - 10 * scale), Math.round(12 * scale), Math.round(12 * scale));
         context.fillStyle = "#08110e";
         context.fillRect(Math.round(x - 2 * scale), Math.round(y - 6 * scale), Math.max(1, Math.round(4 * scale)), Math.max(1, Math.round(4 * scale)));
@@ -474,7 +495,7 @@ export function createCanvasBattlefieldViewport(
       const healthBarHeight = Math.max(2, Math.round(4 * scale));
       context.fillStyle = "rgba(4, 10, 8, 0.84)";
       context.fillRect(Math.round(x - 14 * scale), Math.round(y + 8 * scale), healthBarWidth, healthBarHeight);
-      context.fillStyle = actor.health < 30 ? "#ff8177" : "#7de1ad";
+      context.fillStyle = actor.health < 30 || actor.team === "enemy" ? "#ff8177" : "#7de1ad";
       context.fillRect(Math.round(x - 14 * scale), Math.round(y + 8 * scale), healthBarWidth * (actor.health / 100), healthBarHeight);
     }
     canvas.dataset.drawnThreatMarkerCount = String(drawList.threats.length);
@@ -604,6 +625,9 @@ export function createCanvasBattlefieldViewport(
       mapDrawList = createBattlefieldMapDrawList(frame.map, mapAtlas.skin(frame.map.id));
       canvas.dataset.mapTileCount = String(mapDrawList.tiles.length);
       canvas.dataset.mapPropCount = String(mapDrawList.props.length);
+      canvas.dataset.actorCount = String(frame.actors.length);
+      canvas.dataset.allyActorCount = String(frame.actors.filter(({ team }) => team === "ally").length);
+      canvas.dataset.enemyActorCount = String(frame.actors.filter(({ team }) => team === "enemy").length);
       canvas.dataset.threatMarkerCount = String(frame.threats.length);
       canvas.dataset.threatMarkerCategories = [...new Set(
         frame.threats.map(({ category }) => category),

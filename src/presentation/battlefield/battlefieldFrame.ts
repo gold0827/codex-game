@@ -24,6 +24,7 @@ export type BattlefieldFacing =
   | "north-west";
 
 export type BattlefieldCue = "destination-reached" | "low-health";
+export type BattlefieldTeam = "ally" | "enemy";
 
 export type BattlefieldMapTileKind = "blocked" | "rough";
 export type BattlefieldMapLocationKind = "spawn" | "destination";
@@ -51,6 +52,7 @@ export type BattlefieldActorFrame = Readonly<{
   health: number;
   cues: readonly BattlefieldCue[];
   selected: boolean;
+  team?: BattlefieldTeam;
 }>;
 
 export type BattlefieldThreatFrame = Readonly<{
