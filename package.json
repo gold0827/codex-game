@@ -15,6 +15,7 @@
     "check:assets:maps": "tsx scripts/assets/generate-battlefield-map.mjs --check",
     "check:assets": "npm run check:assets:sprites && npm run check:assets:maps",
     "evaluate:operations": "tsx scripts/evaluate-operations.ts",
+    "simulate:squad-battle": "tsx scripts/simulate-squad-battle.ts",
     "check:dependencies": "node scripts/check-dependencies.mjs",
     "check": "npm run check:assets && npm run build && npm test && npm run check:dependencies",
     "check:ci": "npm run check:assets && npm run build && npm run test:ci && npm run check:dependencies"
