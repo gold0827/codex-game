@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>해인교 두 부대 난전 · 로직 프로토타입</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Pretendard, "Noto Sans KR", system-ui, sans-serif;
+      background: #111714;
+      color: #edf4ec;
+      --panel: #1a241f;
+      --line: #36483e;
+      --accent: #84c59b;
+      --danger: #e48b78;
+      --muted: #a6b5aa;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; }
+    main { max-width: 1180px; margin: 0 auto; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 8px; }
+    h2 { font-size: 1.05rem; }
+    button, select, input {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #243229;
+      color: inherit;
+      padding: 8px 10px;
+      font: inherit;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    .question, .panel {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      padding: 16px;
+    }
+    .question { margin: 18px 0; border-left: 4px solid var(--accent); }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .summary div { background: #131c17; border-radius: 7px; padding: 10px; }
+    .summary small, .muted { display: block; color: var(--muted); }
+    .summary strong { display: block; margin-top: 4px; font-size: 1.05rem; }
+    .outcome { color: var(--accent); }
+    .outcome.defeat { color: var(--danger); }
+    .battlefield {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(110px, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+    .zone {
+      min-height: 132px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #121b16;
+      padding: 10px;
+    }
+    .zone h3 { font-size: .86rem; color: var(--muted); margin-bottom: 8px; }
+    .squad-token { border-radius: 5px; padding: 6px; margin-top: 5px; font-size: .8rem; }
+    .squad-token.ally { background: #244e36; }
+    .squad-token.enemy { background: #60352e; }
+    .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 14px; }
+    .squads { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .squad { background: #131c17; border-radius: 8px; padding: 12px; }
+    .squad header { display: flex; justify-content: space-between; gap: 8px; }
+    .meters { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font-size: .82rem; }
+    meter { width: 100%; accent-color: var(--accent); }
+    .soldiers { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+    .soldier { border: 1px solid var(--line); border-radius: 999px; padding: 3px 7px; font-size: .72rem; }
+    .soldier.down { opacity: .35; text-decoration: line-through; }
+    .controls { display: grid; gap: 12px; }
+    .control-group { display: flex; flex-wrap: wrap; gap: 7px; }
+    .control-group h3 { flex-basis: 100%; margin-bottom: 0; font-size: .9rem; }
+    .events { max-height: 360px; overflow: auto; padding-left: 22px; }
+    .events li { margin-bottom: 7px; color: #d5dfd7; }
+    .events time { color: var(--muted); margin-right: 8px; }
+    .walkthroughs { margin-top: 14px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .tabs button[aria-selected="true"] { border-color: var(--accent); background: #31533d; }
+    .steps { display: flex; flex-wrap: wrap; gap: 7px; }
+    .steps button.done { opacity: .5; }
+    .state-note { min-height: 1.4em; color: var(--accent); }
+    @media (max-width: 850px) {
+      body { padding: 12px; }
+      .summary { grid-template-columns: repeat(2, 1fr); }
+      .grid, .squads { grid-template-columns: 1fr; }
+      .battlefield { grid-template-columns: repeat(7, 130px); }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>해인교 두 부대 난전</h1>
+    <p class="muted">PROTOTYPE — 본편에 합치지 않는 로직 검증용 파일입니다.</p>
+    <section class="question">
+      <strong>검증 질문</strong>
+      <p>두 자율 부대가 뒤엉켜 싸우는 동안 플레이어가 진군·고수·집중 공격·후퇴/휴식과 증원 경로만 정해도, 전황을 읽고 타이밍을 선택하는 재미가 생기는가?</p>
+      <small>같은 seed와 같은 명령 순서는 항상 같은 결과를 냅니다. 각 명령은 사기 상태에 따라 5~10초 뒤 전달됩니다.</small>
+    </section>
+
+    <section class="panel" aria-label="현재 전투 상태">
+      <div id="summary" class="summary"></div>
+      <p id="state-note" class="state-note" role="status"></p>
+      <div id="battlefield" class="battlefield"></div>
+      <div class="grid">
+        <div>
+          <h2>부대 전체 상태</h2>
+          <div id="squads" class="squads"></div>
+        </div>
+        <div>
+          <h2>최근 전황</h2>
+          <ol id="events" class="events"></ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top:14px">
+      <h2>자유 플레이</h2>
+      <div class="controls">
+        <div class="control-group">
+          <h3>시간</h3>
+          <button data-action='{"type":"advance","seconds":5}'>5초 진행</button>
+          <button data-action='{"type":"advance","seconds":15}'>15초 진행</button>
+          <button id="reset">같은 seed로 초기화</button>
+          <label>seed <input id="seed" value="haein-bridge-229" size="18"></label>
+          <button id="new-seed">입력한 seed로 시작</button>
+        </div>
+        <div class="control-group">
+          <h3>본대 명령</h3>
+          <button data-action='{"type":"order","squadId":"main","order":"advance"}'>본대 진군</button>
+          <button data-action='{"type":"order","squadId":"main","order":"hold"}'>본대 고수</button>
+          <button data-action='{"type":"order","squadId":"main","order":"focus","targetId":"enemy-assault"}'>적 선봉 집중</button>
+          <button data-action='{"type":"order","squadId":"main","order":"focus","targetId":"enemy-reserve"}'>적 증원 집중</button>
+          <button data-action='{"type":"order","squadId":"main","order":"withdraw"}'>본대 후퇴/휴식</button>
+        </div>
+        <div class="control-group">
+          <h3>지원대 투입</h3>
+          <button data-action='{"type":"deploy","route":"north"}'>북쪽 여울로 증원</button>
+          <button data-action='{"type":"deploy","route":"south"}'>남쪽 농로로 증원</button>
+        </div>
+        <div class="control-group">
+          <h3>지원대 명령</h3>
+          <button data-action='{"type":"order","squadId":"relief","order":"advance"}'>지원대 진군</button>
+          <button data-action='{"type":"order","squadId":"relief","order":"hold"}'>지원대 고수</button>
+          <button data-action='{"type":"order","squadId":"relief","order":"focus","targetId":"enemy-assault"}'>적 선봉 집중</button>
+          <button data-action='{"type":"order","squadId":"relief","order":"focus","targetId":"enemy-reserve"}'>적 증원 집중</button>
+          <button data-action='{"type":"order","squadId":"relief","order":"withdraw"}'>지원대 후퇴/휴식</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel walkthroughs">
+      <h2>가이드 시나리오</h2>
+      <div id="tabs" class="tabs" role="tablist"></div>
+      <p id="walkthrough-copy"></p>
+      <div id="steps" class="steps"></div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    // Portable prototype logic. It deliberately knows nothing about the DOM.
+    const HaeinBattle = (() => {
+      const STEP_SECONDS = 5;
+      const MAX_SECONDS = 180;
+      const HOME = { ally: "allied-camp", enemy: "enemy-camp" };
+      const ZONES = [
+        { id: "allied-camp", label: "서쪽 지휘소" },
+        { id: "west-bank", label: "서쪽 제방" },
+        { id: "bridge", label: "해인교" },
+        { id: "east-bank", label: "동쪽 제방" },
+        { id: "enemy-camp", label: "적 집결지" },
+        { id: "north-ford", label: "북쪽 여울" },
+        { id: "south-road", label: "남쪽 농로" },
+      ];
+      const GRAPH = {
+        "allied-camp": ["west-bank", "north-ford", "south-road"],
+        "west-bank": ["allied-camp", "bridge"],
+        bridge: ["west-bank", "east-bank"],
+        "east-bank": ["bridge", "enemy-camp", "north-ford", "south-road"],
+        "enemy-camp": ["east-bank"],
+        "north-ford": ["allied-camp", "east-bank"],
+        "south-road": ["allied-camp", "east-bank"],
+      };
+      const MARCH_ROUTES = {
+        center: ["allied-camp", "west-bank", "bridge", "east-bank", "enemy-camp"],
+        north: ["allied-camp", "north-ford", "east-bank", "enemy-camp"],
+        south: ["allied-camp", "south-road", "east-bank", "enemy-camp"],
+      };
+      const ROLE_POWER = { 지휘관: 15, 돌격병: 13, 방패병: 11, 정찰병: 10, 의무병: 7 };
+      const ORDER_LABEL = { advance: "진군", hold: "고수", focus: "집중 공격", withdraw: "후퇴/휴식" };
+
+      const clone = (value) => JSON.parse(JSON.stringify(value));
+      const clamp = (value, minimum = 0, maximum = 100) => Math.min(maximum, Math.max(minimum, value));
+      const living = (squad) => squad.soldiers.filter((soldier) => soldier.health > 0);
+      const isCombatant = (squad) => squad.active && !squad.routed && living(squad).length > 0;
+      const zoneLabel = (id) => ZONES.find((zone) => zone.id === id)?.label ?? id;
+
+      function hashSeed(seed) {
+        const value = String(seed);
+        let hash = 0x811c9dc5;
+        for (let index = 0; index < value.length; index += 1) {
+          hash ^= value.charCodeAt(index);
+          hash = Math.imul(hash, 0x01000193);
+        }
+        return hash >>> 0;
+      }
+
+      // Same deterministic generator shape as src/simulation/seededRandom.ts.
+      function random(state) {
+        state.randomState = (state.randomState + 0x6d2b79f5) >>> 0;
+        let value = state.randomState;
+        value = Math.imul(value ^ (value >>> 15), value | 1);
+        value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+        return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+      }
+
+      function soldiers(prefix, names) {
+        const roles = ["지휘관", "방패병", "돌격병", "돌격병", "정찰병", "의무병", "방패병", "돌격병", "정찰병"];
+        return names.map((name, index) => ({ id: `${prefix}-${index}`, name, role: roles[index], health: 100 }));
+      }
+
+      function squad(definition) {
+        return {
+          route: "center",
+          active: true,
+          routed: false,
+          fatigue: 0,
+          morale: 100,
+          order: "hold",
+          focusTargetId: null,
+          pendingOrder: null,
+          moveProgress: 0,
+          ...definition,
+        };
+      }
+
+      function append(state, text) {
+        state.events.push({ time: state.elapsed, text });
+        if (state.events.length > 80) state.events.shift();
+        state.lastChange = text;
+      }
+
+      function create(seed = "haein-bridge-229") {
+        const state = {
+          seed: String(seed),
+          randomState: hashSeed(seed),
+          elapsed: 0,
+          status: "running",
+          bridgeIntegrity: 100,
+          convoyProgress: 0,
+          lastChange: "본대는 서쪽 제방에서 명령을 기다립니다.",
+          events: [],
+          squads: [
+            squad({
+              id: "main", name: "해인교 본대", side: "ally", position: "west-bank", route: "center",
+              soldiers: soldiers("main", ["백돌격", "최방패", "오선봉", "장돌진", "윤척후", "서의무", "문방패", "임돌격", "배정찰"]),
+            }),
+            squad({
+              id: "relief", name: "우회 지원대", side: "ally", position: "allied-camp", active: false,
+              soldiers: soldiers("relief", ["한확인", "강수비", "신돌격", "노돌격", "박전달", "유의무", "하방패", "전돌격", "김중계"]),
+            }),
+            squad({
+              id: "enemy-assault", name: "적 선봉대", side: "enemy", position: "east-bank", order: "advance",
+              soldiers: soldiers("assault", ["적 선봉장", "적 방패1", "적 창병1", "적 창병2", "적 척후1", "적 의무1", "적 방패2", "적 창병3", "적 척후2"]),
+            }),
+            squad({
+              id: "enemy-reserve", name: "적 증원대", side: "enemy", position: "enemy-camp", order: "advance", active: false,
+              soldiers: soldiers("reserve", ["적 부장", "적 방패3", "적 창병4", "적 창병5", "적 척후3", "적 의무2", "적 방패4", "적 창병6", "적 척후4"]),
+            }),
+          ],
+        };
+        append(state, "작전 개시. 적 선봉대가 동쪽 제방에서 해인교로 접근합니다.");
+        return state;
+      }
+
+      function findPath(start, goal) {
+        if (start === goal) return [];
+        const queue = [start];
+        const previous = new Map([[start, null]]);
+        while (queue.length) {
+          const current = queue.shift();
+          for (const neighbor of GRAPH[current]) {
+            if (previous.has(neighbor)) continue;
+            previous.set(neighbor, current);
+            if (neighbor === goal) {
+              const path = [];
+              let cursor = goal;
+              while (cursor !== start) {
+                path.unshift(cursor);
+                cursor = previous.get(cursor);
+              }
+              return path;
+            }
+            queue.push(neighbor);
+          }
+        }
+        return [];
+      }
+
+      function nextOnMarchRoute(squadState, towardHome = false) {
+        const route = MARCH_ROUTES[squadState.side === "enemy" ? "center" : squadState.route];
+        const index = route.indexOf(squadState.position);
+        if (index < 0) return null;
+        const forward = squadState.side === "ally" ? 1 : -1;
+        const direction = towardHome ? -forward : forward;
+        return route[index + direction] ?? null;
+      }
+
+      function engagedEnemies(state, squadState) {
+        return state.squads.filter((candidate) =>
+          candidate.side !== squadState.side && isCombatant(candidate) && candidate.position === squadState.position
+        );
+      }
+
+      function nextDestination(state, squadState) {
+        if (squadState.order === "hold") return null;
+        if (squadState.order === "withdraw") {
+          return nextOnMarchRoute(squadState, true) ?? findPath(squadState.position, HOME[squadState.side])[0] ?? null;
+        }
+        if (squadState.order === "focus") {
+          const target = state.squads.find((candidate) => candidate.id === squadState.focusTargetId && isCombatant(candidate));
+          if (target) return findPath(squadState.position, target.position)[0] ?? null;
+        }
+        return nextOnMarchRoute(squadState) ?? null;
+      }
+
+      function deliverOrders(state) {
+        for (const squadState of state.squads) {
+          const pending = squadState.pendingOrder;
+          if (!pending || pending.arrivesAt > state.elapsed) continue;
+          squadState.order = pending.order;
+          squadState.focusTargetId = pending.targetId ?? null;
+          squadState.pendingOrder = null;
+          append(state, `${squadState.name}에 '${ORDER_LABEL[squadState.order]}' 명령이 도착했습니다.`);
+        }
+      }
+
+      function moveSquads(state) {
+        for (const squadState of state.squads) {
+          if (!isCombatant(squadState)) continue;
+          const enemiesHere = engagedEnemies(state, squadState);
+          if (enemiesHere.length && squadState.order !== "withdraw") {
+            squadState.moveProgress = 0;
+            continue;
+          }
+          const destination = nextDestination(state, squadState);
+          if (!destination || destination === squadState.position) continue;
+          const speed = clamp(1 - squadState.fatigue / 140, 0.35, 1);
+          squadState.moveProgress += STEP_SECONDS * speed;
+          if (squadState.moveProgress < 10) continue;
+          squadState.moveProgress -= 10;
+          const from = squadState.position;
+          squadState.position = destination;
+          append(state, `${squadState.name}이 ${zoneLabel(from)}에서 ${zoneLabel(destination)}(으)로 이동했습니다.`);
+        }
+      }
+
+      function targetFor(state, attacker, opponents) {
+        const focused = opponents.find((candidate) => candidate.id === attacker.focusTargetId);
+        if (attacker.order === "focus" && focused) return focused;
+        return [...opponents].sort((left, right) => living(left).length - living(right).length || left.id.localeCompare(right.id))[0];
+      }
+
+      function combatPackets(state, zoneId, combatants) {
+        const packets = [];
+        for (const attacker of combatants) {
+          const opponents = combatants.filter((candidate) => candidate.side !== attacker.side);
+          if (!opponents.length) continue;
+          const target = targetFor(state, attacker, opponents);
+          const alliesAttacking = combatants.filter((candidate) => candidate.side === attacker.side);
+          const pincer = new Set(alliesAttacking.map((candidate) => candidate.route)).size >= 2;
+          const stance = attacker.order === "hold" ? 0.9 : attacker.order === "withdraw" ? 0.45 : 1;
+          const focus = attacker.order === "focus" && attacker.focusTargetId === target.id ? 1.2 : 1;
+          const readiness = clamp((100 - attacker.fatigue) / 100, 0.25, 1) * clamp(attacker.morale / 100, 0.3, 1);
+          let damage = 0;
+          for (const soldier of living(attacker)) {
+            const hitChance = clamp(0.34 + readiness * 0.36 + (soldier.role === "정찰병" ? 0.08 : 0), 0.15, 0.86);
+            if (random(state) > hitChance) continue;
+            damage += ROLE_POWER[soldier.role] * (0.8 + random(state) * 0.4) * stance * focus * (pincer ? 1.35 : 1);
+          }
+          packets.push({ attackerId: attacker.id, targetId: target.id, damage: Math.round(damage), pincer, zoneId });
+        }
+        return packets;
+      }
+
+      function applyDamage(state, packet) {
+        const attacker = state.squads.find((candidate) => candidate.id === packet.attackerId);
+        const target = state.squads.find((candidate) => candidate.id === packet.targetId);
+        if (!attacker || !target || packet.damage <= 0) return;
+        let remaining = packet.damage;
+        let casualties = 0;
+        while (remaining > 0) {
+          const candidates = living(target).sort((left, right) => left.health - right.health || left.id.localeCompare(right.id));
+          const soldier = candidates[0];
+          if (!soldier) break;
+          const applied = Math.min(remaining, soldier.health);
+          soldier.health -= applied;
+          remaining -= applied;
+          if (soldier.health === 0) casualties += 1;
+        }
+        target.morale = clamp(target.morale - packet.damage * 0.09 - casualties * 5);
+        attacker.morale = clamp(attacker.morale + casualties * 1.5);
+        const detail = packet.pincer ? " 협공이 성립했습니다." : "";
+        append(state, `${zoneLabel(packet.zoneId)}: ${attacker.name}이 ${target.name}에 ${packet.damage} 피해를 주었습니다.${detail}`);
+      }
+
+      function recoverMedics(state) {
+        for (const squadState of state.squads) {
+          if (!isCombatant(squadState)) continue;
+          const medicAlive = living(squadState).some((soldier) => soldier.role === "의무병");
+          if (!medicAlive || engagedEnemies(state, squadState).length) continue;
+          const wounded = living(squadState).filter((soldier) => soldier.health < 100).sort((a, b) => a.health - b.health)[0];
+          if (wounded) wounded.health = clamp(wounded.health + 5);
+        }
+      }
+
+      function resolveCombat(state) {
+        const combatZones = ZONES.map(({ id }) => id).filter((zoneId) => {
+          const here = state.squads.filter((squadState) => isCombatant(squadState) && squadState.position === zoneId);
+          return new Set(here.map((squadState) => squadState.side)).size > 1;
+        });
+        for (const zoneId of combatZones) {
+          const combatants = state.squads.filter((squadState) => isCombatant(squadState) && squadState.position === zoneId);
+          const packets = combatPackets(state, zoneId, combatants);
+          packets.forEach((packet) => applyDamage(state, packet));
+          for (const squadState of combatants) {
+            squadState.fatigue = clamp(squadState.fatigue + (squadState.order === "withdraw" ? 3 : 9));
+          }
+        }
+        for (const squadState of state.squads) {
+          if (!isCombatant(squadState)) continue;
+          const restingAtHome = squadState.position === HOME[squadState.side] && squadState.order === "withdraw";
+          const quiet = engagedEnemies(state, squadState).length === 0;
+          if (restingAtHome) {
+            squadState.fatigue = clamp(squadState.fatigue - 18);
+            squadState.morale = clamp(squadState.morale + 9);
+          } else if (quiet) {
+            squadState.fatigue = clamp(squadState.fatigue - (squadState.order === "hold" ? 6 : 2));
+            squadState.morale = clamp(squadState.morale + 2);
+          }
+        }
+        recoverMedics(state);
+      }
+
+      function updateRoutesAndRouts(state) {
+        for (const squadState of state.squads) {
+          if (!squadState.active || squadState.routed) continue;
+          if (living(squadState).length > 2 && squadState.morale > 14) continue;
+          squadState.routed = true;
+          squadState.order = "withdraw";
+          append(state, `${squadState.name}이 전투력을 잃고 패주했습니다.`);
+        }
+      }
+
+      function updateMission(state) {
+        const activeAtBridge = state.squads.filter((squadState) => isCombatant(squadState) && squadState.position === "bridge");
+        const enemyAtBridge = activeAtBridge.some((squadState) => squadState.side === "enemy");
+        const allyAtBridge = activeAtBridge.some((squadState) => squadState.side === "ally");
+        const enemyBehindBridge = state.squads.some((squadState) =>
+          squadState.side === "enemy" && isCombatant(squadState) &&
+          (squadState.position === "west-bank" || squadState.position === "allied-camp")
+        );
+        if (enemyAtBridge && !allyAtBridge) {
+          state.bridgeIntegrity = clamp(state.bridgeIntegrity - 8);
+          append(state, "적이 해인교를 장악해 교량을 파괴하고 있습니다.");
+        }
+        if (enemyBehindBridge) {
+          state.bridgeIntegrity = clamp(state.bridgeIntegrity - 10);
+          append(state, "적이 서쪽 방어선을 돌파해 교량 후방을 공격하고 있습니다.");
+        }
+        if (allyAtBridge && !enemyAtBridge && !enemyBehindBridge && state.elapsed >= 25) {
+          state.convoyProgress = clamp(state.convoyProgress + 8);
+        }
+
+        const alliedHope = state.squads.some((squadState) => squadState.side === "ally" &&
+          ((!squadState.active && squadState.id === "relief") || isCombatant(squadState)));
+        if (state.bridgeIntegrity <= 0) {
+          state.status = "defeat";
+          append(state, "패배: 해인교가 붕괴했습니다.");
+        } else if (!alliedHope) {
+          state.status = "defeat";
+          append(state, "패배: 두 부대가 모두 전투력을 잃었습니다.");
+        } else if (state.convoyProgress >= 100) {
+          state.status = "victory";
+          append(state, "승리: 수송대가 해인교를 완전히 통과했습니다.");
+        } else if (state.elapsed >= MAX_SECONDS) {
+          state.status = "defeat";
+          append(state, "패배: 제한 시간 안에 수송대를 통과시키지 못했습니다.");
+        }
+      }
+
+      function enemyDecisions(state) {
+        const reserve = state.squads.find((squadState) => squadState.id === "enemy-reserve");
+        if (!reserve.active && state.elapsed >= 60) {
+          reserve.active = true;
+          append(state, "적 증원대가 동쪽 집결지에 나타났습니다.");
+        }
+        for (const squadState of state.squads.filter((candidate) => candidate.side === "enemy" && isCombatant(candidate))) {
+          if (squadState.morale < 28 || squadState.fatigue > 88) {
+            squadState.order = "withdraw";
+            squadState.focusTargetId = null;
+          } else if (squadState.position === "enemy-camp" && squadState.fatigue < 35) {
+            squadState.order = "advance";
+          }
+        }
+      }
+
+      function step(state) {
+        state.elapsed += STEP_SECONDS;
+        enemyDecisions(state);
+        deliverOrders(state);
+        moveSquads(state);
+        resolveCombat(state);
+        updateRoutesAndRouts(state);
+        updateMission(state);
+      }
+
+      function reduce(source, action) {
+        const state = clone(source);
+        if (state.status !== "running") {
+          state.lastChange = "전투가 끝났습니다. 초기화해서 다시 시작하세요.";
+          return state;
+        }
+        if (action.type === "advance") {
+          const seconds = Math.max(0, Math.floor(Number(action.seconds) / STEP_SECONDS) * STEP_SECONDS);
+          for (let elapsed = 0; elapsed < seconds && state.status === "running"; elapsed += STEP_SECONDS) step(state);
+          return state;
+        }
+        if (action.type === "deploy") {
+          const relief = state.squads.find((squadState) => squadState.id === "relief");
+          if (relief.active) {
+            state.lastChange = "지원대는 이미 전장에 투입됐습니다.";
+            return state;
+          }
+          if (action.route !== "north" && action.route !== "south") {
+            state.lastChange = "지원대 경로가 올바르지 않습니다.";
+            return state;
+          }
+          relief.active = true;
+          relief.route = action.route;
+          relief.order = "advance";
+          append(state, `우회 지원대가 ${action.route === "north" ? "북쪽 여울" : "남쪽 농로"}로 출발했습니다.`);
+          return state;
+        }
+        if (action.type === "order") {
+          const squadState = state.squads.find((candidate) => candidate.id === action.squadId && candidate.side === "ally");
+          if (!squadState || !squadState.active || squadState.routed) {
+            state.lastChange = "그 부대에는 지금 명령을 내릴 수 없습니다.";
+            return state;
+          }
+          if (!ORDER_LABEL[action.order]) {
+            state.lastChange = "알 수 없는 명령입니다.";
+            return state;
+          }
+          const delay = squadState.morale < 45 ? 10 : 5;
+          squadState.pendingOrder = { order: action.order, targetId: action.targetId ?? null, arrivesAt: state.elapsed + delay };
+          append(state, `${squadState.name}에 '${ORDER_LABEL[action.order]}' 명령을 보냈습니다. ${delay}초 뒤 도착합니다.`);
+          return state;
+        }
+        state.lastChange = "알 수 없는 행동입니다.";
+        return state;
+      }
+
+      return { create, reduce, zones: ZONES, orderLabel: ORDER_LABEL, living };
+    })();
+
+    // Throwaway page shell. Everything below only renders and dispatches actions.
+    const walkthroughs = [
+      {
+        id: "pincer",
+        title: "지연 협공",
+        copy: "본대로 교량을 붙들고 지원대를 북쪽으로 우회시킨 뒤 같은 적을 집중합니다. 협공 피해와 명령 지연을 보세요.",
+        steps: [
+          ["본대 진군 명령", { type: "order", squadId: "main", order: "advance" }],
+          ["10초 진행", { type: "advance", seconds: 10 }],
+          ["본대 고수 명령", { type: "order", squadId: "main", order: "hold" }],
+          ["20초 버티기", { type: "advance", seconds: 20 }],
+          ["북쪽 여울로 증원", { type: "deploy", route: "north" }],
+          ["25초 우회", { type: "advance", seconds: 25 }],
+          ["지원대 선봉 집중", { type: "order", squadId: "relief", order: "focus", targetId: "enemy-assault" }],
+          ["45초 협공", { type: "advance", seconds: 45 }],
+          ["60초 호송", { type: "advance", seconds: 60 }],
+        ],
+      },
+      {
+        id: "frontal",
+        title: "정면 소모전",
+        copy: "두 부대를 쉬지 않고 전진시킵니다. 피로가 누적될 때 명중과 사기가 어떻게 무너지는지 확인합니다.",
+        steps: [
+          ["본대 진군", { type: "order", squadId: "main", order: "advance" }],
+          ["남쪽 지원대 즉시 투입", { type: "deploy", route: "south" }],
+          ["30초 진행", { type: "advance", seconds: 30 }],
+          ["본대 계속 진군", { type: "order", squadId: "main", order: "advance" }],
+          ["지원대 계속 진군", { type: "order", squadId: "relief", order: "advance" }],
+          ["60초 소모전", { type: "advance", seconds: 60 }],
+          ["45초 더 진행", { type: "advance", seconds: 45 }],
+          ["45초 끝까지 진행", { type: "advance", seconds: 45 }],
+        ],
+      },
+      {
+        id: "early",
+        title: "성급한 증원",
+        copy: "지원대를 먼저 깊숙이 밀어 넣고 본대는 늦게 출발합니다. 고립된 부대가 적 증원과 만나는 순간을 봅니다.",
+        steps: [
+          ["북쪽 지원대 즉시 투입", { type: "deploy", route: "north" }],
+          ["지원대 진군", { type: "order", squadId: "relief", order: "advance" }],
+          ["45초 진행", { type: "advance", seconds: 45 }],
+          ["적 증원 집중", { type: "order", squadId: "relief", order: "focus", targetId: "enemy-reserve" }],
+          ["30초 고립 전투", { type: "advance", seconds: 30 }],
+          ["본대 뒤늦은 진군", { type: "order", squadId: "main", order: "advance" }],
+          ["45초 진행", { type: "advance", seconds: 45 }],
+          ["60초 끝까지 진행", { type: "advance", seconds: 60 }],
+        ],
+      },
+      {
+        id: "counter",
+        title: "후퇴 후 역습",
+        copy: "본대가 한 차례 접촉한 뒤 빠져 피로와 사기를 회복하고, 지원대가 교량을 넘겨받는 동안 돌아와 협공합니다.",
+        steps: [
+          ["본대 진군", { type: "order", squadId: "main", order: "advance" }],
+          ["25초 접촉", { type: "advance", seconds: 25 }],
+          ["남쪽 지원대 투입", { type: "deploy", route: "south" }],
+          ["본대 후퇴/휴식", { type: "order", squadId: "main", order: "withdraw" }],
+          ["20초 철수", { type: "advance", seconds: 20 }],
+          ["지원대 적 선봉 집중", { type: "order", squadId: "relief", order: "focus", targetId: "enemy-assault" }],
+          ["15초 교대", { type: "advance", seconds: 15 }],
+          ["본대 적 선봉 집중", { type: "order", squadId: "main", order: "focus", targetId: "enemy-assault" }],
+          ["25초 역습", { type: "advance", seconds: 25 }],
+          ["본대 교량 고수", { type: "order", squadId: "main", order: "hold" }],
+          ["지원대 적 증원 집중", { type: "order", squadId: "relief", order: "focus", targetId: "enemy-reserve" }],
+          ["95초 호송", { type: "advance", seconds: 95 }],
+        ],
+      },
+    ];
+
+    let state = HaeinBattle.create();
+    let activeWalkthrough = walkthroughs[0];
+    let walkthroughStep = 0;
+
+    const escapeHtml = (value) => String(value)
+      .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    const percent = (value) => `${Math.round(value)}%`;
+    const statusLabel = (status) => ({ running: "교전 중", victory: "승리", defeat: "패배" })[status];
+
+    function renderSummary() {
+      const className = state.status === "defeat" ? "outcome defeat" : "outcome";
+      document.querySelector("#summary").innerHTML = [
+        ["작전 시간", `${state.elapsed} / 180초`],
+        ["판정", `<span class="${className}">${statusLabel(state.status)}</span>`],
+        ["해인교 내구도", percent(state.bridgeIntegrity)],
+        ["수송대 통과", percent(state.convoyProgress)],
+        ["재현 seed", escapeHtml(state.seed)],
+      ].map(([label, value]) => `<div><small>${label}</small><strong>${value}</strong></div>`).join("");
+      document.querySelector("#state-note").textContent = state.lastChange;
+    }
+
+    function renderBattlefield() {
+      document.querySelector("#battlefield").innerHTML = HaeinBattle.zones.map((zone) => {
+        const tokens = state.squads.filter((squad) => squad.active && !squad.routed && squad.position === zone.id).map((squad) =>
+          `<div class="squad-token ${squad.side}"><strong>${escapeHtml(squad.name)}</strong><br>${HaeinBattle.living(squad).length}명 · 피로 ${Math.round(squad.fatigue)}</div>`
+        ).join("");
+        return `<section class="zone"><h3>${zone.label}</h3>${tokens || '<span class="muted">비어 있음</span>'}</section>`;
+      }).join("");
+    }
+
+    function renderSquads() {
+      document.querySelector("#squads").innerHTML = state.squads.map((squad) => {
+        const pending = squad.pendingOrder ? ` · 전달 중: ${HaeinBattle.orderLabel[squad.pendingOrder.order]}` : "";
+        const stateText = !squad.active ? "미투입" : squad.routed ? "패주" : `${HaeinBattle.orderLabel[squad.order]}${pending}`;
+        const soldierHtml = squad.soldiers.map((soldier) =>
+          `<span class="soldier ${soldier.health <= 0 ? "down" : ""}" title="${soldier.role} · 체력 ${soldier.health}">${escapeHtml(soldier.name)} ${Math.ceil(soldier.health)}</span>`
+        ).join("");
+        return `<article class="squad">
+          <header><strong>${escapeHtml(squad.name)}</strong><span>${squad.side === "ally" ? "아군" : "적군"}</span></header>
+          <p>${stateText} · ${zoneName(squad.position)} · ${HaeinBattle.living(squad).length}/${squad.soldiers.length}명</p>
+          <div class="meters">
+            <label>사기 ${Math.round(squad.morale)}<meter min="0" max="100" value="${squad.morale}"></meter></label>
+            <label>피로 ${Math.round(squad.fatigue)}<meter min="0" max="100" value="${squad.fatigue}"></meter></label>
+          </div>
+          <div class="soldiers">${soldierHtml}</div>
+        </article>`;
+      }).join("");
+    }
+
+    function zoneName(id) {
+      return HaeinBattle.zones.find((zone) => zone.id === id)?.label ?? id;
+    }
+
+    function renderEvents() {
+      document.querySelector("#events").innerHTML = state.events.slice(-16).reverse().map((event) =>
+        `<li><time>${event.time}초</time>${escapeHtml(event.text)}</li>`
+      ).join("");
+    }
+
+    function renderWalkthrough() {
+      document.querySelector("#tabs").innerHTML = walkthroughs.map((walkthrough) =>
+        `<button role="tab" aria-selected="${walkthrough.id === activeWalkthrough.id}" data-walkthrough="${walkthrough.id}">${walkthrough.title}</button>`
+      ).join("");
+      document.querySelector("#walkthrough-copy").textContent = activeWalkthrough.copy;
+      document.querySelector("#steps").innerHTML = activeWalkthrough.steps.map(([label, action], index) =>
+        `<button class="${index < walkthroughStep ? "done" : ""}" ${index === walkthroughStep ? "" : "disabled"} data-step="${index}" data-action='${escapeHtml(JSON.stringify(action))}'>${index + 1}. ${label}</button>`
+      ).join("");
+    }
+
+    function render() {
+      renderSummary();
+      renderBattlefield();
+      renderSquads();
+      renderEvents();
+      renderWalkthrough();
+    }
+
+    function dispatch(action, fromWalkthrough = false) {
+      state = HaeinBattle.reduce(state, action);
+      if (fromWalkthrough) walkthroughStep += 1;
+      render();
+    }
+
+    document.addEventListener("click", (event) => {
+      const target = event.target.closest("button");
+      if (!target) return;
+      if (target.id === "reset") {
+        state = HaeinBattle.create(state.seed);
+        walkthroughStep = 0;
+        render();
+        return;
+      }
+      if (target.id === "new-seed") {
+        state = HaeinBattle.create(document.querySelector("#seed").value || "haein-bridge-229");
+        walkthroughStep = 0;
+        render();
+        return;
+      }
+      if (target.dataset.walkthrough) {
+        activeWalkthrough = walkthroughs.find((walkthrough) => walkthrough.id === target.dataset.walkthrough);
+        walkthroughStep = 0;
+        state = HaeinBattle.create(document.querySelector("#seed").value || "haein-bridge-229");
+        render();
+        return;
+      }
+      if (target.dataset.action) {
+        dispatch(JSON.parse(target.dataset.action), target.dataset.step !== undefined);
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
