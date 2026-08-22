@@ -91,6 +91,18 @@ function comparatorLabel(evidence: AutonomousBattleObjectiveEvidence): string {
   return "일치";
 }
 
+function behaviorLabel(behaviorId: string): string {
+  if (behaviorId.startsWith("intent:")) return "지휘 의도 수행";
+  if (behaviorId.startsWith("guidance:")) return "전달 지침 수행";
+  return {
+    "seek-information": "정보 탐색",
+    verify: "보고 검증",
+    "feedback-repeat": "이전 행동 유지",
+    "feedback-revise": "행동 수정",
+    "act-independently": "현장 자율 판단",
+  }[behaviorId] ?? "현장 행동";
+}
+
 function traceStages(trace: AutonomousBattleDecisionTrace) {
   return [
     {
@@ -100,7 +112,7 @@ function traceStages(trace: AutonomousBattleDecisionTrace) {
       state: trace.information.state === "received" ? "수신" : "미수신",
       detail: trace.information.observationId === null
         ? "수신한 관측 없음"
-        : `관측 ${trace.information.observationId}`,
+        : "현장 관측 수신",
       confidence: percentage(trace.information.confidence),
     },
     {
@@ -114,7 +126,7 @@ function traceStages(trace: AutonomousBattleDecisionTrace) {
       }[trace.verification.state],
       detail: trace.verification.observationId === null
         ? "검증 대상 없음"
-        : `관측 ${trace.verification.observationId}`,
+        : "관측 근거 교차 확인",
       confidence: percentage(trace.verification.confidence),
     },
     {
@@ -128,7 +140,7 @@ function traceStages(trace: AutonomousBattleDecisionTrace) {
       }[trace.authority.state],
       detail: trace.authority.intentId === null
         ? "공유된 의도 없음"
-        : `의도 ${trace.authority.intentId}`,
+        : "편성 지휘 의도 확인",
       confidence: percentage(trace.authority.confidence),
     },
     {
@@ -141,8 +153,8 @@ function traceStages(trace: AutonomousBattleDecisionTrace) {
         deferred: "보류",
       }[trace.action.state],
       detail: trace.action.targetId === null
-        ? `행동 ${trace.action.behaviorId}`
-        : `행동 ${trace.action.behaviorId} · 대상 ${trace.action.targetId}`,
+        ? behaviorLabel(trace.action.behaviorId)
+        : `${behaviorLabel(trace.action.behaviorId)} · 지정 대상`,
       confidence: percentage(trace.action.confidence),
     },
     {
@@ -158,7 +170,7 @@ function traceStages(trace: AutonomousBattleDecisionTrace) {
         ? "이전 행동 결과 없음"
         : trace.feedback.outcomeId === null
           ? "이전 행동 결과 있음"
-          : `이전 행동 결과 있음 · ${trace.feedback.outcomeId}`,
+          : "이전 행동 결과를 다음 판단에 반영",
       confidence: percentage(trace.feedback.confidence),
     },
   ] as const;
@@ -176,7 +188,7 @@ function eventSummary(
       summary = `${label(event.formationId)} 투입`;
       break;
     case "formation-intent-changed":
-      summary = `${label(event.formationId)} 의도 변경 · ${event.intentId}`;
+      summary = `${label(event.formationId)} 지휘 의도 변경`;
       break;
     case "actor-decision":
       summary = `${label(event.actorId)} 판단 완료`;
@@ -195,8 +207,8 @@ function eventSummary(
       break;
     case "operation-resolved":
       summary = event.disposition === "success"
-        ? `작전 성공 · ${event.outcomeId}`
-        : `작전 실패 · ${event.outcomeId}`;
+        ? "작전 성공"
+        : "작전 실패";
       break;
   }
 

@@ -20,6 +20,7 @@ main
       └─ GameApp                               presentation mount adapter
          ├─ projectGameViewModel
          │  └─ projectAutonomousOperation
+         ├─ mountAutonomousBattlefield         persistent visual module
          └─ phase DOM views + GameEffects
 ```
 
@@ -35,6 +36,14 @@ trace를 읽기 전용 view model로 바꾼다. actor 선택은 UI-local 상태�
 명령은 예산을 쓰는 player-controlled 편성 의도·지침 개입만 제공한다. snapshot의
 `controllable` fact가 UI 권한을 결정하고 domain도 비통제 편성 개입을 atomic
 rejected receipt로 방어한다.
+
+`mountAutonomousBattlefield`는 `mount → update → destroy`의 작은 Interface 뒤에
+Canvas 지형, 춘천 위치 anchor, generic fallback, 전투 집단·행동 주체 표식과 자산 없는
+degraded 표현을 숨기는 깊은 Module이다. 입력은 projected operation뿐이고 공개 상호작용은
+행동 주체 열람 callback 하나뿐이다. GameSession 명령이나 intervention dispatch를 받지
+않으므로 전장 표현이 자유 명령을 되살릴 수 없다. runtime이 아직 `locationId` 전환을
+제공하지 않으므로 위치 사이의 가짜 이동도 연출하지 않고, 실제 snapshot의 투입·판단·
+상태 변화만 표시한다.
 
 Monte Carlo evaluator도 projector와 같은 terminal snapshot/result facts를 집계해
 UI 결과와 평가 결과의 의미가 갈라지지 않는다.
@@ -99,4 +108,5 @@ npm run check:dependencies
 ```
 
 focused tests는 세션 phase 전이, accepted/rejected 편성 개입, 임의 편성·행동 주체
-projection, workbench factory 주입 seam을 고정한다.
+projection, workbench factory 주입 seam을 고정한다. Chrome acceptance는 Canvas draw,
+전장 크기, 통제/비통제 편성·행동 주체 투영과 actor trace 연결까지 검사한다.

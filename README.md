@@ -3,7 +3,8 @@
 1950년 6월 춘천지구 방어전을 배경으로, 개별 전투원을 직접 조작하지 않고
 지휘 하네스와 제한된 편성 단위 개입으로 전황을 이끄는 브라우저 게임
 프로토타입입니다. 행동 주체마다 고유 특성과 seed 기반 변동성이 있으며,
-정보 수신 → 검증 → 권한 판단 → 행동 → 피드백의 전 과정을 관찰할 수 있습니다.
+아이소메트릭 전장에서 정보 수신 → 검증 → 권한 판단 → 행동 → 피드백의 전 과정을
+관찰할 수 있습니다.
 
 [배포 게임 실행](https://gold0827.github.io/codex-game/)
 
@@ -22,7 +23,8 @@ npm run check
 실제 Chrome의 UI와 RAF 경로에서 브리핑을 시작하고, 제한 개입을 접수한 뒤
 2배속으로 작전 종료 디브리핑까지 진행하려면 다음을 실행합니다. 이 검사는
 춘천지구의 7개 편성·21개 행동 주체, 목표 근거, 5단계 trace, 하네스,
-최근 사건, 개입 영수증·예산, 북한군 개입 UI 부재도 함께 확인합니다.
+최근 사건, 개입 영수증·예산, 북한군 개입 UI 부재를 함께 확인합니다. Canvas가 실제로
+그려졌는지, 전장이 작전 화면의 중심 크기를 차지하는지도 acceptance에 포함됩니다.
 
 ```sh
 npm run test:browser
@@ -54,6 +56,7 @@ npm run test:monte-carlo
 - `src/domain/operation`: canonical 자율전투 계약·runtime·Monte Carlo facts
 - `src/application`: campaign operation 포트와 게임 세션
 - `src/presentation`, `src/ui`: canonical snapshot projector와 브라우저 표현
+- `src/presentation/battlefield`: 지속형 Canvas 전장과 편성·행동 주체 시각화
 - `src/campaign`, `src/scenarios`: 캠페인 진행 모델과 춘천지구 콘텐츠
 - `src/app`, `src/platform`: production 조립과 브라우저 adapter
 

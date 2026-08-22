@@ -1,0 +1,209 @@
+.battlefield-column,
+.battlefield-stage {
+  min-width: 0;
+  min-height: 0;
+}
+
+.battlefield-column {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 190px;
+  overflow: hidden;
+  background: #0a1612;
+}
+
+.battlefield-stage {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(180deg, rgba(3, 9, 7, 0.08), rgba(3, 9, 7, 0.48)),
+    var(--phase-backdrop-image) center / cover;
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.56);
+}
+
+.battlefield-stage::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(4, 12, 9, 0.34), transparent 18%, transparent 82%, rgba(4, 12, 9, 0.34)),
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(190, 231, 209, 0.025) 6px);
+}
+
+.battlefield-stage > * {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.battlefield-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.battlefield-stage [data-region="battlefield"] {
+  position: relative;
+  overflow: hidden;
+}
+
+.autonomous-battlefield {
+  position: relative;
+  isolation: isolate;
+  color: var(--ink);
+  background: #10231c;
+}
+
+.autonomous-battlefield .battlefield-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.battlefield-formation-overlay {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.battlefield-location-cluster {
+  position: absolute;
+  width: clamp(132px, 12vw, 176px);
+  max-height: min(42%, 240px);
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 5px;
+  overflow-y: auto;
+  pointer-events: auto;
+  scrollbar-width: thin;
+}
+
+.battlefield-formation-marker {
+  position: relative;
+  min-width: 0;
+  padding: 6px 7px;
+  border: 1px solid color-mix(in srgb, var(--red) 62%, #35221e);
+  border-left-width: 4px;
+  background: rgba(35, 17, 15, 0.9);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+}
+
+.battlefield-formation-marker[data-controllable="true"] {
+  border-color: color-mix(in srgb, var(--scene-accent) 76%, #29483c);
+  background: rgba(10, 31, 24, 0.92);
+}
+
+.battlefield-formation-marker[data-active="false"] {
+  opacity: 0.48;
+  filter: saturate(0.5);
+}
+
+.battlefield-formation-label,
+.battlefield-location-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battlefield-formation-label {
+  color: #ffd1cd;
+  font-size: 9px;
+}
+
+[data-controllable="true"] > .battlefield-formation-label {
+  color: var(--ink);
+}
+
+.battlefield-location-label {
+  margin-top: 2px;
+  color: var(--dim);
+  font: 700 7px ui-monospace, monospace;
+}
+
+.battlefield-actor-pips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.battlefield-actor-pip {
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--red) 72%, #6d3d35);
+  border-radius: 50%;
+  background: #381c18;
+  color: #ffd1cd;
+  font: 900 8px ui-monospace, monospace;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+[data-controllable="true"] .battlefield-actor-pip {
+  border-color: color-mix(in srgb, var(--scene-accent) 76%, #325849);
+  background: #153529;
+  color: var(--mint);
+}
+
+.battlefield-actor-pip:hover,
+.battlefield-actor-pip:focus-visible,
+.battlefield-actor-pip[aria-pressed="true"] {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  color: #fff7c7;
+}
+
+.battlefield-actor-pip[data-condition="suppressed"] {
+  border-color: var(--gold);
+  color: var(--gold);
+  animation: battlefield-alert 900ms steps(2, end) infinite;
+}
+
+.battlefield-actor-pip:not([data-behavior="waiting"]):not([data-condition="suppressed"]) {
+  animation: battlefield-decision 1.6s ease-out infinite;
+}
+
+.battlefield-actor-pip[data-condition="withdrawn"],
+.battlefield-actor-pip[data-condition="lost"] {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+@keyframes battlefield-alert {
+  50% {
+    box-shadow: 0 0 0 4px rgba(230, 207, 114, 0.18);
+  }
+}
+
+@keyframes battlefield-decision {
+  0%, 72%, 100% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+
+  82% {
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.5),
+      0 0 0 5px color-mix(in srgb, currentColor 20%, transparent);
+  }
+}
+
+.autonomous-battlefield[data-reduced-motion="true"] .battlefield-actor-pip {
+  animation: none;
+}
+
+@media (max-height: 760px) {
+  .battlefield-column {
+    grid-template-rows: minmax(0, 1fr) 156px;
+  }
+
+  .battlefield-formation-marker {
+    width: 126px;
+    padding: 4px 5px;
+  }
+}

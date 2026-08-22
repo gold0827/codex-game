@@ -12,7 +12,7 @@ export function renderTraceSection(selectedActor: SelectedActorViewModel): HTMLE
   }
 
   selected.append(
-    node("strong", undefined, `${selectedActor.label} · ${selectedActor.role}`),
+    node("strong", undefined, selectedActor.label),
     node("p", undefined, selectedActor.condition),
   );
   const stages = node("ol", "decision-stage-list");

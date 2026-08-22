@@ -81,12 +81,12 @@ describe("canonical operation section renderers", () => {
       type: "set-formation-intent",
       formationId: formation.id,
       intentId: "delay-and-withdraw",
-    }, undefined, "set-formation-intent");
+    }, undefined, `formation-${formation.id}-set-intent`);
     expect(dispatch).toHaveBeenNthCalledWith(2, {
       type: "issue-guidance",
       guidanceId: "verify-before-contact",
       recipientFormationIds: [formation.id],
-    }, undefined, "issue-guidance");
+    }, undefined, `formation-${formation.id}-issue-guidance`);
   });
 
   it("does not render intervention controls for hostile formations", () => {
