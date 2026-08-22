@@ -149,6 +149,31 @@ type GameSession = Readonly<{
 }>;
 ```
 
+UI에 연결하지 않은 두 부대 난전은 production wiring과 별도로 같은 domain
+facade를 직접 실행한다.
+
+```text
+scripts/simulate-squad-battle.ts              headless adapter
+└─ operationEngine                            domain/operation interface
+   └─ squadBattleRuntime                      부대 명령·행군·피로·사기·호송
+      └─ encounters                           병사 명중·체력·제압·패닉
+```
+
+UI에 아직 연결하지 않은 두 부대 난전도 같은 operation facade에서 별도 깊은
+interface로 실행한다. 기존 `encounters`가 36명 개별 병사의 명중, 체력, 제압과
+패닉을 소유하고, `squadBattleRuntime`은 명령 지연, 지정 행군 경로, 증원, 피로,
+사기, 패주와 교량 호송 판정만 조율한다.
+
+```ts
+type SquadBattleSimulation = Readonly<{
+  snapshot: () => SquadBattleSnapshot;
+  advance: (elapsedMs: number) => SquadBattleSnapshot;
+  command: (command: SquadBattleCommand) => SquadBattleSnapshot;
+}>;
+```
+
+`npm run simulate:squad-battle`은 이 interface를 직접 사용하는 headless adapter다.
+
 authoring은 저장 방식 대신 repository seam만 안다.
 
 ```ts
@@ -188,7 +213,7 @@ game session이나 operation을 import하지 않는다.
 | 변경 의도 | canonical section | 첫 소유 entrypoint · public symbol | focused test | 최소 validation |
 | --- | --- | --- | --- | --- |
 | campaign 콘텐츠·parse·validation | [Module 책임과 현재 경로](#module-책임과-현재-경로) | `src/campaign/index.ts` · `parseCampaignJson`, `validateCampaignDefinition`; `src/scenarios/` | `npx vitest run tests/campaign/campaign-parsing.test.ts tests/campaign/campaign.test.ts` | `npm run build && npm run check:dependencies` |
-| operation 규칙·장교 판단·결과 | [실행 배선](#실행-배선) | `src/domain/operation/operationEngine.ts` · `createOperationSimulation` | `npx vitest run tests/simulation/operation-simulation.test.ts` | `npm run test:monte-carlo` |
+| operation 규칙·장교 판단·두 부대 난전·결과 | [실행 배선](#실행-배선) | `src/domain/operation/operationEngine.ts` · `createOperationSimulation`, `createSquadBattle` | `npx vitest run tests/simulation/operation-simulation.test.ts tests/domain/operation/squad-battle.test.ts` | `npm run test:monte-carlo && npm run simulate:squad-battle` |
 | game session·campaign 진행 | [Public interface](#public-interface) | `src/application/game-session/index.ts` · `createGameSession`, `GameSession` | `npx vitest run tests/game/game-session.test.ts tests/game/game-session-flow.test.ts` | `npm run build && npm run check:dependencies` |
 | presentation·battlefield projection/rendering | [실행 배선](#실행-배선) | `src/presentation/gameViewModel.ts` · `projectGameViewModel`; `src/presentation/battlefield/canvasBattlefield.ts` · `mountCanvasBattlefield` | `npx vitest run tests/ui/game-view-model.test.ts tests/ui/operation-projector.test.ts tests/ui/canvas-viewport.test.ts` | `npm run build && node tests/fixtures/run-bridge-defense-chrome.mjs` |
 | authoring·`CampaignRepository` | [Public interface](#public-interface) | `src/authoring/campaign-workshop/index.ts` · `createCampaignDocument`, `mountCampaignWorkshop`; `src/campaign/repository.ts` · `CampaignRepository` | `npx vitest run tests/campaign/campaign-repository.test.ts tests/ui/campaign-editor.test.ts` | `npm run build && npm run check:dependencies` |

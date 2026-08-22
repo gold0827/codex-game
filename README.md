@@ -75,6 +75,22 @@ npm run evaluate:operations -- --scene flooded-convoy --start 0 --count 500 --mo
 평가 결과는 실제 행동 분포, 성공/재시도 분포, 피해, 차단 수, 서로 다른 최종
 세계 상태 수와 정책 간 delta를 JSON으로 출력한다.
 
+## 두 부대 난전 headless 라운드
+
+본편 UI에 연결하지 않은 새 해인교 라운드는 본대와 우회 지원대, 적 선봉과
+적 증원의 36명을 실시간으로 전투시킨다. 플레이어는 진군, 고수, 집중 공격,
+후퇴/휴식과 증원 경로만 정하며, 명령 지연과 피로, 사기, 개별 병사의 제압과
+패닉이 패주와 호송 결과를 바꾼다. 네 기준 전략을 같은 seed로 실행하려면:
+
+```sh
+npm run simulate:squad-battle
+npm run simulate:squad-battle -- --strategy pincer --seed haein-bridge
+```
+
+`pincer`, `frontal`, `early-relief`, `counterattack` 중 하나를 고를 수 있다.
+이 CLI는 새 operation domain 규칙의 실제 실행 경로이며, 브라우저 표현과
+캠페인 저장은 아직 연결하지 않는다.
+
 ## 게임 루프
 
 - 해인교 브리핑 예산 안에서 정보 공유, 권한 명료도, 교차 검증, 피드백 압축을 조정합니다.
@@ -93,7 +109,7 @@ npm run evaluate:operations -- --scene flooded-convoy --start 0 --count 500 --mo
 
 ## 코드 구조
 
-- `src/domain/operation`, `src/simulation`: seed 재현 가능한 몬테카를로 작전 규칙과 평가
+- `src/domain/operation`, `src/simulation`: seed 재현 가능한 몬테카를로 작전과 두 부대 난전 규칙, 평가
 - `src/campaign`, `src/scenarios`: 캠페인 모델, 검증, 해인교 시제품과 확장용 콘텐츠
 - `src/application`: 명령 처리와 campaign/operation 진행 상태
 - `src/presentation`, `src/ui`, `src/styles`: view model과 브라우저 표현
