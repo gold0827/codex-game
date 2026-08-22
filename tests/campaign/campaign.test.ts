@@ -50,7 +50,7 @@ function createDefinition(): CampaignDefinition {
     title: "캠페인",
     version: 1,
     startSceneId: "first-operation",
-    officers: [{
+    roles: [{
       id: "command-role",
       name: "지휘 역할",
       rank: "익명",
@@ -127,15 +127,15 @@ describe("canonical campaign schema", () => {
   });
 
   it.each([
-    ["officer disposition", (source: Record<string, unknown>): string => {
-      const officers = source.officers as Array<Record<string, unknown>>;
-      officers[0]!.disposition = "action";
-      return "$.officers[0].disposition";
+    ["role disposition", (source: Record<string, unknown>): string => {
+      const roles = source.roles as Array<Record<string, unknown>>;
+      roles[0]!.disposition = "action";
+      return "$.roles[0].disposition";
     }],
-    ["officer profile", (source: Record<string, unknown>): string => {
-      const officers = source.officers as Array<Record<string, unknown>>;
-      officers[0]!.profile = {};
-      return "$.officers[0].profile";
+    ["role profile", (source: Record<string, unknown>): string => {
+      const roles = source.roles as Array<Record<string, unknown>>;
+      roles[0]!.profile = {};
+      return "$.roles[0].profile";
     }],
     ["presentation map id", (source: Record<string, unknown>): string => {
       const scenes = source.scenes as Array<{ presentation: Record<string, unknown> }>;
@@ -168,19 +168,19 @@ describe("canonical campaign schema", () => {
     });
   });
 
-  it("rejects duplicate scene, officer, and outcome identifiers", () => {
+  it("rejects duplicate scene, role, and outcome identifiers", () => {
     const duplicateScene = createDefinition();
     (duplicateScene.scenes as CampaignScene[]).push(structuredClone(duplicateScene.scenes[0]!));
     expect(diagnosticFor(duplicateScene, "duplicate-scene-id")).toMatchObject({
       field: "identity.id",
     });
 
-    const duplicateOfficer = createDefinition();
-    (duplicateOfficer.officers as Array<(typeof duplicateOfficer.officers)[number]>).push({
-      ...duplicateOfficer.officers[0]!,
+    const duplicateRole = createDefinition();
+    (duplicateRole.roles as Array<(typeof duplicateRole.roles)[number]>).push({
+      ...duplicateRole.roles[0]!,
     });
-    expect(diagnosticFor(duplicateOfficer, "duplicate-officer-id")).toMatchObject({
-      field: "officers[1].id",
+    expect(diagnosticFor(duplicateRole, "duplicate-role-id")).toMatchObject({
+      field: "roles[1].id",
     });
 
     const duplicateOutcome = createDefinition();

@@ -16,9 +16,16 @@ describe("canonical game session", () => {
       { operationFactory },
     );
 
-    expect(session.read()).toMatchObject({ phase: "briefing", operation: null });
+    expect(session.read()).toMatchObject({
+      phase: "briefing",
+      operation: null,
+      debrief: null,
+    });
+    expect(session.read().briefing).not.toBeNull();
     const started = session.dispatch({ type: "start-attempt" });
     expect(started.phase).toBe("operation");
+    expect(started.operation).not.toBeNull();
+    expect(started.briefing).toBeNull();
     expect(started.operation?.formations.map(({ actors }) => actors.length)).toEqual(
       chuncheonAutonomousBattle.formations.map(({ actors }) => actors.length),
     );
@@ -51,8 +58,45 @@ describe("canonical game session", () => {
     session.advance(chuncheonAutonomousBattle.durationMs);
     const terminal = session.read();
     expect(terminal.phase).toBe("debrief");
+    expect(terminal.operation).toBeNull();
+    expect(terminal.briefing).toBeNull();
+    expect(terminal.lastIntervention).toBeNull();
     expect(terminal.debrief?.objectives.map(({ evidence }) => evidence.length))
       .toEqual(chuncheonAutonomousBattle.objectives.map(() => 1));
+  });
+
+  it("hides the completed operation while preserving lesson progression into epilogue", () => {
+    const session = createGameSession(
+      chuncheonCampaign,
+      "canonical-success-progression",
+      undefined,
+      { operationFactory },
+    );
+    session.dispatch({
+      type: "set-harness",
+      harness: {
+        informationReach: 1,
+        authorityClarity: 1,
+        verificationDepth: 1,
+        feedbackCompression: 0,
+      },
+    });
+    session.dispatch({ type: "start-attempt" });
+    session.advance(chuncheonAutonomousBattle.durationMs);
+
+    const debrief = session.read();
+    expect(debrief).toMatchObject({ phase: "debrief", operation: null });
+    const lessonId = debrief.debrief?.lessonChoices[0]?.id;
+    if (!lessonId) throw new Error("The successful operation must offer a role lesson.");
+
+    const epilogue = session.dispatch({ type: "choose-lesson", lessonId });
+    expect(epilogue).toMatchObject({
+      phase: "epilogue",
+      briefing: null,
+      operation: null,
+      debrief: null,
+    });
+    expect(epilogue.roleMemory.flatMap(({ lessons }) => lessons)).toHaveLength(1);
   });
 
   it("returns isolated canonical snapshots and validates session-only controls", () => {

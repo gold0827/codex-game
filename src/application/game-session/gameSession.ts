@@ -5,7 +5,10 @@ import {
   type CampaignRunSnapshot,
   type CampaignScene,
 } from "../../campaign";
-import type { AutonomousBattleHarnessPolicies } from "../../domain/operation/operationEngine";
+import type {
+  AutonomousBattleHarnessPolicies,
+  AutonomousBattleInterventionReceipt,
+} from "../../domain/operation/operationEngine";
 import { hashSeed, type RandomSeed } from "../../simulation/seededRandom";
 import {
   DEFAULT_HARNESS,
@@ -97,7 +100,7 @@ export function createGameSession(
   let run: CampaignRun = createCampaignRun(
     definition,
     baseSeed,
-    restored?.officerMemory,
+    restored?.roleMemory,
     restored?.progress,
   );
   const sceneFromRun = (state: CampaignRunSnapshot): CampaignScene => {
@@ -115,7 +118,7 @@ export function createGameSession(
   let paused = false;
   let playerSpeed: PlayerSpeed = 1;
   let fractionalOperationMs = 0;
-  let lastIntervention: GameSnapshot["lastIntervention"] = null;
+  let lastIntervention: AutonomousBattleInterventionReceipt | null = null;
   let debrief: GameDebriefSnapshot | null = null;
 
   assertAffordable(harness, scene);
@@ -126,27 +129,65 @@ export function createGameSession(
   const snapshot = (): GameSnapshot => {
     const campaign = run.read();
     const budget = harnessBudget(harness, scene.gameplayTuning.startingResources);
-    return clone({
-      phase,
+    const common = {
       scene,
       progress: campaign.progress,
-      officerMemory: campaign.memory,
+      roleMemory: campaign.roleMemory,
       attemptNumber: campaign.attemptNumber,
       attemptSeed: attemptSeed(),
       harness,
       harnessBudget: budget,
-      briefing: phase === "briefing" ? {
-        copy: scene.copy,
-        presentation: scene.presentation,
-        objectives: scene.objectives,
-        harnessBudget: budget,
-      } : null,
-      operation: operation?.read() ?? null,
-      paused,
       playerSpeed,
-      lastIntervention,
-      debrief,
-    });
+    };
+    switch (phase) {
+      case "briefing":
+        return clone({
+          ...common,
+          phase,
+          briefing: {
+            copy: scene.copy,
+            presentation: scene.presentation,
+            objectives: scene.objectives,
+            harnessBudget: budget,
+          },
+          operation: null,
+          paused: false,
+          lastIntervention: null,
+          debrief: null,
+        });
+      case "operation":
+        if (!operation) throw new Error("Operation phase requires an operation.");
+        return clone({
+          ...common,
+          phase,
+          briefing: null,
+          operation: operation.read(),
+          paused,
+          lastIntervention,
+          debrief: null,
+        });
+      case "debrief":
+        if (!debrief) throw new Error("Debrief phase requires terminal details.");
+        return clone({
+          ...common,
+          phase,
+          briefing: null,
+          operation: null,
+          paused: false,
+          lastIntervention: null,
+          debrief,
+        });
+      case "epilogue":
+        return clone({
+          ...common,
+          phase,
+          briefing: null,
+          operation: null,
+          paused: false,
+          lastIntervention: null,
+          debrief: null,
+        });
+    }
   };
 
   const requirePhase = (required: GamePhase, action: string): void => {

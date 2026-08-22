@@ -1,14 +1,13 @@
-import type { GameSnapshot } from "../../application/game-session";
+import type { GameOperationSnapshot } from "../../application/game-session";
 
-type AutonomousBattleSnapshot = NonNullable<GameSnapshot["operation"]>;
 type AutonomousBattleDecisionTrace = NonNullable<
-  AutonomousBattleSnapshot["formations"][number]["actors"][number]["latestDecision"]
+  GameOperationSnapshot["formations"][number]["actors"][number]["latestDecision"]
 >;
-type AutonomousBattleEvent = AutonomousBattleSnapshot["recentEvents"]["items"][number];
+type AutonomousBattleEvent = GameOperationSnapshot["recentEvents"]["items"][number];
 type AutonomousBattleHarnessConsequence =
-  AutonomousBattleSnapshot["harness"]["consequences"][number];
+  GameOperationSnapshot["harness"]["consequences"][number];
 type AutonomousBattleObjectiveEvidence =
-  AutonomousBattleSnapshot["objectives"][number]["evidence"][number];
+  GameOperationSnapshot["objectives"][number]["evidence"][number];
 
 export type AutonomousOperationViewModel = ReturnType<
   typeof projectAutonomousOperation
@@ -210,7 +209,7 @@ function eventSummary(
 }
 
 export function projectAutonomousOperation(
-  snapshot: AutonomousBattleSnapshot,
+  snapshot: GameOperationSnapshot,
   selectedActorId: string | null,
 ) {
   const actorLabels = snapshot.formations.flatMap(({ actors }) => actors)

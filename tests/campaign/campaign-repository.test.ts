@@ -54,4 +54,20 @@ describe("campaign repositories", () => {
     expect(repository.restore()).toEqual(chuncheonCampaign);
     expect(values.has("campaign-test")).toBe(false);
   });
+
+  it("names the default local-storage document by current campaign version", () => {
+    const values = new Map<string, string>();
+    const storage: CampaignKeyValueStore = {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => { values.set(key, value); },
+      removeItem: (key) => { values.delete(key); },
+    };
+    const repository = createLocalStorageCampaignRepository(chuncheonCampaign, storage);
+
+    repository.save(editedTitle(repository, "현재 스키마"));
+
+    expect(values.has(
+      `campaign-document:${chuncheonCampaign.id}:v${chuncheonCampaign.version}`,
+    )).toBe(true);
+  });
 });

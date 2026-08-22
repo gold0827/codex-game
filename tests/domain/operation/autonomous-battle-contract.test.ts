@@ -17,7 +17,6 @@ const actor = (id: string): AutonomousBattleActorDefinition => ({
     cooperation: 0.5,
     stressTolerance: 0.5,
     memoryCapacity: 2,
-    sourceTrust: [],
   },
   variability: {
     decisionNoise: 0.25,

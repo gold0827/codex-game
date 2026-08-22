@@ -36,7 +36,6 @@ const definition: AutonomousBattleDefinition = {
         cooperation: 0.75,
         stressTolerance: 0.7,
         memoryCapacity: 3,
-        sourceTrust: [],
       },
       variability: {
         decisionNoise: 0.15,
@@ -201,9 +200,9 @@ describe("autonomous campaign operation Adapter", () => {
       sceneId: suppliedLaunch.scene.identity.id,
       status: "success",
       outcomeId: "delay-achieved",
-      lessonChoices: suppliedLaunch.officers.map(({ id }) => ({
+      lessonChoices: suppliedLaunch.roles.map(({ id }) => ({
         id: `${suppliedLaunch.scene.identity.id}:${id}:lesson`,
-        officerId: id,
+        roleId: id,
         summary: expectedLesson,
       })),
     });

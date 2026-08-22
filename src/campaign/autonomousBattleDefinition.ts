@@ -1,8 +1,3 @@
-export interface OfficerSourceTrust {
-  readonly officerId: string;
-  readonly trust: number;
-}
-
 export interface AgentProfile {
   readonly initiative: number;
   readonly caution: number;
@@ -10,7 +5,6 @@ export interface AgentProfile {
   readonly cooperation: number;
   readonly stressTolerance: number;
   readonly memoryCapacity: number;
-  readonly sourceTrust: readonly OfficerSourceTrust[];
 }
 
 export interface AutonomousBattleActorDefinition {

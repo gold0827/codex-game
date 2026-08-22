@@ -1,7 +1,7 @@
 import type { CampaignDefinition, CampaignScene } from "./types";
 
 export type CampaignDiagnosticCode =
-  | "duplicate-officer-id"
+  | "duplicate-role-id"
   | "duplicate-scene-id"
   | "duplicate-outcome-id"
   | "invalid-playable-duration"
@@ -86,18 +86,18 @@ export function validateCampaignDefinition(
   const diagnostics: CampaignDiagnostic[] = [];
   const scenesById = new Map<string, CampaignScene>();
   const duplicateSceneIds = new Set<string>();
-  const officerIds = new Set<string>();
+  const roleIds = new Set<string>();
 
-  definition.officers.forEach((officer, officerIndex) => {
-    if (officerIds.has(officer.id)) {
+  definition.roles.forEach((role, roleIndex) => {
+    if (roleIds.has(role.id)) {
       diagnostics.push({
-        code: "duplicate-officer-id",
+        code: "duplicate-role-id",
         sceneId: definition.id,
-        field: `officers[${officerIndex}].id`,
-        message: `Officer identifier "${officer.id}" is duplicated.`,
+        field: `roles[${roleIndex}].id`,
+        message: `Role identifier "${role.id}" is duplicated.`,
       });
     }
-    officerIds.add(officer.id);
+    roleIds.add(role.id);
   });
 
   definition.scenes.forEach((scene) => {

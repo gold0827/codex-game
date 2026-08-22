@@ -22,7 +22,6 @@ const actor = (
     cooperation: 0.6,
     stressTolerance: 0.6,
     memoryCapacity: 3,
-    sourceTrust: [],
   },
   variability: { decisionNoise: 0.25, executionNoise: 0.25 },
   ...overrides,
@@ -302,7 +301,6 @@ describe("autonomous battle headless runtime", () => {
         cooperation: 1,
         stressTolerance: 1,
         memoryCapacity: 4,
-        sourceTrust: [],
       },
       variability: { decisionNoise: 0, executionNoise: 0 },
     });
@@ -314,7 +312,6 @@ describe("autonomous battle headless runtime", () => {
         cooperation: 0,
         stressTolerance: 0,
         memoryCapacity: 0,
-        sourceTrust: [],
       },
       variability: { decisionNoise: 1, executionNoise: 1 },
     });

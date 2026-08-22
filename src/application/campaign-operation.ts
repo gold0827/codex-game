@@ -1,5 +1,5 @@
 import type {
-  OfficerLesson,
+  RoleLesson,
   OperationLaunch,
   OperationResult,
 } from "../campaign/campaignRun";
@@ -50,10 +50,10 @@ function assertBattle(
   return snapshot;
 }
 
-function lessonChoices(launch: OperationLaunch): OfficerLesson[] {
-  return launch.officers.map(({ id: officerId }) => ({
-    id: `${launch.scene.identity.id}:${officerId}:lesson`,
-    officerId,
+function lessonChoices(launch: OperationLaunch): RoleLesson[] {
+  return launch.roles.map(({ id: roleId }) => ({
+    id: `${launch.scene.identity.id}:${roleId}:lesson`,
+    roleId,
     summary: launch.scene.copy.lesson,
   }));
 }

@@ -22,7 +22,7 @@ function operationView(selectedActorId: string | null = null) {
   const view = projectGameViewModel(session.read(), {
     title: chuncheonCampaign.title,
     sceneCount: chuncheonCampaign.scenes.length,
-    officers: chuncheonCampaign.officers,
+    roles: chuncheonCampaign.roles,
   }, selectedActorId);
   if (!view.operation) throw new Error("The operation section fixture must be running.");
   return { operation: view.operation, session };
@@ -37,7 +37,7 @@ describe("canonical operation section renderers", () => {
     const projected = projectGameViewModel(session.read(), {
       title: chuncheonCampaign.title,
       sceneCount: chuncheonCampaign.scenes.length,
-      officers: chuncheonCampaign.officers,
+      roles: chuncheonCampaign.roles,
     }).operation;
     if (!projected) throw new Error("The projected operation must be present.");
     const dispatch = vi.fn<CommandDispatcher>();

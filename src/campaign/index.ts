@@ -18,8 +18,8 @@ export {
   type CampaignRun,
   type CampaignRunSnapshot,
   type CampaignRunStatus,
-  type OfficerLesson,
-  type OfficerLessonMemory,
+  type RoleLesson,
+  type RoleLessonMemory,
   type OperationLaunch,
   type OperationResult,
 } from "./campaignRun";
@@ -28,7 +28,7 @@ export type {
   CampaignEncounterParameters,
   CampaignGameplayTuning,
   CampaignObjective,
-  CampaignOfficer,
+  CampaignRole,
   CampaignScene,
   CampaignSceneCopy,
   CampaignSceneIdentity,
@@ -58,5 +58,4 @@ export type {
   AutonomousBattleFormationEntry,
   AutonomousBattleObjectiveDefinition,
   AgentProfile,
-  OfficerSourceTrust,
 } from "./autonomousBattleDefinition";

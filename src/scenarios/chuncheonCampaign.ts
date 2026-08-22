@@ -1,7 +1,7 @@
 import {
   assertValidCampaignDefinition,
   type CampaignDefinition,
-  type CampaignOfficer,
+  type CampaignRole,
   type CampaignScene,
 } from "../campaign";
 import { chuncheonAutonomousBattle } from "./chuncheonAutonomousBattle";
@@ -25,7 +25,7 @@ const chuncheonRoster = [
     rank: "익명",
     role: "후속 방어 준비와 부대 인계",
   },
-] as const satisfies readonly CampaignOfficer[];
+] as const satisfies readonly CampaignRole[];
 
 const chuncheonOperation = {
   identity: {
@@ -115,7 +115,7 @@ export const chuncheonCampaign = {
   title: "한국전쟁 자율지휘 · 춘천지구 전투",
   version: 1,
   startSceneId: chuncheonAutonomousBattle.id,
-  officers: chuncheonRoster,
+  roles: chuncheonRoster,
   scenes: [chuncheonOperation, chuncheonEpilogue],
 } as const satisfies CampaignDefinition;
 

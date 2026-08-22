@@ -37,7 +37,7 @@ describe("춘천지구 전투 prototype campaign", () => {
   });
 
   it("uses anonymous operational roles and Korean historical framing", () => {
-    expect(chuncheonCampaign.officers).toEqual([
+    expect(chuncheonCampaign.roles).toEqual([
       expect.objectContaining({
         id: "forward-delay-command",
         name: "전방 지연대 지휘 역할",
@@ -54,11 +54,11 @@ describe("춘천지구 전투 prototype campaign", () => {
         rank: "익명",
       }),
     ]);
-    expect(chuncheonCampaign.officers.every((officer) => !("profile" in officer))).toBe(true);
+    expect(chuncheonCampaign.roles.every((role) => !("profile" in role))).toBe(true);
 
     const playerCopy = [
       chuncheonCampaign.title,
-      ...chuncheonCampaign.officers.flatMap(({ name, rank, role }) => [name, rank, role]),
+      ...chuncheonCampaign.roles.flatMap(({ name, rank, role }) => [name, rank, role]),
       ...chuncheonCampaign.scenes.flatMap(({ copy }) => Object.values(copy)),
     ].join(" ");
     expect(playerCopy).toMatch(/[가-힣]/);

@@ -42,7 +42,7 @@ export function renderDebriefView(view: GameViewModel, dispatch: CommandDispatch
         node("strong", undefined, failure.reason),
         node("p", undefined, `관련 목표 · ${failure.objective}`),
       );
-      if (failure.officer) item.append(node("p", undefined, `관련 장교 · ${failure.officer}`));
+      if (failure.role) item.append(node("p", undefined, `관련 역할 · ${failure.role}`));
       failureCauses.append(item);
     });
     card.append(failureCauses);
@@ -53,7 +53,7 @@ export function renderDebriefView(view: GameViewModel, dispatch: CommandDispatch
     lessons.append(node("h3", undefined, "남길 교훈 선택"));
     debrief?.lessonChoices.forEach((lesson, index) => {
       const choice = commandButton(
-        `${lesson.officer} · ${lesson.summary}`,
+        `${lesson.role} · ${lesson.summary}`,
         "choose-lesson",
         { type: "choose-lesson", lessonId: lesson.id },
         dispatch,

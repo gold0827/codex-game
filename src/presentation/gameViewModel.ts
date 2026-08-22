@@ -8,7 +8,7 @@ import { projectAutonomousOperation } from "./operation/autonomousOperationProje
 export type PresentationCampaign = Readonly<{
   title: string;
   sceneCount: number;
-  officers: readonly Readonly<{ id: string; rank: string; name: string; role: string }>[];
+  roles: readonly Readonly<{ id: string; rank: string; name: string; role: string }>[];
 }>;
 
 export type GameViewModel = ReturnType<typeof projectGameViewModel>;
@@ -36,7 +36,7 @@ export function projectGameViewModel(
   campaign: PresentationCampaign,
   selectedActorId: string | null = null,
 ) {
-  const roster = new Map(campaign.officers.map((officer) => [officer.id, officer]));
+  const roster = new Map(campaign.roles.map((role) => [role.id, role]));
   const operation = snapshot.operation === null
     ? null
     : {
@@ -80,12 +80,12 @@ export function projectGameViewModel(
         label: objective.description,
         required: objective.required,
       })),
-      officerLessons: snapshot.officerMemory
+      roleLessons: snapshot.roleMemory
         .filter(({ lessons }) => lessons.length > 0)
-        .map(({ officerId, lessons }) => ({
-          officer: roster.has(officerId)
-            ? `${roster.get(officerId)?.rank} ${roster.get(officerId)?.name}`
-            : officerId,
+        .map(({ roleId, lessons }) => ({
+          role: roster.has(roleId)
+            ? `${roster.get(roleId)?.rank} ${roster.get(roleId)?.name}`
+            : roleId,
           lessons: lessons.map(({ summary }) => summary),
         })),
     },
@@ -105,13 +105,13 @@ export function projectGameViewModel(
           reason: objective.evidence.find(({ satisfied }) => !satisfied)?.label
             ?? `${objective.label} 미달성`,
           objective: objective.label,
-          officer: null,
+          role: null,
         })),
       lessonChoices: debrief.lessonChoices.map((lesson) => ({
         id: lesson.id,
-        officer: roster.has(lesson.officerId)
-          ? `${roster.get(lesson.officerId)?.rank} ${roster.get(lesson.officerId)?.name}`
-          : lesson.officerId,
+        role: roster.has(lesson.roleId)
+          ? `${roster.get(lesson.roleId)?.rank} ${roster.get(lesson.roleId)?.name}`
+          : lesson.roleId,
         summary: lesson.summary,
       })),
     },

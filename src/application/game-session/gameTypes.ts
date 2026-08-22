@@ -4,8 +4,8 @@ import type {
   CampaignScene,
   CampaignSceneCopy,
   CampaignScenePresentation,
-  OfficerLesson,
-  OfficerLessonMemory,
+  RoleLesson,
+  RoleLessonMemory,
 } from "../../campaign";
 import type {
   AutonomousBattleHarnessPolicies,
@@ -17,6 +17,7 @@ import type { RandomSeed } from "../../simulation/seededRandom";
 export type GamePhase = "briefing" | "operation" | "debrief" | "epilogue";
 export type PlayerSpeed = 0.5 | 1 | 2;
 export type HarnessAxis = keyof AutonomousBattleHarnessPolicies;
+export type GameOperationSnapshot = AutonomousBattleSnapshot;
 
 export type HarnessBudgetSnapshot = Readonly<{
   available: number;
@@ -36,30 +37,66 @@ export type GameDebriefSnapshot = Readonly<{
   status: "success" | "retry";
   outcomeId: string;
   copy: string;
-  lessonChoices: readonly OfficerLesson[];
-  objectives: AutonomousBattleSnapshot["objectives"];
+  lessonChoices: readonly RoleLesson[];
+  objectives: GameOperationSnapshot["objectives"];
 }>;
 
-export type GameSnapshot = Readonly<{
-  phase: GamePhase;
+type GameSnapshotBase = Readonly<{
   scene: CampaignScene;
   progress: CampaignProgressSnapshot;
-  officerMemory: readonly OfficerLessonMemory[];
+  roleMemory: readonly RoleLessonMemory[];
   attemptNumber: number;
   attemptSeed: RandomSeed;
   harness: AutonomousBattleHarnessPolicies;
   harnessBudget: HarnessBudgetSnapshot;
-  briefing: GameBriefingSnapshot | null;
-  operation: AutonomousBattleSnapshot | null;
-  paused: boolean;
   playerSpeed: PlayerSpeed;
-  lastIntervention: AutonomousBattleInterventionReceipt | null;
-  debrief: GameDebriefSnapshot | null;
 }>;
+
+type GameBriefingPhaseSnapshot = GameSnapshotBase & Readonly<{
+  phase: "briefing";
+  briefing: GameBriefingSnapshot;
+  operation: null;
+  paused: false;
+  lastIntervention: null;
+  debrief: null;
+}>;
+
+type GameOperationPhaseSnapshot = GameSnapshotBase & Readonly<{
+  phase: "operation";
+  briefing: null;
+  operation: GameOperationSnapshot;
+  paused: boolean;
+  lastIntervention: AutonomousBattleInterventionReceipt | null;
+  debrief: null;
+}>;
+
+type GameDebriefPhaseSnapshot = GameSnapshotBase & Readonly<{
+  phase: "debrief";
+  briefing: null;
+  operation: null;
+  paused: false;
+  lastIntervention: null;
+  debrief: GameDebriefSnapshot;
+}>;
+
+type GameEpiloguePhaseSnapshot = GameSnapshotBase & Readonly<{
+  phase: "epilogue";
+  briefing: null;
+  operation: null;
+  paused: false;
+  lastIntervention: null;
+  debrief: null;
+}>;
+
+export type GameSnapshot =
+  | GameBriefingPhaseSnapshot
+  | GameOperationPhaseSnapshot
+  | GameDebriefPhaseSnapshot
+  | GameEpiloguePhaseSnapshot;
 
 export type GameSessionResume = Readonly<{
   progress: CampaignProgressSnapshot;
-  officerMemory: readonly OfficerLessonMemory[];
+  roleMemory: readonly RoleLessonMemory[];
 }>;
 
 export type GameCommand =

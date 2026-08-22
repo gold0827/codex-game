@@ -38,7 +38,7 @@ export type GameApp = Readonly<{
 type GameAppCampaign = Readonly<{
   title: string;
   scenes: readonly unknown[];
-  officers: PresentationCampaign["officers"];
+  roles: PresentationCampaign["roles"];
 }>;
 
 function isolateOptionalAudio(audio: GameAudio): GameAudio {
@@ -98,7 +98,7 @@ export function mountGameApp(
   const campaignView: PresentationCampaign = {
     title: campaign.title,
     sceneCount: campaign.scenes.length,
-    officers: campaign.officers,
+    roles: campaign.roles,
   };
   let message = "";
   let destroyed = false;

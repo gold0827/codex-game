@@ -20,10 +20,7 @@ const roleActor = (
   id,
   label,
   role,
-  profile: {
-    ...profile,
-    sourceTrust: [],
-  },
+  profile,
   variability,
 });
 

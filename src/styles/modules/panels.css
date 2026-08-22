@@ -69,24 +69,24 @@
   opacity: 0.72;
 }
 
-.briefing-officer-lessons {
+.briefing-role-lessons {
   display: grid;
   gap: 8px;
   margin: 0 0 24px;
 }
 
-.briefing-officer-memory {
+.briefing-role-memory {
   padding: 10px 12px;
   border: 1px solid #29483c;
   background: rgba(103, 193, 163, 0.06);
 }
 
-.briefing-officer-memory strong {
+.briefing-role-memory strong {
   color: var(--scene-accent);
   font-size: 11px;
 }
 
-.briefing-officer-memory ul {
+.briefing-role-memory ul {
   display: grid;
   gap: 4px;
   margin: 7px 0 0;
@@ -232,11 +232,6 @@
 .operation-sidebar .briefing-harness {
   overflow-y: auto;
   box-shadow: none;
-}
-
-.operation-sidebar .officer-panel {
-  overflow-y: auto;
-  scrollbar-width: thin;
 }
 
 .operation-sidebar .harness-controls {

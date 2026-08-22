@@ -1,6 +1,6 @@
 export type SceneKind = "operation" | "epilogue";
 
-export interface CampaignOfficer {
+export interface CampaignRole {
   readonly id: string;
   readonly name: string;
   readonly rank: string;
@@ -63,6 +63,6 @@ export interface CampaignDefinition {
   readonly title: string;
   readonly version: number;
   readonly startSceneId: string;
-  readonly officers: readonly CampaignOfficer[];
+  readonly roles: readonly CampaignRole[];
   readonly scenes: readonly CampaignScene[];
 }

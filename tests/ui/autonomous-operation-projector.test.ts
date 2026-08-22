@@ -62,7 +62,6 @@ function actor(
       cooperation: 0.75,
       stressTolerance: 0.65,
       memoryCapacity: 3,
-      sourceTrust: [],
     },
     variability: {
       decisionNoise: 0.2,

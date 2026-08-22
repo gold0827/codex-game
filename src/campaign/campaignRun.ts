@@ -1,4 +1,4 @@
-import type { CampaignDefinition, CampaignOfficer, CampaignScene } from "./types";
+import type { CampaignDefinition, CampaignRole, CampaignScene } from "./types";
 import {
   createCampaignProgress,
   type CampaignProgressSnapshot,
@@ -6,30 +6,30 @@ import {
 
 export type CampaignRunStatus = "operation" | "lesson" | "complete";
 
-export type OfficerLesson = Readonly<{
+export type RoleLesson = Readonly<{
   id: string;
-  officerId: string;
+  roleId: string;
   summary: string;
 }>;
 
-export type OfficerLessonMemory = Readonly<{
-  officerId: string;
-  lessons: readonly OfficerLesson[];
+export type RoleLessonMemory = Readonly<{
+  roleId: string;
+  lessons: readonly RoleLesson[];
 }>;
 
 export type OperationLaunch = Readonly<{
   campaignId: string;
   scene: CampaignScene;
-  officers: readonly CampaignOfficer[];
+  roles: readonly CampaignRole[];
   seed: string;
-  memory: readonly OfficerLessonMemory[];
+  roleMemory: readonly RoleLessonMemory[];
 }>;
 
 export type OperationResult = Readonly<{
   sceneId: string;
   status: "success" | "retry";
   outcomeId: string;
-  lessonChoices: readonly OfficerLesson[];
+  lessonChoices: readonly RoleLesson[];
 }>;
 
 export type CampaignLessonChoice = Readonly<{
@@ -41,8 +41,8 @@ export type CampaignRunSnapshot = Readonly<{
   progress: CampaignProgressSnapshot;
   attemptNumber: number;
   launch: OperationLaunch | null;
-  memory: readonly OfficerLessonMemory[];
-  lessonChoices: readonly OfficerLesson[];
+  roleMemory: readonly RoleLessonMemory[];
+  lessonChoices: readonly RoleLesson[];
 }>;
 
 export type CampaignRun = Readonly<{
@@ -82,58 +82,58 @@ function operationSeed(
 }
 
 function validateMemory(
-  officers: readonly CampaignOfficer[],
-  supplied: readonly OfficerLessonMemory[],
-): Map<string, OfficerLesson[]> {
-  const officerIds = new Set(officers.map(({ id }) => id));
-  const memory = new Map(officers.map(({ id }) => [id, [] as OfficerLesson[]]));
-  const seenOfficers = new Set<string>();
+  roles: readonly CampaignRole[],
+  supplied: readonly RoleLessonMemory[],
+): Map<string, RoleLesson[]> {
+  const roleIds = new Set(roles.map(({ id }) => id));
+  const memory = new Map(roles.map(({ id }) => [id, [] as RoleLesson[]]));
+  const seenRoles = new Set<string>();
 
   supplied.forEach((entry) => {
-    if (!officerIds.has(entry.officerId)) {
-      throw new CampaignRunError(`Memory references unknown officer "${entry.officerId}".`);
+    if (!roleIds.has(entry.roleId)) {
+      throw new CampaignRunError(`Memory references unknown role "${entry.roleId}".`);
     }
-    if (seenOfficers.has(entry.officerId)) {
-      throw new CampaignRunError(`Memory repeats officer "${entry.officerId}".`);
+    if (seenRoles.has(entry.roleId)) {
+      throw new CampaignRunError(`Memory repeats role "${entry.roleId}".`);
     }
-    seenOfficers.add(entry.officerId);
-    entry.lessons.forEach((lesson) => validateLesson(lesson, officerIds));
-    if (entry.lessons.some(({ officerId }) => officerId !== entry.officerId)) {
-      throw new CampaignRunError("A lesson must belong to its enclosing officer memory.");
+    seenRoles.add(entry.roleId);
+    entry.lessons.forEach((lesson) => validateLesson(lesson, roleIds));
+    if (entry.lessons.some(({ roleId }) => roleId !== entry.roleId)) {
+      throw new CampaignRunError("A lesson must belong to its enclosing role memory.");
     }
-    memory.set(entry.officerId, clone(entry.lessons.slice(-LESSON_LIMIT)));
+    memory.set(entry.roleId, clone(entry.lessons.slice(-LESSON_LIMIT)));
   });
 
   return memory;
 }
 
-function validateLesson(lesson: OfficerLesson, officerIds: ReadonlySet<string>): void {
+function validateLesson(lesson: RoleLesson, roleIds: ReadonlySet<string>): void {
   if (!lesson.id.trim() || !lesson.summary.trim()) {
     throw new CampaignRunError("Lesson identifiers and summaries must not be empty.");
   }
-  if (!officerIds.has(lesson.officerId)) {
-    throw new CampaignRunError(`Lesson references unknown officer "${lesson.officerId}".`);
+  if (!roleIds.has(lesson.roleId)) {
+    throw new CampaignRunError(`Lesson references unknown role "${lesson.roleId}".`);
   }
 }
 
 export function createCampaignRun(
   definition: CampaignDefinition,
   baseSeed: string | number,
-  initialMemory: readonly OfficerLessonMemory[] = [],
+  initialMemory: readonly RoleLessonMemory[] = [],
   initialProgress?: CampaignProgressSnapshot,
 ): CampaignRun {
   assertSeed(baseSeed);
   const progress = createCampaignProgress(definition, initialProgress);
   const internalDefinition = progress.definition();
-  const officerIds = new Set(internalDefinition.officers.map(({ id }) => id));
-  const memory = validateMemory(internalDefinition.officers, clone(initialMemory));
+  const roleIds = new Set(internalDefinition.roles.map(({ id }) => id));
+  const memory = validateMemory(internalDefinition.roles, clone(initialMemory));
   let status: CampaignRunStatus = progress.snapshot().completed ? "complete" : "operation";
   let attemptNumber = 1;
   let pendingResult: OperationResult | null = null;
 
-  const memorySnapshot = (): OfficerLessonMemory[] =>
-    internalDefinition.officers.map(({ id }) => ({
-      officerId: id,
+  const memorySnapshot = (): RoleLessonMemory[] =>
+    internalDefinition.roles.map(({ id }) => ({
+      roleId: id,
       lessons: clone(memory.get(id) ?? []),
     }));
 
@@ -143,9 +143,9 @@ export function createCampaignRun(
     return {
       campaignId: internalDefinition.id,
       scene,
-      officers: clone(internalDefinition.officers),
+      roles: clone(internalDefinition.roles),
       seed: operationSeed(internalDefinition.id, scene.identity.id, baseSeed),
-      memory: memorySnapshot(),
+      roleMemory: memorySnapshot(),
     };
   };
 
@@ -155,7 +155,7 @@ export function createCampaignRun(
       progress: progress.snapshot(),
       attemptNumber,
       launch: launch(),
-      memory: memorySnapshot(),
+      roleMemory: memorySnapshot(),
       lessonChoices: pendingResult?.lessonChoices ?? [],
     });
 
@@ -188,7 +188,7 @@ export function createCampaignRun(
     }
     const lessonIds = new Set<string>();
     result.lessonChoices.forEach((lesson) => {
-      validateLesson(lesson, officerIds);
+      validateLesson(lesson, roleIds);
       if (lessonIds.has(lesson.id)) {
         throw new CampaignRunError(`Lesson choice id "${lesson.id}" is duplicated.`);
       }
@@ -212,9 +212,9 @@ export function createCampaignRun(
       throw new CampaignRunError(`Lesson choice "${choice.lessonId}" was not offered.`);
     }
 
-    const previous = memory.get(selected.officerId) ?? [];
+    const previous = memory.get(selected.roleId) ?? [];
     memory.set(
-      selected.officerId,
+      selected.roleId,
       [...previous.filter(({ id }) => id !== selected.id), clone(selected)].slice(-LESSON_LIMIT),
     );
     progress.recordOutcome(pendingResult.outcomeId);

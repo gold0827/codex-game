@@ -28,8 +28,8 @@ main
 application adapter는 캠페인의 launch/harness/budget을 canonical runtime에
 복제해 전달하고 terminal facts를 campaign result로 매핑한다.
 
-projector 입력은 `NonNullable<GameSnapshot["operation"]>`으로 고정된다. 따라서
-presentation은 domain을 직접 import하지 않고 arbitrary formations, actors,
+projector 입력은 application이 명시적으로 노출한 `GameOperationSnapshot`으로 고정된다.
+따라서 presentation은 domain을 직접 import하지 않고 arbitrary formations, actors,
 objective evidence, recent events와 선택한 actor의 정보→검증→권한→행동→피드백
 trace를 읽기 전용 view model로 바꾼다. actor 선택은 UI-local 상태다. session
 명령은 예산을 쓰는 player-controlled 편성 의도·지침 개입만 제공한다. snapshot의
@@ -78,7 +78,9 @@ campaign 저작 Interface는 장면 copy/presentation, 목표, 전환, 실행 �
 
 ## 상태 불변식
 
-- `operation === null`은 briefing/debrief/epilogue에서만 허용한다.
+- briefing/debrief/epilogue snapshot의 `operation`은 항상 `null`이고, operation
+  snapshot의 `operation`은 항상 존재한다. 완료된 adapter는 lesson/result 처리를 위해
+  GameSession 내부에만 남고 snapshot에는 노출하지 않는다.
 - operation은 한 번 시작한 canonical simulation의 isolated snapshot이다.
 - 종료된 operation의 result는 한 번만 campaign progress에 반영된다.
 - intervention receipt는 accepted/rejected를 항상 기록하고 거부는 예산을 쓰지 않는다.

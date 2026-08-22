@@ -37,7 +37,7 @@ describe("campaign checkpoint module", () => {
     expect(restored.recoveredFromFailure).toBe(false);
     expect(restored.resume).toEqual({
       progress: snapshot.progress,
-      officerMemory: snapshot.officerMemory,
+      roleMemory: snapshot.roleMemory,
     });
   });
 
@@ -57,5 +57,27 @@ describe("campaign checkpoint module", () => {
       recoveredFromFailure: true,
     });
     expect(values.has("progress:v1")).toBe(false);
+  });
+
+  it("rejects and clears the retired officer-memory checkpoint shape", () => {
+    const clear = vi.fn();
+    const checkpoint = createCampaignCheckpoint({
+      load: () => ({
+        progress: {
+          currentSceneId: chuncheonCampaign.startSceneId,
+          completedSceneIds: [],
+          completed: false,
+        },
+        officerMemory: [],
+      }),
+      save: () => undefined,
+      clear,
+    });
+
+    expect(checkpoint.restore()).toEqual({
+      resume: undefined,
+      recoveredFromFailure: true,
+    });
+    expect(clear).toHaveBeenCalledOnce();
   });
 });

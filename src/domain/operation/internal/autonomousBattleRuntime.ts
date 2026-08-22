@@ -119,10 +119,6 @@ function validateDefinition(definition: AutonomousBattleDefinition): void {
       if (!Number.isSafeInteger(actor.profile.memoryCapacity) || actor.profile.memoryCapacity < 0) {
         throw new RangeError(`Actor "${actor.id}" memory capacity must be non-negative.`);
       }
-      actor.profile.sourceTrust.forEach(({ officerId, trust }) => {
-        assertIdentifier(officerId, `Actor "${actor.id}" trusted source`);
-        assertRatio(trust, `Actor "${actor.id}" source trust`);
-      });
       assertRatio(actor.variability.decisionNoise, `Actor "${actor.id}" decision noise`);
       assertRatio(actor.variability.executionNoise, `Actor "${actor.id}" execution noise`);
     });

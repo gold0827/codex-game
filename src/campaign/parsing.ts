@@ -138,15 +138,15 @@ function checkArray(
   });
 }
 
-function checkOfficer(
+function checkRole(
   value: unknown,
   path: string,
   diagnostics: CampaignParseDiagnostic[],
 ): void {
-  const officer = recordAt(value, path, diagnostics);
-  if (!officer) return;
-  expectOnlyKeys(officer, ["id", "name", "rank", "role"], path, diagnostics);
-  expectStrings(officer, ["id", "name", "rank", "role"], path, diagnostics);
+  const role = recordAt(value, path, diagnostics);
+  if (!role) return;
+  expectOnlyKeys(role, ["id", "name", "rank", "role"], path, diagnostics);
+  expectStrings(role, ["id", "name", "rank", "role"], path, diagnostics);
 }
 
 function checkScene(
@@ -241,9 +241,15 @@ function shapeDiagnostics(value: unknown): CampaignParseDiagnostic[] {
   const diagnostics: CampaignParseDiagnostic[] = [];
   const definition = recordAt(value, "$", diagnostics);
   if (!definition) return diagnostics;
+  expectOnlyKeys(
+    definition,
+    ["id", "title", "version", "startSceneId", "roles", "scenes"],
+    "$",
+    diagnostics,
+  );
   expectStrings(definition, ["id", "title", "startSceneId"], "$", diagnostics);
   expectType(definition, "version", "number", "$", diagnostics);
-  checkArray(definition, "officers", "$", diagnostics, checkOfficer);
+  checkArray(definition, "roles", "$", diagnostics, checkRole);
   checkArray(definition, "scenes", "$", diagnostics, checkScene);
   return diagnostics;
 }
