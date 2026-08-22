@@ -21,7 +21,7 @@ describe("production music catalog", () => {
     const catalogIds = productionSoundtrackCatalog.map(({ id }) => id);
 
     expect(new Set(catalogIds).size).toBe(catalogIds.length);
-    expect([...productionSoundtrackIds].every((id) => catalogIds.includes(id))).toBe(true);
+    expect(new Set(catalogIds)).toEqual(productionSoundtrackIds);
   });
 
   it("pins every distributed CC0 asset to its source and SHA-256", () => {

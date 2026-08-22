@@ -1,55 +1,10 @@
 import {
   assertValidCampaignDefinition,
   type CampaignDefinition,
-  type CampaignMapTopology,
   type CampaignOfficer,
   type CampaignScene,
 } from "../campaign";
 import { chuncheonAutonomousBattle } from "./chuncheonAutonomousBattle";
-
-const chuncheonOperationMap = {
-  width: 24,
-  height: 16,
-  blocked: [
-    { x: 3, y: 9 },
-    { x: 4, y: 9 },
-    { x: 5, y: 9 },
-    { x: 6, y: 9 },
-    { x: 7, y: 9 },
-    { x: 9, y: 9 },
-    { x: 10, y: 9 },
-    { x: 11, y: 9 },
-    { x: 13, y: 9 },
-    { x: 14, y: 9 },
-    { x: 15, y: 9 },
-    { x: 16, y: 9 },
-    { x: 18, y: 9 },
-    { x: 19, y: 9 },
-    { x: 20, y: 9 },
-  ],
-  terrain: [
-    { position: { x: 4, y: 3 }, movementCost: 3 },
-    { position: { x: 5, y: 4 }, movementCost: 3 },
-    { position: { x: 18, y: 4 }, movementCost: 2 },
-    { position: { x: 19, y: 5 }, movementCost: 2 },
-    { position: { x: 14, y: 12 }, movementCost: 3 },
-    { position: { x: 15, y: 13 }, movementCost: 3 },
-  ],
-  spawns: [
-    { id: "north-chuncheon-axis", position: { x: 11, y: 1 } },
-    { id: "north-reinforcement-route", position: { x: 6, y: 1 } },
-    { id: "oksanpo-approach", position: { x: 8, y: 4 } },
-    { id: "soyang-north-bank", position: { x: 11, y: 7 } },
-    { id: "soyang-crossing-approach", position: { x: 15, y: 7 } },
-    { id: "east-chuncheon-route", position: { x: 21, y: 5 } },
-    { id: "wonchang-pass", position: { x: 15, y: 14 } },
-  ],
-  destinations: [
-    { id: "chuncheon-defense-area", position: { x: 11, y: 10 } },
-    { id: "follow-on-defense-line", position: { x: 8, y: 14 } },
-    { id: "southern-withdrawal-route", position: { x: 20, y: 14 } },
-  ],
-} as const satisfies CampaignMapTopology;
 
 const chuncheonRoster = [
   {
@@ -57,21 +12,18 @@ const chuncheonRoster = [
     name: "전방 지연대 지휘 역할",
     rank: "익명",
     role: "초기 접촉 확인과 단계적 지연",
-    disposition: "action",
   },
   {
     id: "operations-verification",
     name: "작전 검증 역할",
     rank: "익명",
     role: "보고 대조와 철수 조건 확인",
-    disposition: "verification",
   },
   {
     id: "rearward-coordination",
     name: "후속 방어선 연락 역할",
     rank: "익명",
     role: "후속 방어 준비와 부대 인계",
-    disposition: "communication",
   },
 ] as const satisfies readonly CampaignOfficer[];
 
@@ -93,14 +45,10 @@ const chuncheonOperation = {
       "지연 시간, 후속 방어 준비, 전투력 보존 가운데 필요한 조건을 충족하지 못했다. 같은 국면을 다시 검토해 하네스와 지휘 의도를 조정한다.",
   },
   presentation: {
-    mapId: "chuncheon-soyang-1950",
     backdropId: "chuncheon-ridge-june-dawn",
     soundtrackId: "six-signals-over-water",
     accentColor: "#7f9b72",
   },
-  mapTopology: chuncheonOperationMap,
-  guidance: [],
-  beats: [],
   objectives: chuncheonAutonomousBattle.objectives.map(({ id, label, required }) => ({
     id,
     description: label,
@@ -146,13 +94,10 @@ const chuncheonEpilogue = {
     failure: "춘천지구 전투 국면을 다시 검토한다.",
   },
   presentation: {
-    mapId: "chuncheon-soyang-1950",
     backdropId: "chuncheon-ridge-june-morning",
     soundtrackId: "quiet-water-after-action",
     accentColor: "#879c7c",
   },
-  guidance: [],
-  beats: [],
   objectives: [],
   transitions: [],
   encounterParameters: {

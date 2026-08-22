@@ -310,11 +310,6 @@
   margin: 3px 0 0;
 }
 
-.event-threat-telegraphed,
-.event-threat-resolved {
-  border-left-color: var(--red);
-}
-
 .event-intervention {
   border-left-color: var(--gold);
 }
@@ -431,46 +426,6 @@
   color: var(--mint);
 }
 
-.tutorial-guidance {
-  position: relative;
-  z-index: 15;
-  width: min(520px, 44vw);
-  box-sizing: border-box;
-  align-self: center;
-  justify-self: center;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 3px 10px;
-  padding: 9px 12px;
-  border: 1px solid var(--gold);
-  background: rgba(38, 31, 12, 0.96);
-  box-shadow: 0 12px 35px #000;
-  font-size: 10px;
-}
-
-.tutorial-guidance strong {
-  grid-row: 1 / 3;
-  color: var(--gold);
-}
-
-.tutorial-guidance small {
-  color: #bbaa75;
-  font-size: 8px;
-}
-
-.tutorial-guidance span,
-.tutorial-guidance small {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.guidance-target {
-  position: relative;
-  border-color: var(--gold) !important;
-  box-shadow: 0 0 0 2px rgba(233, 198, 108, 0.24), 0 0 18px rgba(233, 198, 108, 0.25);
-  animation: guidance-pulse 1s steps(2, end) infinite;
-}
-
 .pixel-garden {
   position: relative;
   overflow: hidden;
@@ -545,10 +500,6 @@
 .plant-two { left: 79%; transform: scale(0.85); }
 .plant-three { left: 89%; transform: scale(1.18); }
 
-@keyframes guidance-pulse {
-  50% { filter: brightness(1.25); }
-}
-
 @keyframes garden-water {
   50% { rotate: 4deg; }
 }
@@ -560,8 +511,6 @@
   .operation-screen { grid-template-rows: 40px minmax(0, 1fr); }
   .operation-sidebar .panel-card { padding: 9px; }
   .harness-control { gap: 3px; padding: 6px; }
-  .officer-facts { margin-block: 4px; }
-  .report-card { padding: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -17,7 +17,7 @@ export type CampaignWorkshop = Readonly<{
 }>;
 
 type NoticeKind = "success" | "error";
-type JsonField = "guidance" | "beats" | "objectives" | "transitions";
+type JsonField = "objectives" | "transitions";
 
 const sceneKinds = ["tutorial", "operation", "epilogue"] as const;
 const sceneKindLabels: Readonly<Record<SceneKind, string>> = {
@@ -36,7 +36,6 @@ const copyFields = [
 ] as const;
 
 const presentationFields = [
-  ["mapId", "지도 ID"],
   ["backdropId", "배경 ID"],
   ["soundtrackId", "음악 ID"],
   ["accentColor", "강조 색상"],
@@ -53,8 +52,6 @@ const tuningFields = [
 ] as const;
 
 const jsonFields = [
-  ["guidance", "안내 단계"],
-  ["beats", "진행 비트"],
   ["objectives", "목표"],
   ["transitions", "전환"],
 ] as const satisfies readonly (readonly [JsonField, string])[];
@@ -185,8 +182,6 @@ export function mountCampaignWorkshop(
     const startingResources = numberValue("gameplayTuning.startingResources", diagnostics);
     const interventionBudget = numberValue("gameplayTuning.interventionBudget", diagnostics);
     const simulationSpeed = numberValue("gameplayTuning.simulationSpeed", diagnostics);
-    const guidance = jsonValue("guidance", diagnostics);
-    const beats = jsonValue("beats", diagnostics);
     const objectives = jsonValue("objectives", diagnostics);
     const transitions = jsonValue("transitions", diagnostics);
 
@@ -206,14 +201,10 @@ export function mountCampaignWorkshop(
         failure: inputValue("copy.failure"),
       },
       presentation: {
-        mapId: inputValue("presentation.mapId"),
         backdropId: inputValue("presentation.backdropId"),
         soundtrackId: inputValue("presentation.soundtrackId"),
         accentColor: inputValue("presentation.accentColor"),
       },
-      mapTopology: scene.mapTopology,
-      guidance: guidance as CampaignScene["guidance"],
-      beats: beats as CampaignScene["beats"],
       objectives: objectives as CampaignScene["objectives"],
       transitions: transitions as CampaignScene["transitions"],
       encounterParameters: {

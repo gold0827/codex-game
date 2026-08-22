@@ -1,4 +1,17 @@
-import type { AgentProfile } from "./types";
+export interface OfficerSourceTrust {
+  readonly officerId: string;
+  readonly trust: number;
+}
+
+export interface AgentProfile {
+  readonly initiative: number;
+  readonly caution: number;
+  readonly discipline: number;
+  readonly cooperation: number;
+  readonly stressTolerance: number;
+  readonly memoryCapacity: number;
+  readonly sourceTrust: readonly OfficerSourceTrust[];
+}
 
 export interface AutonomousBattleActorDefinition {
   readonly id: string;

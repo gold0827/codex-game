@@ -29,7 +29,7 @@
 [#231](https://github.com/gold0827/codex-game/pull/231)은 이를 headless operation runtime으로
 이식했지만 UI와 캠페인 연결은 범위 밖으로 유지했다. 반면
 [#232](https://github.com/gold0827/codex-game/issues/232)는 난전을 기본 브라우저 게임으로
-올리고 기존 캠페인을 `legacy`로 분리했다. 현재 [README](../README.md)의 기본 게임과
+올리는 실험을 거쳤다. 현재 [README](../README.md)의 기본 게임과
 레거시 설명은 이 마지막 통합을 반영하므로, 현재 한국전쟁 기반 캠페인의 개념적
 출발점으로 삼아서는 안 된다. 이 문서가 유지할 경계는 난전이 하네스 캠페인의 목적을
 다시 대체하지 않아야 한다는 점이다.

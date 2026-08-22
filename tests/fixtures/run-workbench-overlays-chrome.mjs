@@ -6,9 +6,9 @@ const { browserErrors, result: overlayReport } = await runChromeAcceptance(async
   navigate,
 }) => {
   await navigate({
-    path: "./?legacy=1&editor=1",
+    path: "./?editor=1",
     readyExpression: `document.querySelector("#app [data-phase='briefing']") !== null`,
-    readyLabel: "the editor-enabled bridge briefing",
+    readyLabel: "the editor-enabled Chuncheon briefing",
   });
   await importFixture(
     "/codex-game/tests/fixtures/workbench-overlays-chrome.ts",
@@ -21,7 +21,7 @@ const { browserErrors, result: overlayReport } = await runChromeAcceptance(async
   })`, "Workbench overlay report");
 });
 
-const passed = overlayReport.url === "/codex-game/?legacy=1&editor=1" &&
+const passed = overlayReport.url === "/codex-game/?editor=1" &&
   overlayReport.result?.passed === true &&
   browserErrors.length === 0;
 process.stdout.write(`${JSON.stringify({

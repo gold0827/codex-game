@@ -25,49 +25,24 @@ export {
 } from "./campaignRun";
 export type {
   CampaignDefinition,
-  CampaignEncounterBeat,
   CampaignEncounterParameters,
   CampaignGameplayTuning,
-  CampaignMapLocation,
-  CampaignMapTopology,
-  CampaignGuidanceStep,
   CampaignObjective,
   CampaignOfficer,
-  CampaignOfficerReport,
   CampaignScene,
   CampaignSceneCopy,
   CampaignSceneIdentity,
   CampaignScenePresentation,
-  CampaignSpatialSignalGuidanceStep,
-  CampaignSpatialSignalKind,
-  CampaignSpatialSignalStrength,
   CampaignTransition,
-  CampaignThreat,
-  AgentProfile,
-  OfficerSourceTrust,
-  CampaignTerrainTile,
-  CampaignTilePosition,
-  OfficerDisposition,
-  OfficerReportTone,
   SceneKind,
-  ThreatKind,
-  ThreatLane,
-  ThreatSeverity,
-} from "./types";
-export {
-  CAMPAIGN_SPATIAL_SIGNAL_KINDS,
-  CAMPAIGN_SPATIAL_SIGNAL_STRENGTHS,
 } from "./types";
 export {
   CampaignValidationError,
-  assertPlayableCampaignScene,
   assertValidCampaignDefinition,
-  playableSceneDiagnostics,
   validateCampaignDefinition,
   type CampaignDiagnostic,
   type CampaignDiagnosticCode,
   type CampaignValidationResult,
-  type PlayableCampaignScene,
 } from "./validation";
 export {
   createBuiltInCampaignRepository,
@@ -82,4 +57,6 @@ export type {
   AutonomousBattleFormationDefinition,
   AutonomousBattleFormationEntry,
   AutonomousBattleObjectiveDefinition,
+  AgentProfile,
+  OfficerSourceTrust,
 } from "./autonomousBattleDefinition";

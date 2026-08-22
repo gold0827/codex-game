@@ -50,9 +50,8 @@ domain/campaign ────→ (내부만)
 ```
 
 `npm run check:dependencies`가 이 규칙을 검사하며 예외 목록은 비어 있다.
-현재 production composition과 춘천 데이터는 이전 campaign guidance/전장 asset을
-import하거나 사용하지 않는다. 남아 있는 저작 스키마 정리는 후속 이슈 #248에서
-계약 자체를 축소한다.
+campaign 저작 Interface는 장면 copy/presentation, 목표, 전환, 실행 시간과 지휘 예산만
+노출한다. 전투 중 정보·판단·사건은 canonical operation definition과 snapshot이 소유한다.
 
 ## 상태 불변식
 
