@@ -15,6 +15,11 @@ export type CampaignOperation = Readonly<{
   result: () => OperationResult;
 }>;
 
+export type CampaignOperationFactory = (
+  launch: OperationLaunch,
+  harness: HarnessConfiguration,
+) => CampaignOperation;
+
 function lessonChoices(launch: OperationLaunch): OfficerLesson[] {
   return launch.officers.map(({ id: officerId }) => ({
     id: `${launch.scene.identity.id}:${officerId}:lesson`,

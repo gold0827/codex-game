@@ -1,5 +1,22 @@
 // Public operation-domain facade; implementation details stay internal.
 export { createOperationSimulation } from "./internal/operationRuntime";
+export type {
+  AutonomousBattleActorCondition,
+  AutonomousBattleActorDefinition,
+  AutonomousBattleActorSnapshot,
+  AutonomousBattleDefinition,
+  AutonomousBattleFormationDefinition,
+  AutonomousBattleFormationEntry,
+  AutonomousBattleFormationSnapshot,
+  AutonomousBattleHarnessPolicies,
+  AutonomousBattleIntervention,
+  AutonomousBattleObjectiveDefinition,
+  AutonomousBattleObjectiveSnapshot,
+  AutonomousBattleSimulation,
+  AutonomousBattleSimulationFactory,
+  AutonomousBattleSnapshot,
+  AutonomousBattleStatus,
+} from "./autonomousBattle";
 export {
   SQUAD_BATTLE_DURATION_MS,
   SQUAD_BATTLE_STEP_MS,

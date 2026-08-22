@@ -144,6 +144,33 @@ operation domain은 asset 파일을 알지 않는다. Canvas 카메라 범위는
 전달하고, 실패 결과는 같은 launch로 재시도하며 성공 결과는 플레이어가 교훈을
 선택한 뒤에만 다음 장면으로 진행한다.
 
+operation 구현의 조립은 `CampaignOperationFactory` 하나로 좁혀져 있다.
+
+```text
+mountProductionGame
+  ─→ GameWorkbenchOptions.operationFactory (optional)
+      ─→ GameSessionOptions.operationFactory (optional)
+          ─→ CampaignOperationFactory(launch, harness)
+              └─→ CampaignOperation { simulation, result }
+```
+
+factory를 주입하지 않으면 기존 `createCampaignOperation` adapter가 사용되므로 현재
+배포 동작은 바뀌지 않는다. 다른 operation 구현은 `GameWorkbench`나 `GameSession`
+내부를 수정하지 않고 app composition에서 factory만 교체한다. launch와 harness는
+factory 경계에서 복제되며 새 시도와 새 게임마다 새 operation을 조립한다.
+
+가변 자율 난전 구현을 위한 domain 경계는 `AutonomousBattleSimulationFactory`다.
+`AutonomousBattleDefinition.formations[].actors`가 편성의 유일한 크기 원본이므로 이
+계약에는 36명, 4개 부대, 9인 분대 같은 고정 개수가 없다. 각 행동 주체는 고유
+profile과 판단·실행 변동성을 가지며 factory는 scenario definition, seed와 네 하네스
+정책을 입력받는다. runtime 입력은 전투 집단 의도와 하네스 지침을 표현하는 제한적
+`intervene`뿐이고 개별 행동 주체 직접 조작은 public interface 밖에 있다.
+
+이 domain 계약은 아직 production composition에 연결되지 않았다. 테스트 전용 mock이
+재사용 가능한 contract suite를 실행해 비대칭 편성 보존, 같은 seed 재현, 다른 seed의
+확률 궤적, snapshot 격리와 잘못된 입력 거부를 검증한다. 실제 난전 runtime은 같은
+suite를 통과한 뒤 별도 application adapter에서 `CampaignOperationFactory`로 번역한다.
+
 ## Public interface
 
 기존 campaign application의 깊은 interface는 세 동작뿐이다.
@@ -156,6 +183,25 @@ type GameSession = Readonly<{
 }>;
 ```
 
+operation 교체 지점은 다음 두 factory interface다.
+
+```ts
+type CampaignOperationFactory = (
+  launch: OperationLaunch,
+  harness: HarnessConfiguration,
+) => CampaignOperation;
+
+type AutonomousBattleSimulationFactory = (
+  definition: AutonomousBattleDefinition,
+  seed: RandomSeed,
+  harness: AutonomousBattleHarnessPolicies,
+) => AutonomousBattleSimulation;
+```
+
+첫 interface는 campaign application이 소비하는 조립 port이고, 두 번째 interface는
+전투 domain adapter가 구현하는 port다. 둘 사이의 snapshot·result 변환은 이후의
+application adapter 한 곳이 소유한다.
+
 두 부대 난전은 브라우저 session과 headless CLI가 같은 domain facade를 실행한다.
 
 ```text
@@ -165,9 +211,12 @@ scripts/simulate-squad-battle.ts ─────┘      └─ squadBattleRunti
                                                   └─ encounters
 ```
 
-기존 `encounters`가 36명 개별 병사의 명중, 체력, 제압과 패닉을 소유하고,
+기존 `encounters`가 현재 독립 난전의 36명 개별 병사 명중, 체력, 제압과 패닉을 소유하고,
 `squadBattleRuntime`은 명령 지연, 지정 행군 경로, 증원, 피로, 사기, 패주와
 교량 호송 판정만 조율한다.
+
+이 36명 고정값은 현재 `SquadBattleSimulation` 구현의 내부 전제일 뿐이며 새
+`AutonomousBattleSimulation` 계약이나 campaign 콘텐츠의 제약이 아니다.
 
 ```ts
 type SquadBattleSimulation = Readonly<{
@@ -213,7 +262,7 @@ game session이나 operation을 import하지 않는다.
 | `platform` | browser frame, audio, localStorage adapter | `src/platform/` |
 | `authoring` | campaign document와 workshop | `src/authoring/` |
 | `content` | 배포용 해인교 시제품과 확장용 장면 콘텐츠 | `src/scenarios/` |
-| `domain/operation` | clock, deterministic random, 전장과 작전 규칙 | `src/domain/operation/`, `src/simulation/` |
+| `domain/operation` | clock, deterministic random, 전장 계약과 작전 규칙 | `src/domain/operation/`, `src/simulation/` |
 | `domain/campaign` | campaign type, parse, validate, progress, repository seam | `src/campaign/` |
 
 현재 경로명이 module명과 다른 경우에도 표의 책임이 기준이다. 예를 들어
@@ -229,10 +278,25 @@ game session이나 operation을 import하지 않는다.
 | --- | --- | --- | --- | --- |
 | campaign 콘텐츠·parse·validation | [Module 책임과 현재 경로](#module-책임과-현재-경로) | `src/campaign/index.ts` · `parseCampaignJson`, `validateCampaignDefinition`; `src/scenarios/` | `npx vitest run tests/campaign/campaign-parsing.test.ts tests/campaign/campaign.test.ts` | `npm run build && npm run check:dependencies` |
 | operation 규칙·장교 판단·두 부대 난전·결과 | [실행 배선](#실행-배선) | `src/domain/operation/operationEngine.ts` · `createOperationSimulation`, `createSquadBattle` | `npx vitest run tests/simulation/operation-simulation.test.ts tests/domain/operation/squad-battle.test.ts` | `npm run test:monte-carlo && npm run simulate:squad-battle` |
+| 새 가변 자율 난전 adapter | [Public interface](#public-interface) | `src/domain/operation/autonomousBattle.ts` · `AutonomousBattleSimulationFactory`; `tests/contracts/autonomous-battle.contract.ts` | `npx vitest run tests/domain/operation/autonomous-battle-contract.test.ts` | `npm run build && npm run check:dependencies` |
 | game session·campaign 진행 | [Public interface](#public-interface) | `src/application/game-session/index.ts` · `createGameSession`, `GameSession`; `src/application/squad-battle-session.ts` · `createSquadBattleSession` | `npx vitest run tests/game/game-session.test.ts tests/game/game-session-flow.test.ts tests/application/squad-battle-session.test.ts` | `npm run build && npm run check:dependencies` |
 | presentation·battlefield projection/rendering | [실행 배선](#실행-배선) | `src/presentation/operation/squadBattleProjector.ts` · `projectSquadBattleFrame`; `src/presentation/battlefield/canvasBattlefield.ts` · `mountCanvasBattlefield` | `npx vitest run tests/ui/squad-battle-projector.test.ts tests/ui/squad-battle-app.test.ts tests/ui/canvas-viewport.test.ts` | `npm run build && node tests/fixtures/run-squad-battle-chrome.mjs` |
 | authoring·`CampaignRepository` | [Public interface](#public-interface) | `src/authoring/campaign-workshop/index.ts` · `createCampaignDocument`, `mountCampaignWorkshop`; `src/campaign/repository.ts` · `CampaignRepository` | `npx vitest run tests/campaign/campaign-repository.test.ts tests/ui/campaign-editor.test.ts` | `npm run build && npm run check:dependencies` |
 | browser platform adapter | [Module 책임과 현재 경로](#module-책임과-현재-경로) | `src/platform/browser/adapters.ts` · `createBrowserFrameScheduler`, `createBrowserStorage`, `createBrowserCampaignRepository`, `createBrowserAudio` | `npx vitest run tests/ui/browser-audio.test.ts tests/ui/campaign-checkpoint.test.ts tests/ui/player-settings.test.ts` | `npm run build && node tests/fixtures/run-squad-battle-chrome.mjs` |
+
+## 후속 이슈의 독립 작업면
+
+후속 구현은 아래 행마다 별도 이슈와 touch surface를 사용한다. public contract 변경이
+필요하지 않은 한 다른 행의 소유 파일을 함께 고치지 않는다.
+
+| 작업 | 소유하는 면 | 소비하는 계약 | 함께 고치지 않는 면 |
+| --- | --- | --- | --- |
+| 역사 시나리오 | `src/scenarios/`의 scenario definition과 campaign copy | `AutonomousBattleDefinition` | simulation runtime, GameSession, UI |
+| 행동 AI·난전 규칙 | `domain/operation`의 새 internal adapter | `AutonomousBattleSimulationFactory`와 공통 contract suite | campaign 진행, production composition, UI |
+| campaign-operation 변환 | `src/application/`의 단일 adapter | `AutonomousBattleSimulation` → `CampaignOperationFactory` | domain 내부 규칙, presentation |
+| 화면 투영·조작 | presentation projector와 view | `GameSnapshot`, typed `GameCommand` | scenario parser, simulation 내부 |
+| 배포 연결 | `src/app/createGameWorkbench.ts`의 composition | 완성된 `CampaignOperationFactory` | GameWorkbench, GameSession, domain runtime |
+| Monte Carlo 평가 | evaluation script와 전용 tests | headless factory와 seed | browser UI, production composition |
 
 ## 허용 의존
 

@@ -3,6 +3,7 @@ import {
   type GameSession,
   type GameSessionResume,
 } from "../application/game-session";
+import type { CampaignOperationFactory } from "../application/campaign-operation";
 import {
   createCampaignDocument,
   mountCampaignWorkshop,
@@ -47,6 +48,7 @@ export type GameWorkbenchOptions = Readonly<{
   fieldManualVariant?: WorkbenchManualVariant;
   settingsStore?: PlayerSettingsStore;
   checkpoint?: CampaignCheckpoint;
+  operationFactory?: CampaignOperationFactory;
 }>;
 
 export type GameWorkbench = Readonly<{
@@ -145,7 +147,9 @@ export function mountGameWorkbench(
   const createFreshGame = (resume?: GameSessionResume): GameApp => {
     const snapshot = structuredClone(campaignDocument.snapshot());
     const seed = `${String(options.seed ?? "production-campaign")}:restart-${generation}`;
-    const session = createGameSession(snapshot, seed, resume);
+    const session = createGameSession(snapshot, seed, resume, {
+      operationFactory: options.operationFactory,
+    });
     generation += 1;
     const audio = options.audioFactory?.();
     activeAudio = audio ?? null;

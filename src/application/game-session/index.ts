@@ -7,4 +7,4 @@ export {
   type HarnessAxis,
   type PlayerSpeed,
 } from "./gameTypes";
-export { createGameSession } from "./gameSession";
+export { createGameSession, type GameSessionOptions } from "./gameSession";

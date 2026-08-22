@@ -10,6 +10,7 @@ import {
 import {
   createCampaignOperation,
   type CampaignOperation,
+  type CampaignOperationFactory,
 } from "../campaign-operation";
 import { hashSeed, type RandomSeed } from "../../simulation/seededRandom";
 import {
@@ -34,6 +35,10 @@ import {
   type PlayerSpeed,
   type TutorialGuidanceSnapshot,
 } from "./gameTypes";
+
+export type GameSessionOptions = Readonly<{
+  operationFactory?: CampaignOperationFactory;
+}>;
 
 const HARNESS_AXES = [
   "informationReach",
@@ -137,9 +142,11 @@ export function createGameSession(
   suppliedDefinition: CampaignDefinition,
   baseSeed: RandomSeed,
   restored?: GameSessionResume,
+  options: GameSessionOptions = {},
 ): GameSession {
   hashSeed(baseSeed);
   const definition = clone(suppliedDefinition);
+  const operationFactory = options.operationFactory ?? createCampaignOperation;
   let run: CampaignRun = createCampaignRun(
     definition,
     baseSeed,
@@ -285,7 +292,7 @@ export function createGameSession(
 
     const launch = run.read().launch;
     if (!launch) throw new Error("Briefing phase requires an active campaign launch.");
-    campaignOperation = createCampaignOperation(launch, harness);
+    campaignOperation = operationFactory(clone(launch), clone(harness));
     simulation = campaignOperation.simulation;
     phase = "operation";
     paused = false;
