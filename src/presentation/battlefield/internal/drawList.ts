@@ -4,12 +4,19 @@ import type {
   BattlefieldFrame,
   BattlefieldTeam,
   BattlefieldThreatFrame,
+  WorldPosition,
 } from "../battlefieldFrame";
 
 export type BattlefieldDrawActor = Readonly<{
   id: string;
+  label?: string;
   x: number;
   y: number;
+  movement: Readonly<{
+    origin: WorldPosition;
+    destination: WorldPosition;
+    progress: number;
+  }> | null;
   action: BattlefieldAction;
   facing: BattlefieldFacing;
   health: number;
@@ -62,8 +69,16 @@ export function createBattlefieldDrawList(
       const before = previousById.get(actor.id) ?? actor;
       return {
         id: actor.id,
+        ...(actor.label ? { label: actor.label } : {}),
         x: before.position.x + (actor.position.x - before.position.x) * progress,
         y: before.position.y + (actor.position.y - before.position.y) * progress,
+        movement: before.position.x !== actor.position.x || before.position.y !== actor.position.y
+          ? {
+            origin: before.position,
+            destination: actor.position,
+            progress,
+          }
+          : null,
         action: actor.action,
         facing: actor.facing,
         health: actor.health,

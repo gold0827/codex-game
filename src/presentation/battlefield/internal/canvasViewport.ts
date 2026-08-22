@@ -353,6 +353,72 @@ export function createCanvasBattlefieldViewport(
     );
   };
 
+  const drawFormationMovement = (
+    actor: ReturnType<typeof createBattlefieldDrawList>["actors"][number],
+    scale: number,
+  ): void => {
+    if (!context || !actor.movement || !actor.label || actor.movement.progress >= 1) return;
+    const origin = camera.project(actor.movement.origin);
+    const destination = camera.project(actor.movement.destination);
+    const color = actor.team === "enemy" ? "#ff8177" : "#7de1ad";
+    context.save();
+    context.globalAlpha = 0.9;
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    context.lineWidth = Math.max(2, 3 * scale);
+    context.setLineDash([Math.max(5, 8 * scale), Math.max(3, 5 * scale)]);
+    context.beginPath();
+    context.moveTo(origin.x, origin.y);
+    context.lineTo(destination.x, destination.y);
+    context.stroke();
+    context.setLineDash([]);
+    const angle = Math.atan2(destination.y - origin.y, destination.x - origin.x);
+    const arrowSize = Math.max(7, 10 * scale);
+    context.beginPath();
+    context.moveTo(destination.x, destination.y);
+    context.lineTo(
+      destination.x - Math.cos(angle - Math.PI / 6) * arrowSize,
+      destination.y - Math.sin(angle - Math.PI / 6) * arrowSize,
+    );
+    context.lineTo(
+      destination.x - Math.cos(angle + Math.PI / 6) * arrowSize,
+      destination.y - Math.sin(angle + Math.PI / 6) * arrowSize,
+    );
+    context.closePath();
+    context.fill();
+    context.restore();
+  };
+
+  const drawFormationLabel = (
+    actor: ReturnType<typeof createBattlefieldDrawList>["actors"][number],
+    scale: number,
+  ): void => {
+    if (!context || !actor.label) return;
+    const position = camera.project({ x: actor.x, y: actor.y });
+    const fontSize = Math.max(11, Math.round(12 * scale));
+    const horizontalPadding = Math.max(6, Math.round(7 * scale));
+    const width = Math.max(74, actor.label.length * fontSize + horizontalPadding * 2);
+    const height = fontSize + Math.max(7, Math.round(8 * scale));
+    const left = Math.round(position.x - width / 2);
+    const top = Math.round(position.y - 38 * scale);
+    const color = actor.team === "enemy" ? "#ff8177" : "#7de1ad";
+    context.save();
+    context.fillStyle = "rgba(5, 13, 10, 0.9)";
+    context.fillRect(left, top, width, height);
+    context.fillStyle = color;
+    context.fillRect(left, top, Math.max(4, Math.round(5 * scale)), height);
+    context.strokeStyle = color;
+    context.lineWidth = 1;
+    context.strokeRect(left, top, width, height);
+    context.fillStyle = "#f3f7f2";
+    context.font = `700 ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    const movementGlyph = actor.movement && actor.movement.progress < 1 ? "  →" : "";
+    context.fillText(`${actor.label}${movementGlyph}`, left + width / 2, top + height / 2);
+    context.restore();
+  };
+
   function draw(timestamp: number): void {
     frameHandle = null;
     if (destroyed || !context || !current) return;
@@ -406,6 +472,7 @@ export function createCanvasBattlefieldViewport(
         assetKind: prop.kind,
       })),
     ]);
+    drawList.actors.forEach((actor) => drawFormationMovement(actor, scale));
     for (const renderable of renderables) {
       if (renderable.kind === "effect") {
         const { x, y } = camera.project(renderable.position);
@@ -444,8 +511,8 @@ export function createCanvasBattlefieldViewport(
         context.ellipse(
           Math.round(x),
           Math.round(y + 5 * scale),
-          Math.max(4, 9 * scale),
-          Math.max(2, 4 * scale),
+          Math.max(6, 12 * scale),
+          Math.max(3, 5 * scale),
           0,
           0,
           Math.PI * 2,
@@ -498,6 +565,21 @@ export function createCanvasBattlefieldViewport(
       context.fillStyle = actor.health < 30 || actor.team === "enemy" ? "#ff8177" : "#7de1ad";
       context.fillRect(Math.round(x - 14 * scale), Math.round(y + 8 * scale), healthBarWidth * (actor.health / 100), healthBarHeight);
     }
+    drawList.actors.forEach((actor) => drawFormationLabel(actor, scale));
+    const enemyActors = drawList.actors.filter(({ team }) => team === "enemy");
+    if (enemyActors.length > 0) {
+      const center = enemyActors.reduce(
+        (sum, actor) => ({ x: sum.x + actor.x, y: sum.y + actor.y }),
+        { x: 0, y: 0 },
+      );
+      canvas.dataset.drawnEnemyFormationCenter = `${(center.x / enemyActors.length).toFixed(3)},${(center.y / enemyActors.length).toFixed(3)}`;
+    } else {
+      delete canvas.dataset.drawnEnemyFormationCenter;
+    }
+    canvas.dataset.enemyMovementCueCount = String(
+      enemyActors.filter(({ movement }) => movement && movement.progress < 1).length,
+    );
+    canvas.dataset.squadLabelCount = String(drawList.actors.filter(({ label }) => label).length);
     canvas.dataset.drawnThreatMarkerCount = String(drawList.threats.length);
     canvas.dataset.animationActive = String(animation.active);
     canvas.dataset.sampledOperationTimeMs = String(animation.operationTimeMs);

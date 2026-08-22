@@ -46,6 +46,7 @@ export type BattlefieldMapFrame = Readonly<{
 
 export type BattlefieldActorFrame = Readonly<{
   id: string;
+  label?: string;
   position: WorldPosition;
   action: BattlefieldAction;
   facing: BattlefieldFacing;

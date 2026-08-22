@@ -217,7 +217,6 @@ export function mountSquadBattleApp(
     snapshot.battle.squads.forEach((squad) => roster.append(renderSquad(squad)));
 
     const layout = element("div", "squad-battle-layout");
-    layout.append(battlefieldColumn, roster);
 
     const commands = element("section", "squad-battle-commands");
     commands.append(element("h2", undefined, "부대 명령"), renderOrders(snapshot, "main", "해인교 본대"));
@@ -234,6 +233,10 @@ export function mountSquadBattleApp(
     );
     commands.append(deployGroup, renderOrders(snapshot, "relief", "우회 지원대"));
 
+    const tacticalSidebar = element("aside", "squad-battle-tactical-sidebar");
+    tacticalSidebar.append(commands, roster);
+    layout.append(battlefieldColumn, tacticalSidebar);
+
     const log = element("section", "squad-battle-log");
     log.append(element("h2", undefined, "최근 전황"));
     const list = element("ol");
@@ -247,7 +250,7 @@ export function mountSquadBattleApp(
     });
     log.append(list);
 
-    shell.append(header, timeline, mission, layout, commands, log);
+    shell.append(header, timeline, mission, layout, log);
     root.replaceChildren(shell);
   }
 

@@ -18,7 +18,18 @@ const acceptance = await runChromeAcceptance(async ({ evaluate, navigate }) => {
     action('deploy-north');
     action('relief-focus-assault');
     action('speed-2');
-    await new Promise((resolve) => setTimeout(resolve, 3_200));
+    const enemyFormationSamples = new Set();
+    let enemyMovementCueObserved = false;
+    let squadLabelsObserved = false;
+    const observationDeadline = performance.now() + 8_000;
+    while (performance.now() < observationDeadline) {
+      const observedCanvas = document.querySelector('canvas.battlefield-canvas');
+      const formation = observedCanvas?.dataset.drawnEnemyFormationCenter;
+      if (formation) enemyFormationSamples.add(formation);
+      enemyMovementCueObserved ||= Number(observedCanvas?.dataset.enemyMovementCueCount ?? 0) > 0;
+      squadLabelsObserved ||= Number(observedCanvas?.dataset.squadLabelCount ?? 0) >= 3;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
     const beforePause = document.querySelector('.squad-battle-clock')?.textContent ?? '';
     action('pause');
     await new Promise((resolve) => setTimeout(resolve, 400));
@@ -27,6 +38,8 @@ const acceptance = await runChromeAcceptance(async ({ evaluate, navigate }) => {
     const main = document.querySelector('[data-squad-id="main"]');
     const relief = document.querySelector('[data-squad-id="relief"]');
     const shell = document.querySelector('.squad-battle-game');
+    const commands = document.querySelector('.squad-battle-commands');
+    const commandsVisible = Boolean(commands && commands.getBoundingClientRect().top < innerHeight);
     return {
       passed: Boolean(
         shell &&
@@ -34,6 +47,10 @@ const acceptance = await runChromeAcceptance(async ({ evaluate, navigate }) => {
         canvas?.dataset.allyActorCount === '18' &&
         canvas?.dataset.enemyActorCount === '9' &&
         Number(canvas?.dataset.drawCount ?? 0) > 0 &&
+        enemyFormationSamples.size >= 4 &&
+        enemyMovementCueObserved &&
+        squadLabelsObserved &&
+        commandsVisible &&
         main?.textContent.includes('진군') &&
         relief?.textContent.includes('집중 공격') &&
         beforePause === afterPause &&
@@ -46,6 +63,10 @@ const acceptance = await runChromeAcceptance(async ({ evaluate, navigate }) => {
       allyActorCount: canvas?.dataset.allyActorCount ?? null,
       enemyActorCount: canvas?.dataset.enemyActorCount ?? null,
       drawCount: Number(canvas?.dataset.drawCount ?? 0),
+      enemyFormationSampleCount: enemyFormationSamples.size,
+      enemyMovementCueObserved,
+      squadLabelsObserved,
+      commandsVisible,
       mainText: main?.textContent ?? null,
       reliefText: relief?.textContent ?? null,
       overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth,

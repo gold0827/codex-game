@@ -21,12 +21,17 @@ describe("squad battle battlefield projector", () => {
     expect(frame.actors.filter(({ team }) => team === "enemy")).toHaveLength(9);
     const commander = frame.actors.find(({ id }) => id === "main-0");
     expect(commander).toMatchObject({
+      label: "해인교 본대",
       action: "idle",
       facing: "east",
       team: "ally",
     });
-    expect(commander?.position.x).toBeCloseTo(7.19);
-    expect(commander?.position.y).toBeCloseTo(6.2);
+    expect(commander?.position.x).toBeCloseTo(6.45);
+    expect(commander?.position.y).toBeCloseTo(5.75);
+    expect(frame.actors.find(({ id }) => id === "enemy-assault-0")).toMatchObject({
+      label: "적 선봉대",
+      team: "enemy",
+    });
   });
 
   it("adds both reserve squads and projects real encounter health after combat", () => {

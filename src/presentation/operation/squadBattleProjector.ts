@@ -23,16 +23,16 @@ const ZONE_POSITIONS = Object.freeze({
 } satisfies Readonly<Record<ZoneId, WorldPosition>>);
 
 const SQUAD_OFFSETS = Object.freeze({
-  main: { x: -0.45, y: -0.5 },
-  relief: { x: -0.45, y: 0.5 },
-  "enemy-assault": { x: 0.45, y: -0.5 },
-  "enemy-reserve": { x: 0.45, y: 0.5 },
+  main: { x: -0.9, y: -0.75 },
+  relief: { x: -0.9, y: 0.75 },
+  "enemy-assault": { x: 0.9, y: -0.75 },
+  "enemy-reserve": { x: 0.9, y: 0.75 },
 } satisfies Readonly<Record<Squad["id"], WorldPosition>>);
 
 const SOLDIER_OFFSETS = Object.freeze([
-  { x: -0.36, y: -0.3 }, { x: 0, y: -0.3 }, { x: 0.36, y: -0.3 },
-  { x: -0.36, y: 0 }, { x: 0, y: 0 }, { x: 0.36, y: 0 },
-  { x: -0.36, y: 0.3 }, { x: 0, y: 0.3 }, { x: 0.36, y: 0.3 },
+  { x: -0.65, y: -0.5 }, { x: 0, y: -0.5 }, { x: 0.65, y: -0.5 },
+  { x: -0.65, y: 0 }, { x: 0, y: 0 }, { x: 0.65, y: 0 },
+  { x: -0.65, y: 0.5 }, { x: 0, y: 0.5 }, { x: 0.65, y: 0.5 },
 ] satisfies readonly WorldPosition[]);
 
 function action(squad: Squad, soldier: Soldier, engaged: boolean): BattlefieldAction {
@@ -70,6 +70,7 @@ export function projectSquadBattleFrame(
     );
     return squad.soldiers.map<BattlefieldActorFrame>((soldier, soldierIndex) => ({
       id: soldier.id,
+      ...(soldierIndex === 0 ? { label: squad.name } : {}),
       position: position(squad, soldierIndex),
       action: action(squad, soldier, engaged),
       facing: facing(squad),

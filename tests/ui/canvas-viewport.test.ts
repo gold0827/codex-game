@@ -113,6 +113,42 @@ describe("persistent Canvas battlefield viewport", () => {
     expect(createBattlefieldDrawList(previous, current, 200).actors[0]?.x).toBe(10);
   });
 
+  it("preserves formation labels and exposes an in-progress movement path", () => {
+    const previous = {
+      frame: {
+        ...frame(14, { operationTimeMs: 5_000, paused: false, reducedMotion: false }),
+        actors: [{
+          ...frame(14).actors[0]!,
+          id: "enemy-assault-0",
+          label: "적 선봉대",
+          team: "enemy" as const,
+        }],
+      },
+    };
+    const current = {
+      frame: {
+        ...frame(11, { operationTimeMs: 10_000, paused: false, reducedMotion: false }),
+        actors: [{
+          ...frame(11).actors[0]!,
+          id: "enemy-assault-0",
+          label: "적 선봉대",
+          team: "enemy" as const,
+        }],
+      },
+    };
+
+    expect(createBattlefieldDrawList(previous, current, 12_500).actors[0]).toMatchObject({
+      label: "적 선봉대",
+      team: "enemy",
+      x: 12.5,
+      movement: {
+        origin: { x: 14, y: 7 },
+        destination: { x: 11, y: 7 },
+        progress: 0.5,
+      },
+    });
+  });
+
   it("samples animation from operation time without advancing across a pause", () => {
     const running = { frame: frame(4, {
       operationTimeMs: 200,
