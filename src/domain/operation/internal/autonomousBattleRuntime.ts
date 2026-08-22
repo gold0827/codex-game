@@ -49,6 +49,7 @@ type FormationRuntime = {
   readonly actors: ActorRuntime[];
   intentId: string;
   guidanceId: string | null;
+  coordinationBoost: number;
 };
 
 const clamp = (value: number): number => Math.min(1, Math.max(0, value));
@@ -68,6 +69,7 @@ function assertRatio(value: number, label: string): void {
 
 function validateDefinition(definition: AutonomousBattleDefinition): void {
   assertIdentifier(definition.id, "An autonomous battle identifier");
+  assertIdentifier(definition.playerControlledSideId, "The player-controlled side identifier");
   if (!Number.isSafeInteger(definition.durationMs) || definition.durationMs <= 0) {
     throw new RangeError("An autonomous battle duration must be a positive safe integer.");
   }
@@ -126,7 +128,16 @@ function validateDefinition(definition: AutonomousBattleDefinition): void {
     });
   });
 
+  if (!definition.formations.some(({ sideId }) => sideId === definition.playerControlledSideId)) {
+    throw new RangeError("An autonomous battle must contain the player-controlled side.");
+  }
+
   const objectiveIds = new Set<string>();
+  const objectiveMeasurements = new Set([
+    "contested-delay",
+    "controlled-readiness",
+    "controlled-effective-preservation",
+  ]);
   definition.objectives.forEach((objective) => {
     assertIdentifier(objective.id, "An autonomous battle objective identifier");
     assertIdentifier(objective.label, `Objective "${objective.id}" label`);
@@ -136,6 +147,10 @@ function validateDefinition(definition: AutonomousBattleDefinition): void {
       );
     }
     objectiveIds.add(objective.id);
+    if (!objectiveMeasurements.has(objective.measurement)) {
+      throw new RangeError(`Objective "${objective.id}" has an unknown measurement.`);
+    }
+    assertRatio(objective.criterion.required, `Objective "${objective.id}" criterion`);
   });
 }
 
@@ -217,7 +232,9 @@ export function createAutonomousBattleSimulation(
   let interventionCount = 0;
   let nextEventSequence = 0;
   let resolved = false;
-  const objectiveProgress = new Map(definition.objectives.map(({ id }) => [id, 0]));
+  let contestedDelayFact = 0;
+  let controlledReadinessFact = 0;
+  let controlledPreservationFact = 0;
   const recentEvents: AutonomousBattleEvent[] = [];
   const consequences = harnessConsequences(harness);
   const formations: FormationRuntime[] = definition.formations.map((formation) => ({
@@ -228,6 +245,7 @@ export function createAutonomousBattleSimulation(
     locationId: formation.initialLocationId,
     intentId: formation.initialIntentId,
     guidanceId: null,
+    coordinationBoost: 0,
     actors: formation.actors.map((actor) => ({
       id: actor.id,
       label: actor.label,
@@ -404,12 +422,27 @@ export function createAutonomousBattleSimulation(
       behaviorId.startsWith("guidance:") || behaviorId === "feedback-repeat"
       ? 1
       : 0.45;
-    return decisionConfidence * conditionFactor * behaviorFactor;
+    return clamp(
+      decisionConfidence * conditionFactor * behaviorFactor + formation.coordinationBoost,
+    );
+  };
+
+  const objectiveFact = (
+    measurement: AutonomousBattleDefinition["objectives"][number]["measurement"],
+  ): number => {
+    if (measurement === "contested-delay") return rounded(contestedDelayFact);
+    if (measurement === "controlled-readiness") return rounded(controlledReadinessFact);
+    return rounded(controlledPreservationFact);
   };
 
   const currentObjectives = () => definition.objectives.map((objective) => {
-    const progress = rounded(objectiveProgress.get(objective.id) ?? 0);
-    const satisfied = progress >= 0.5;
+    const observed = objectiveFact(objective.measurement);
+    const satisfied = objective.criterion.comparator === "at-least"
+      ? observed >= objective.criterion.required
+      : observed <= objective.criterion.required;
+    const progress = objective.criterion.comparator === "at-least"
+      ? objective.criterion.required === 0 ? 1 : clamp(observed / objective.criterion.required)
+      : observed === 0 ? 1 : clamp(objective.criterion.required / observed);
     return {
       id: objective.id,
       label: objective.label,
@@ -417,12 +450,12 @@ export function createAutonomousBattleSimulation(
       progress,
       state: resolved ? (satisfied ? "achieved" as const : "failed" as const) : "active" as const,
       evidence: [{
-        id: `evidence:${objective.id}:progress`,
-        label: `${objective.label} 진척`,
+        id: `evidence:${objective.id}:${objective.measurement}`,
+        label: `${objective.label} 측정값`,
         kind: "number" as const,
-        observed: progress,
-        required: 0.5,
-        comparator: "at-least" as const,
+        observed,
+        required: objective.criterion.required,
+        comparator: objective.criterion.comparator,
         unit: "ratio" as const,
         satisfied,
       }],
@@ -476,15 +509,40 @@ export function createAutonomousBattleSimulation(
     const activeActors = formations.flatMap((formation) => elapsedMs >= formation.activeAtMs
       ? formation.actors.map((actor) => ({ actor, formation }))
       : []);
-    const contribution = activeActors.reduce(
-      (total, { actor, formation }) => total + decide(actor, formation),
-      0,
+    const contributions = activeActors.map(({ actor, formation }) => ({
+      sideId: formation.sideId,
+      value: decide(actor, formation),
+    }));
+    const average = (values: readonly number[]): number => values.length === 0
+      ? 0
+      : values.reduce((total, value) => total + value, 0) / values.length;
+    const controlledReadiness = average(contributions
+      .filter(({ sideId }) => sideId === definition.playerControlledSideId)
+      .map(({ value }) => value));
+    const activeActorCount = Math.max(1, contributions.length);
+    const controlledPower = contributions
+      .filter(({ sideId }) => sideId === definition.playerControlledSideId)
+      .reduce((total, { value }) => total + value, 0) / activeActorCount;
+    const opposingPressure = contributions
+      .filter(({ sideId }) => sideId !== definition.playerControlledSideId)
+      .reduce((total, { value }) => total + value, 0) / activeActorCount;
+    const controlledActors = formations
+      .filter(({ sideId }) => sideId === definition.playerControlledSideId)
+      .flatMap(({ actors }) => actors);
+    const effectivePreservation = controlledActors.length === 0 ? 0 :
+      controlledActors.filter(({ condition }) => condition === "effective").length /
+      controlledActors.length;
+    const elapsedShare = stepMs / definition.durationMs;
+    controlledReadinessFact = clamp(
+      controlledReadinessFact + controlledReadiness * elapsedShare,
     );
-    const readiness = activeActors.length === 0 ? 0 : contribution / activeActors.length;
-    const progressIncrement = readiness * (stepMs / definition.durationMs);
-    objectiveProgress.forEach((progress, objectiveId) => {
-      objectiveProgress.set(objectiveId, clamp(progress + progressIncrement));
-    });
+    contestedDelayFact = clamp(
+      contestedDelayFact + clamp(0.5 + (controlledPower - opposingPressure) * 0.5) *
+        elapsedShare,
+    );
+    controlledPreservationFact = clamp(
+      controlledPreservationFact + effectivePreservation * elapsedShare,
+    );
     if (elapsedMs >= definition.durationMs) finish();
   };
 
@@ -510,6 +568,7 @@ export function createAutonomousBattleSimulation(
         id: formation.id,
         label: formation.label,
         sideId: formation.sideId,
+        controllable: formation.sideId === definition.playerControlledSideId,
         active: elapsedMs >= formation.activeAtMs,
         locationId: formation.locationId,
         intentId: formation.intentId,
@@ -567,7 +626,7 @@ export function createAutonomousBattleSimulation(
   const rejectedIntervention = (
     intervention: AutonomousBattleIntervention,
     affected: readonly FormationRuntime[],
-    reason: "insufficient-budget" | "operation-resolved",
+    reason: "insufficient-budget" | "operation-resolved" | "formation-not-controllable",
   ): AutonomousBattleInterventionResult => structuredClone({
     snapshot: snapshot(),
     receipt: {
@@ -613,6 +672,9 @@ export function createAutonomousBattleSimulation(
     intervene(intervention) {
       const affected = validateIntervention(intervention);
       if (resolved) return rejectedIntervention(intervention, affected, "operation-resolved");
+      if (affected.some(({ sideId }) => sideId !== definition.playerControlledSideId)) {
+        return rejectedIntervention(intervention, affected, "formation-not-controllable");
+      }
       if (interventionSpent + INTERVENTION_COST > options.interventionBudget) {
         return rejectedIntervention(intervention, affected, "insufficient-budget");
       }
@@ -641,6 +703,9 @@ export function createAutonomousBattleSimulation(
           formation.guidanceId = intervention.guidanceId;
         });
       }
+      affected.forEach((formation) => {
+        formation.coordinationBoost = clamp(formation.coordinationBoost + 0.04);
+      });
       appendEvent({
         sequence: nextEventSequence++,
         atMs: elapsedMs,

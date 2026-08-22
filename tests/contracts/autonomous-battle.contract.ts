@@ -59,6 +59,9 @@ export function runAutonomousBattleContract(
       snapshot.formations.forEach((formation, formationIndex) => {
         const authored = fixture.definition.formations[formationIndex]!;
         expect(formation.label).toBe(authored.label);
+        expect(formation.controllable).toBe(
+          authored.sideId === fixture.definition.playerControlledSideId,
+        );
         formation.actors.forEach((actor, actorIndex) => {
           expect(actor).toMatchObject({
             id: authored.actors[actorIndex]!.id,
@@ -194,6 +197,29 @@ export function runAutonomousBattleContract(
       });
       expect(resolvedResult.snapshot).toEqual(beforeResolved);
       expect(resolved.snapshot()).toEqual(beforeResolved);
+    });
+
+    it("rejects intervention against a non-controllable formation atomically", () => {
+      const simulation = create("contract-owned-side");
+      const hostile = fixture.definition.formations.find(
+        ({ sideId }) => sideId !== fixture.definition.playerControlledSideId,
+      );
+      if (!hostile) throw new Error("The contract fixture needs a non-controllable formation.");
+      const before = simulation.snapshot();
+      const result = simulation.intervene({
+        kind: "set-formation-intent",
+        formationId: hostile.id,
+        intentId: "contract-hostile-intent",
+      });
+
+      expect(result.receipt).toMatchObject({
+        status: "rejected",
+        reason: "formation-not-controllable",
+        cost: 0,
+        affectedFormationIds: [hostile.id],
+      });
+      expect(result.snapshot).toEqual(before);
+      expect(simulation.snapshot()).toEqual(before);
     });
 
     it("validates all targets before an atomic formation-level intervention", () => {

@@ -103,6 +103,7 @@ export type AutonomousBattleFormationSnapshot = Readonly<{
   id: string;
   label: string;
   sideId: string;
+  controllable: boolean;
   active: boolean;
   locationId: string;
   intentId: string;
@@ -267,7 +268,7 @@ export type AutonomousBattleInterventionReceipt =
       id: string;
       kind: AutonomousBattleIntervention["kind"];
       rejectedAtMs: number;
-      reason: "insufficient-budget" | "operation-resolved";
+      reason: "insufficient-budget" | "operation-resolved" | "formation-not-controllable";
       cost: 0;
       affectedFormationIds: readonly string[];
     }>;

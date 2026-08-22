@@ -69,6 +69,7 @@ function validateDefinition(
   definition: Parameters<AutonomousBattleSimulationFactory>[0],
 ): void {
   assertIdentifier(definition.id, "Battle id");
+  assertIdentifier(definition.playerControlledSideId, "Player-controlled side id");
   if (!Number.isSafeInteger(definition.durationMs) || definition.durationMs <= 0) {
     throw new RangeError("Battle duration must be a positive safe integer.");
   }
@@ -114,6 +115,9 @@ function validateDefinition(
       assertRatio(actor.variability.decisionNoise, `Actor ${actor.id} decision noise`);
       assertRatio(actor.variability.executionNoise, `Actor ${actor.id} execution noise`);
     }
+  }
+  if (!definition.formations.some(({ sideId }) => sideId === definition.playerControlledSideId)) {
+    throw new RangeError("A battle needs a player-controlled formation.");
   }
 
   const objectiveIds = new Set<string>();
@@ -313,6 +317,7 @@ export const createMockAutonomousBattle: AutonomousBattleSimulationFactory = (
         id: formation.id,
         label: formation.label,
         sideId: formation.sideId,
+        controllable: formation.sideId === definition.playerControlledSideId,
         active: elapsedMs >= formation.activeAtMs,
         locationId: formation.locationId,
         intentId: formation.intentId,
@@ -330,17 +335,27 @@ export const createMockAutonomousBattle: AutonomousBattleSimulationFactory = (
         id: objective.id,
         label: objective.label,
         required: objective.required,
-        progress,
-        state: resolved ? "achieved" as const : "active" as const,
+        progress: objective.criterion.comparator === "at-least"
+          ? objective.criterion.required === 0 ? 1 : Math.min(1, progress / objective.criterion.required)
+          : progress === 0 ? 1 : Math.min(1, objective.criterion.required / progress),
+        state: resolved
+          ? (objective.criterion.comparator === "at-least"
+              ? progress >= objective.criterion.required
+              : progress <= objective.criterion.required)
+            ? "achieved" as const
+            : "failed" as const
+          : "active" as const,
         evidence: [{
-          id: `evidence:${objective.id}:progress`,
-          label: `${objective.label} 진척`,
+          id: `evidence:${objective.id}:${objective.measurement}`,
+          label: `${objective.label} 측정값`,
           kind: "number" as const,
           observed: progress,
-          required: 1,
-          comparator: "at-least" as const,
+          required: objective.criterion.required,
+          comparator: objective.criterion.comparator,
           unit: "ratio" as const,
-          satisfied: progress >= 1,
+          satisfied: objective.criterion.comparator === "at-least"
+            ? progress >= objective.criterion.required
+            : progress <= objective.criterion.required,
         }],
       })),
       interventionBudget: {
@@ -422,6 +437,8 @@ export const createMockAutonomousBattle: AutonomousBattleSimulationFactory = (
 
       const rejectedReason = elapsedMs >= definition.durationMs
         ? "operation-resolved" as const
+        : affected.some(({ sideId }) => sideId !== definition.playerControlledSideId)
+          ? "formation-not-controllable" as const
         : interventionSpent + 1 > options.interventionBudget
           ? "insufficient-budget" as const
           : null;

@@ -20,6 +20,7 @@ export function renderFormationsSection(
   props.formations.forEach((formation) => {
     const card = node("article", "formation-card");
     card.dataset.formationId = formation.id;
+    card.dataset.controllable = String(formation.controllable);
     card.append(
       node("strong", undefined, `${formation.label} · ${formation.status}`),
       node("p", undefined, `위치 ${formation.location} · 의도 ${formation.intent} · ${formation.actorCount}명`),
@@ -35,13 +36,13 @@ export function renderFormationsSection(
       inspect.classList.add("actor-select");
       actorList.append(inspect);
     });
-    card.append(
-      actorList,
-      renderFormationInterventions(
+    card.append(actorList);
+    if (formation.controllable) {
+      card.append(renderFormationInterventions(
         { formation, remainingBudget: props.remainingBudget },
         dispatch,
-      ),
-    );
+      ));
+    }
     formations.append(card);
   });
   return formations;

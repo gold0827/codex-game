@@ -42,11 +42,20 @@ export interface AutonomousBattleObjectiveDefinition {
   readonly id: string;
   readonly label: string;
   readonly required: boolean;
+  readonly measurement:
+    | "contested-delay"
+    | "controlled-readiness"
+    | "controlled-effective-preservation";
+  readonly criterion: Readonly<{
+    readonly comparator: "at-least" | "at-most";
+    readonly required: number;
+  }>;
 }
 
 export interface AutonomousBattleDefinition {
   readonly id: string;
   readonly durationMs: number;
+  readonly playerControlledSideId: string;
   /** Scenario-authored collections deliberately have no fixed formation or actor count. */
   readonly formations: readonly AutonomousBattleFormationDefinition[];
   readonly objectives: readonly AutonomousBattleObjectiveDefinition[];

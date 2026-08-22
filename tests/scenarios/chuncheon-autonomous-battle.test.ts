@@ -33,6 +33,7 @@ describe("춘천지구 자율 난전 시나리오", () => {
     expect(kpaFormations.flatMap(({ actors: sideActors }) => sideActors)).toHaveLength(12);
     expect(new Set(formationIds).size).toBe(formationIds.length);
     expect(new Set(actorIds).size).toBe(actorIds.length);
+    expect(definition.playerControlledSideId).toBe("rok");
   });
 
   it("모든 익명 역할에 고유 profile과 판단·실행 변동성을 명시한다", () => {
@@ -70,6 +71,11 @@ describe("춘천지구 자율 난전 시나리오", () => {
       expect.objectContaining({ id: "withdraw-with-combat-power", required: true }),
     ]);
     expect(definition.objectives.map(({ label }) => label).join(" ")).not.toMatch(/섬멸|전멸/);
+    expect(definition.objectives.map(({ measurement }) => measurement)).toEqual([
+      "contested-delay",
+      "controlled-readiness",
+      "controlled-effective-preservation",
+    ]);
   });
 
   it("초기 전투와 시간차 증원을 함께 정의한다", () => {

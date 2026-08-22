@@ -35,6 +35,11 @@ const { browserErrors, result } = await runChromeAcceptance(async ({ evaluate, n
       recentEvents: document.querySelectorAll('.event-flow-item').length,
       interventionReceipt: document.querySelector('.intervention-receipt')?.textContent ?? null,
       interventionBudget: document.querySelector('.intervention-budget')?.textContent ?? null,
+      controllableFormations: document.querySelectorAll('.formation-card[data-controllable="true"]').length,
+      hostileInterventionControls: document.querySelectorAll(
+        '.formation-card[data-controllable="false"] [data-action="set-formation-intent"], ' +
+        '.formation-card[data-controllable="false"] [data-action="issue-guidance"]',
+      ).length,
       legacyCommands: document.querySelectorAll(
         '[data-action="authorize-officer"], [data-action="route-report"], [data-action="prioritize-verification"]',
       ).length,
@@ -63,6 +68,8 @@ const passed = result?.phase === "debrief" &&
   result.operation.recentEvents > 0 &&
   result.operation.interventionReceipt?.includes("편성 개입 접수") &&
   result.operation.interventionBudget?.includes("3 / 4") &&
+  result.operation.controllableFormations === 3 &&
+  result.operation.hostileInterventionControls === 0 &&
   result.operation.legacyCommands === 0 &&
   browserErrors.length === 0;
 process.stdout.write(`${JSON.stringify({ passed, result, browserErrors })}\n`);

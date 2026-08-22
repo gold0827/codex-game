@@ -33,6 +33,7 @@ const definition = (
 ): AutonomousBattleDefinition => ({
   id: "runtime-contract-battle",
   durationMs: 2_000,
+  playerControlledSideId: "friendly",
   formations: [
     {
       id: "friendly-forward",
@@ -62,7 +63,13 @@ const definition = (
       actors: [actor("reserve-1")],
     },
   ],
-  objectives: [{ id: "hold", label: "작전 의도 유지", required: true }],
+  objectives: [{
+    id: "hold",
+    label: "작전 의도 유지",
+    required: true,
+    measurement: "controlled-readiness",
+    criterion: { comparator: "at-least", required: 0.5 },
+  }],
 });
 
 const balancedHarness: AutonomousBattleHarnessPolicies = {
@@ -101,7 +108,99 @@ const actorTrace = (snapshot: AutonomousBattleSnapshot, actorId: string) => {
   };
 };
 
+const objectiveObserved = (snapshot: AutonomousBattleSnapshot, objectiveId: string): number => {
+  const evidence = snapshot.objectives.find(({ id }) => id === objectiveId)?.evidence[0];
+  if (!evidence || evidence.kind !== "number") {
+    throw new Error(`Missing numeric evidence for ${objectiveId}.`);
+  }
+  return evidence.observed;
+};
+
 describe("autonomous battle headless runtime", () => {
+  it("rejects hostile formation intervention atomically", () => {
+    const simulation = createRuntime(definition(), "hostile-intervention");
+    const before = simulation.snapshot();
+    const result = simulation.intervene({
+      kind: "set-formation-intent",
+      formationId: "hostile-main",
+      intentId: "retreat",
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: "rejected",
+      reason: "formation-not-controllable",
+      cost: 0,
+      affectedFormationIds: ["hostile-main"],
+    });
+    expect(result.snapshot).toEqual(before);
+    expect(simulation.snapshot()).toEqual(before);
+  });
+
+  it("produces distinct side-aware objective facts from authored measurements", () => {
+    const objectives: AutonomousBattleDefinition["objectives"] = [
+      {
+        id: "delay",
+        label: "적 압력에 맞선 지연",
+        required: true,
+        measurement: "contested-delay",
+        criterion: { comparator: "at-least", required: 0.45 },
+      },
+      {
+        id: "readiness",
+        label: "아군 준비도",
+        required: true,
+        measurement: "controlled-readiness",
+        criterion: { comparator: "at-least", required: 0.55 },
+      },
+      {
+        id: "preservation",
+        label: "아군 전투력 보존",
+        required: true,
+        measurement: "controlled-effective-preservation",
+        criterion: { comparator: "at-least", required: 0.7 },
+      },
+    ];
+    const strongHostile = definition();
+    const weakHostile = structuredClone(strongHostile);
+    const weakActors = weakHostile.formations.find(({ id }) => id === "hostile-main")!
+      .actors as AutonomousBattleActorDefinition[];
+    weakActors.forEach((hostile) => {
+      (hostile.profile as { initiative: number; discipline: number; cooperation: number })
+        .initiative = 0;
+      (hostile.profile as { initiative: number; discipline: number; cooperation: number })
+        .discipline = 0;
+      (hostile.profile as { initiative: number; discipline: number; cooperation: number })
+        .cooperation = 0;
+      (hostile.variability as { decisionNoise: number; executionNoise: number }).decisionNoise = 1;
+      (hostile.variability as { decisionNoise: number; executionNoise: number }).executionNoise = 1;
+    });
+    const authoredStrong = { ...strongHostile, objectives };
+    const authoredWeak = { ...weakHostile, objectives };
+    const strong = createRuntime(authoredStrong, "side-aware", balancedHarness).advance(2_000);
+    const weak = createRuntime(authoredWeak, "side-aware", balancedHarness).advance(2_000);
+    const facts = objectives.map(({ id }) => objectiveObserved(strong, id));
+
+    expect(new Set(facts).size).toBe(3);
+    expect(objectiveObserved(strong, "delay"))
+      .toBeLessThan(objectiveObserved(weak, "delay"));
+  });
+
+  it("makes a limited formation intervention observable in later objective facts", () => {
+    const baseline = createRuntime(definition(), "coordination-effect");
+    const intervened = createRuntime(definition(), "coordination-effect");
+    const receipt = intervened.intervene({
+      kind: "issue-guidance",
+      guidanceId: "verify-and-coordinate",
+      recipientFormationIds: ["friendly-forward"],
+    }).receipt;
+    const baselineTerminal = baseline.advance(2_000);
+    const intervenedTerminal = intervened.advance(2_000);
+
+    expect(receipt.status).toBe("accepted");
+    expect(objectiveObserved(intervenedTerminal, "hold"))
+      .toBeGreaterThan(objectiveObserved(baselineTerminal, "hold"));
+  });
+
   it("is invariant to advance-call segmentation across accumulated fixed steps", () => {
     const single = createRuntime(definition(), "segmentation");
     const segmented = createRuntime(definition(), "segmentation");

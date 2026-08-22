@@ -17,6 +17,7 @@ import { chuncheonCampaign } from "../../src/scenarios/chuncheonCampaign";
 const definition: AutonomousBattleDefinition = {
   id: "adapter-battle",
   durationMs: 1_000,
+  playerControlledSideId: "rok",
   formations: [{
     id: "screen",
     label: "전방 엄호대",
@@ -47,6 +48,8 @@ const definition: AutonomousBattleDefinition = {
     id: "delay",
     label: "진격 지연",
     required: true,
+    measurement: "contested-delay",
+    criterion: { comparator: "at-least", required: 0.5 },
   }],
 };
 

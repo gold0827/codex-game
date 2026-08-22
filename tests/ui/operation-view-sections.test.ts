@@ -89,6 +89,20 @@ describe("canonical operation section renderers", () => {
     }, undefined, "issue-guidance");
   });
 
+  it("does not render intervention controls for hostile formations", () => {
+    const { operation } = operationView();
+    const section = renderFormationsSection({
+      formations: operation.formations,
+      remainingBudget: operation.interventionBudget.remaining,
+    }, vi.fn<CommandDispatcher>(), vi.fn());
+    const hostile = operation.formations.find(({ sideId }) => sideId === "kpa");
+    if (!hostile) throw new Error("The Chuncheon fixture must include a hostile formation.");
+    const card = section.querySelector<HTMLElement>(`[data-formation-id="${hostile.id}"]`)!;
+
+    expect(card.querySelector('[data-action="set-formation-intent"]')).toBeNull();
+    expect(card.querySelector('[data-action="issue-guidance"]')).toBeNull();
+  });
+
   it("renders the selected actor's ordered five-stage trace and the empty state", () => {
     const unselected = operationView().operation;
     expect(renderTraceSection(unselected.selectedActor).textContent)

@@ -4,19 +4,31 @@ import {
   compareAutonomousBattleHarnesses,
   evaluateAutonomousBattles,
 } from "../../src/application/autonomous-battle-evaluation";
+import { DEFAULT_HARNESS } from "../../src/application/campaign-operation";
 import type {
   AutonomousBattleDefinition,
   AutonomousBattleHarnessPolicies,
   AutonomousBattleSimulationFactory,
 } from "../../src/domain/operation/autonomousBattle";
+import { createAutonomousBattleSimulation } from "../../src/domain/operation/operationEngine";
+import { chuncheonAutonomousBattle } from "../../src/scenarios/chuncheonAutonomousBattle";
 
 const definition: AutonomousBattleDefinition = {
   id: "evaluation-battle",
   durationMs: 3_000,
+  playerControlledSideId: "friendly",
   formations: [],
   objectives: [
-    { id: "delay", label: "진격 지연", required: true },
-    { id: "preserve", label: "전력 보존", required: true },
+    {
+      id: "delay", label: "진격 지연", required: true,
+      measurement: "contested-delay",
+      criterion: { comparator: "at-least", required: 0.5 },
+    },
+    {
+      id: "preserve", label: "전력 보존", required: true,
+      measurement: "controlled-effective-preservation",
+      criterion: { comparator: "at-least", required: 0.7 },
+    },
   ],
 };
 
@@ -141,6 +153,39 @@ const createFakeBattle: AutonomousBattleSimulationFactory = (
 };
 
 describe("autonomous battle evaluation", () => {
+  it("reproduces a non-degenerate production Chuncheon distribution and paired harness shift", () => {
+    const seeds = [1, 2, 3];
+    const input = {
+      definition: chuncheonAutonomousBattle,
+      harness: DEFAULT_HARNESS,
+      seeds,
+      stepMs: 60_000,
+      factory: createAutonomousBattleSimulation,
+    } as const;
+    const first = evaluateAutonomousBattles(input);
+    const replay = evaluateAutonomousBattles(input);
+    const paired = compareAutonomousBattleHarnesses({
+      ...input,
+      baselineHarness: {
+        informationReach: 0.2,
+        authorityClarity: 0.2,
+        verificationDepth: 0.2,
+        feedbackCompression: 0.2,
+      },
+      comparisonHarness: DEFAULT_HARNESS,
+    });
+
+    expect(replay).toEqual(first);
+    expect(first.dispositions.map(({ count }) => count)).toEqual([2, 1]);
+    expect(first.objectives.every(({ evidence }) =>
+      evidence.every(({ observedSamples }) =>
+        new Set<unknown>(observedSamples as readonly unknown[]).size > 1),
+    )).toBe(true);
+    expect(paired.pairs.map(({ seed }) => seed)).toEqual(seeds);
+    expect(paired.pairs.some(({ objectives }) => objectives.some(({ delta }) => delta !== 0)))
+      .toBe(true);
+  });
+
   it("runs supplied seeds in order and returns outcome and objective distributions", () => {
     const result = evaluateAutonomousBattles({
       definition,

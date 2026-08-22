@@ -32,10 +32,17 @@ projector 입력은 `NonNullable<GameSnapshot["operation"]>`으로 고정된다.
 presentation은 domain을 직접 import하지 않고 arbitrary formations, actors,
 objective evidence, recent events와 선택한 actor의 정보→검증→권한→행동→피드백
 trace를 읽기 전용 view model로 바꾼다. actor 선택은 UI-local 상태다. session
-명령은 예산을 쓰는 편성 의도·지침 개입만 제공한다.
+명령은 예산을 쓰는 player-controlled 편성 의도·지침 개입만 제공한다. snapshot의
+`controllable` fact가 UI 권한을 결정하고 domain도 비통제 편성 개입을 atomic
+rejected receipt로 방어한다.
 
 Monte Carlo evaluator도 projector와 같은 terminal snapshot/result facts를 집계해
 UI 결과와 평가 결과의 의미가 갈라지지 않는다.
+
+목표는 content가 `measurement + criterion`으로 저작한다. runtime은 춘천 ID를 알지
+않고 `contested-delay`, `controlled-readiness`, `controlled-effective-preservation`
+generic fact를 계산한다. 지연 fact에서 적군 압력은 아군 기여와 반대 방향이며 다른
+두 fact는 player-controlled side만 측정한다.
 
 ## 의존 방향
 

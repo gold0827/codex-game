@@ -43,7 +43,9 @@ export function renderOperationCommandBar(
       ? `편성 개입 접수 · ${receipt.affectedFormationIds.length}개 편성 · 비용 ${receipt.cost}`
       : receipt.reason === "insufficient-budget"
         ? "편성 개입 거부 · 남은 개입 예산이 없습니다."
-        : "편성 개입 거부 · 작전이 이미 종료되었습니다.";
+        : receipt.reason === "formation-not-controllable"
+          ? "편성 개입 거부 · 통제 권한이 없는 편성입니다."
+          : "편성 개입 거부 · 작전이 이미 종료되었습니다.";
     const feedback = node(
       "p",
       `intervention-receipt intervention-${receipt.status}`,

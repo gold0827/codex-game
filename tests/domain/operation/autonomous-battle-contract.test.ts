@@ -28,6 +28,7 @@ const actor = (id: string): AutonomousBattleActorDefinition => ({
 const definition: AutonomousBattleDefinition = {
   id: "contract-battle",
   durationMs: 10_000,
+  playerControlledSideId: "friendly",
   formations: [
     {
       id: "delaying-force",
@@ -57,7 +58,13 @@ const definition: AutonomousBattleDefinition = {
       actors: [actor("reserve-1")],
     },
   ],
-  objectives: [{ id: "delay", label: "진격 지연", required: true }],
+  objectives: [{
+    id: "delay",
+    label: "진격 지연",
+    required: true,
+    measurement: "contested-delay",
+    criterion: { comparator: "at-least", required: 0.5 },
+  }],
 };
 
 const harness: AutonomousBattleHarnessPolicies = {

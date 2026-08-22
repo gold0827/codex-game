@@ -268,6 +268,7 @@ export function projectAutonomousOperation(
       id: formation.id,
       label: formation.label,
       sideId: formation.sideId,
+      controllable: formation.controllable,
       active: formation.active,
       status: formation.active ? "투입" : "대기",
       location: formation.locationId,

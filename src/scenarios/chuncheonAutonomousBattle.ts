@@ -36,6 +36,7 @@ const roleActor = (
 export const chuncheonAutonomousBattle = {
   id: "chuncheon-delay-1950-06-25",
   durationMs: 54 * 60 * 1_000,
+  playerControlledSideId: "rok",
   formations: [
     {
       id: "rok-forward-delay",
@@ -407,16 +408,22 @@ export const chuncheonAutonomousBattle = {
       id: "delay-southward-advance",
       label: "적의 춘천 남쪽 진출을 목표 시간까지 지연한다.",
       required: true,
+      measurement: "contested-delay",
+      criterion: { comparator: "at-least", required: 0.45 },
     },
     {
       id: "prepare-follow-on-defense",
       label: "후속 방어선이 전투 준비를 마칠 시간을 확보한다.",
       required: true,
+      measurement: "controlled-readiness",
+      criterion: { comparator: "at-least", required: 0.44 },
     },
     {
       id: "withdraw-with-combat-power",
       label: "방어대가 전투력을 보존해 다음 지연선으로 철수한다.",
       required: true,
+      measurement: "controlled-effective-preservation",
+      criterion: { comparator: "at-least", required: 0.75 },
     },
   ],
 } as const satisfies AutonomousBattleDefinition;
