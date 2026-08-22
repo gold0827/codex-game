@@ -42,8 +42,12 @@ Canvas 지형, 춘천 위치 anchor, generic fallback, 전투 집단·행동 주
 degraded 표현을 숨기는 깊은 Module이다. 입력은 projected operation뿐이고 공개 상호작용은
 행동 주체 열람 callback 하나뿐이다. GameSession 명령이나 intervention dispatch를 받지
 않으므로 전장 표현이 자유 명령을 되살릴 수 없다. runtime이 아직 `locationId` 전환을
-제공하지 않으므로 위치 사이의 가짜 이동도 연출하지 않고, 실제 snapshot의 투입·판단·
-상태 변화만 표시한다.
+제공하지 않으므로 위치 사이의 가짜 이동은 연출하지 않는다. 내부 choreography는 실제
+`elapsedMs`, 판단 ID·완료 시각·행동 상태, 진영과 condition만 사용해 각 위치 anchor의
+전술 footprint 안에서 자율 기동을 계산한다. 춘천의 저작된 접촉 축선에서는 서로 다른
+진영의 활성 편성 사이에 접촉선·쌍방 압박 흐름만 표시하며, target·hit·damage를 추측하지 않는다.
+같은 projected operation은 같은 위치와 효과를 만들고 reduced motion에서는 고정 자세로
+대체한다.
 
 Monte Carlo evaluator도 projector와 같은 terminal snapshot/result facts를 집계해
 UI 결과와 평가 결과의 의미가 갈라지지 않는다.
@@ -109,4 +113,5 @@ npm run check:dependencies
 
 focused tests는 세션 phase 전이, accepted/rejected 편성 개입, 임의 편성·행동 주체
 projection, workbench factory 주입 seam을 고정한다. Chrome acceptance는 Canvas draw,
-전장 크기, 통제/비통제 편성·행동 주체 투영과 actor trace 연결까지 검사한다.
+전장 크기, 통제/비통제 편성·행동 주체 투영, 두 작전 시각 사이의 actor transform 변화,
+접촉 압박·쌍방 흐름과 actor trace 연결까지 검사한다.

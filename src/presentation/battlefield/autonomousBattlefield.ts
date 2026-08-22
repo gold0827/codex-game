@@ -1,4 +1,8 @@
 import type { AutonomousOperationViewModel } from "../operation/autonomousOperationProjector";
+import {
+  planBattlefieldChoreography,
+  type BattlefieldChoreographyPlan,
+} from "./battlefieldChoreography";
 
 export type MountedAutonomousBattlefield = Readonly<{
   element: HTMLElement;
@@ -13,12 +17,8 @@ export type AutonomousBattlefieldOptions = Readonly<{
   onInspectActor: (actorId: string) => void;
 }>;
 
-type BattlefieldAnchor = Readonly<{
-  x: number;
-  y: number;
-  label: string;
-  known: boolean;
-}>;
+type BattlefieldFormationPlan = BattlefieldChoreographyPlan["formations"][number];
+type BattlefieldActorPlan = BattlefieldFormationPlan["actors"][number];
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 540;
@@ -26,37 +26,6 @@ const TILE_WIDTH = 56;
 const TILE_HEIGHT = 36;
 const MAP_COLUMNS = 16;
 const MAP_ROWS = 12;
-
-const chuncheonAnchors: Readonly<Record<string, Omit<BattlefieldAnchor, "known">>> = {
-  "north-reinforcement-route": { x: 28, y: 14, label: "북방 증원로" },
-  "north-chuncheon-axis": { x: 49, y: 18, label: "춘천 북방 축선" },
-  "east-chuncheon-route": { x: 76, y: 24, label: "춘천 동부 우회로" },
-  "oksanpo-approach": { x: 37, y: 34, label: "옥산포 접근로" },
-  "soyang-crossing-approach": { x: 61, y: 42, label: "소양강 도하 접근로" },
-  "soyang-north-bank": { x: 45, y: 49, label: "소양강 북안" },
-  "wonchang-pass": { x: 51, y: 75, label: "원창고개" },
-};
-
-function stableHash(value: string): number {
-  let hash = 2_166_136_261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16_777_619);
-  }
-  return hash >>> 0;
-}
-
-function anchorFor(locationId: string): BattlefieldAnchor {
-  const known = chuncheonAnchors[locationId];
-  if (known) return { ...known, known: true };
-  const hash = stableHash(locationId);
-  return {
-    x: 18 + hash % 65,
-    y: 18 + Math.floor(hash / 67) % 61,
-    label: `작전 지점 ${String(hash % 97 + 1).padStart(2, "0")}`,
-    known: false,
-  };
-}
 
 function behaviorLabel(behaviorId: string | null): string | null {
   if (behaviorId === null) return null;
@@ -153,6 +122,7 @@ function canvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D | nu
 
 function actorPip(
   actor: AutonomousOperationViewModel["formations"][number]["actors"][number],
+  plan: BattlefieldActorPlan,
   inspect: (actorId: string) => void,
 ): HTMLButtonElement {
   const behavior = behaviorLabel(actor.behavior);
@@ -164,6 +134,9 @@ function actorPip(
   button.dataset.condition = actor.condition;
   button.dataset.selected = String(actor.selected);
   button.dataset.behavior = actor.behavior ?? "waiting";
+  button.dataset.visualAction = plan.visualAction;
+  button.dataset.moving = String(plan.moving);
+  button.style.transform = plan.transform;
   button.setAttribute("aria-pressed", String(actor.selected));
   button.setAttribute(
     "aria-label",
@@ -183,9 +156,10 @@ function actorPip(
 
 function formationMarker(
   formation: AutonomousOperationViewModel["formations"][number],
-  anchor: BattlefieldAnchor,
+  plan: BattlefieldFormationPlan,
   inspect: (actorId: string) => void,
 ): HTMLElement {
+  const { anchor } = plan;
   const marker = document.createElement("article");
   marker.className = "battlefield-formation-marker";
   marker.dataset.formationId = formation.id;
@@ -193,6 +167,7 @@ function formationMarker(
   marker.dataset.active = String(formation.active);
   marker.dataset.locationId = formation.location;
   marker.dataset.locationKnown = String(anchor.known);
+  marker.style.transform = `translate3d(${plan.offset.x}px, ${plan.offset.y}px, 0)`;
   marker.setAttribute(
     "aria-label",
     `${formation.label} · ${anchor.label} · ${formation.status} · 행동 주체 ${formation.actorCount}명`,
@@ -206,8 +181,13 @@ function formationMarker(
   location.textContent = anchor.label;
   const actors = document.createElement("div");
   actors.className = "battlefield-actor-pips";
+  actors.style.height = `${plan.footprintHeight}px`;
   actors.setAttribute("aria-label", `${formation.label} 행동 주체`);
-  formation.actors.forEach((actor) => actors.append(actorPip(actor, inspect)));
+  const actorPlans = new Map(plan.actors.map((actor) => [actor.actorId, actor]));
+  formation.actors.forEach((actor) => {
+    const actorPlan = actorPlans.get(actor.id);
+    if (actorPlan) actors.append(actorPip(actor, actorPlan, inspect));
+  });
   marker.append(heading, location, actors);
   return marker;
 }
@@ -215,21 +195,70 @@ function formationMarker(
 function locationCluster(
   locationId: string,
   formations: readonly AutonomousOperationViewModel["formations"][number][],
+  formationPlans: ReadonlyMap<string, BattlefieldFormationPlan>,
   inspect: (actorId: string) => void,
 ): HTMLElement {
-  const anchor = anchorFor(locationId);
+  const anchor = formationPlans.get(formations[0]?.id ?? "")?.anchor;
+  if (!anchor) throw new Error(`Missing battlefield choreography for location "${locationId}".`);
   const cluster = document.createElement("section");
   cluster.className = "battlefield-location-cluster";
   cluster.dataset.locationId = locationId;
   cluster.dataset.locationKnown = String(anchor.known);
   cluster.dataset.formationCount = String(formations.length);
+  cluster.dataset.density = formations.some(({ actors }) => actors.length > 12)
+    ? "dense"
+    : "normal";
   cluster.style.left = `${Math.max(12, Math.min(88, anchor.x))}%`;
   cluster.style.top = `${Math.max(16, Math.min(84, anchor.y))}%`;
   cluster.setAttribute("aria-label", `${anchor.label} 전투 집단 ${formations.length}개`);
   formations.forEach((formation) => {
-    cluster.append(formationMarker(formation, anchor, inspect));
+    const plan = formationPlans.get(formation.id);
+    if (plan) cluster.append(formationMarker(formation, plan, inspect));
   });
   return cluster;
+}
+
+function svgNode<K extends keyof SVGElementTagNameMap>(tag: K): SVGElementTagNameMap[K] {
+  return document.createElementNS("http://www.w3.org/2000/svg", tag);
+}
+
+function renderActionEffects(
+  layer: SVGSVGElement,
+  plan: BattlefieldChoreographyPlan,
+): void {
+  const formations = new Map(plan.formations.map((formation) => [
+    formation.formationId,
+    formation,
+  ]));
+  const effects: SVGElement[] = [];
+  for (const exchange of plan.exchanges) {
+    const from = formations.get(exchange.fromFormationId);
+    const to = formations.get(exchange.toFormationId);
+    if (!from || !to) continue;
+    const line = svgNode("line");
+    line.classList.add("battlefield-action-effect", "battlefield-contact-line");
+    line.dataset.effectId = exchange.id;
+    line.dataset.effectKind = exchange.kind;
+    line.setAttribute("x1", String(from.anchor.x));
+    line.setAttribute("y1", String(from.anchor.y));
+    line.setAttribute("x2", String(to.anchor.x));
+    line.setAttribute("y2", String(to.anchor.y));
+    effects.push(line);
+    if (exchange.kind === "pressure-flow") {
+      for (const [index, progress] of [exchange.progress, 1 - exchange.progress].entries()) {
+        const pulse = svgNode("circle");
+        pulse.classList.add("battlefield-action-effect", "battlefield-pressure-pulse");
+        pulse.dataset.effectId = `${exchange.id}:pulse-${index}`;
+        pulse.dataset.effectKind = exchange.kind;
+        pulse.setAttribute("cx", String(from.anchor.x + (to.anchor.x - from.anchor.x) * progress));
+        pulse.setAttribute("cy", String(from.anchor.y + (to.anchor.y - from.anchor.y) * progress));
+        pulse.setAttribute("r", "2.1");
+        effects.push(pulse);
+      }
+    }
+  }
+  layer.replaceChildren(...effects);
+  layer.dataset.effectCount = String(effects.length);
 }
 
 export function mountAutonomousBattlefield(
@@ -253,7 +282,13 @@ export function mountAutonomousBattlefield(
   const overlay = document.createElement("div");
   overlay.className = "battlefield-formation-overlay";
   overlay.dataset.region = "battlefield-overlay";
-  element.append(canvas, overlay);
+  const effects = svgNode("svg");
+  effects.classList.add("battlefield-effect-layer");
+  effects.dataset.region = "battlefield-effects";
+  effects.setAttribute("viewBox", "0 0 100 100");
+  effects.setAttribute("preserveAspectRatio", "none");
+  effects.setAttribute("aria-hidden", "true");
+  element.append(canvas, effects, overlay);
 
   let destroyed = false;
   let drawCount = 0;
@@ -283,6 +318,7 @@ export function mountAutonomousBattlefield(
   ): void => {
     if (destroyed) return;
     element.dataset.reducedMotion = String(reducedMotion);
+    element.dataset.motionState = reducedMotion ? "reduced" : operation === null ? "idle" : "active";
     updateCounts(operation);
     if (canvasReady && context !== null) {
       try {
@@ -299,6 +335,21 @@ export function mountAutonomousBattlefield(
         document.activeElement.classList.contains("battlefield-actor-pip")
       ? document.activeElement.dataset.actorId ?? null
       : null;
+    const choreography = operation === null
+      ? null
+      : planBattlefieldChoreography(operation, reducedMotion);
+    if (choreography === null) {
+      effects.replaceChildren();
+      effects.dataset.effectCount = "0";
+      element.dataset.exchangeCount = "0";
+      element.dataset.contactCount = "0";
+    } else {
+      renderActionEffects(effects, choreography);
+      element.dataset.exchangeCount = String(choreography.exchanges.length);
+      element.dataset.contactCount = String(
+        choreography.exchanges.filter(({ kind }) => kind === "contact-pressure").length,
+      );
+    }
     const clusterScrollPositions = new Map(
       [...overlay.querySelectorAll<HTMLElement>(".battlefield-location-cluster")]
         .map((cluster) => [cluster.dataset.locationId ?? "", cluster.scrollTop] as const),
@@ -312,8 +363,11 @@ export function mountAutonomousBattlefield(
       formations.push(formation);
       formationsByLocation.set(formation.location, formations);
     }
+    const formationPlans = new Map(
+      choreography?.formations.map((formation) => [formation.formationId, formation]) ?? [],
+    );
     const clusters = [...formationsByLocation.entries()].map(([locationId, formations]) =>
-      locationCluster(locationId, formations, options.onInspectActor));
+      locationCluster(locationId, formations, formationPlans, options.onInspectActor));
     overlay.replaceChildren(...clusters);
     for (const cluster of clusters) {
       cluster.scrollTop = clusterScrollPositions.get(cluster.dataset.locationId ?? "") ?? 0;
@@ -327,7 +381,7 @@ export function mountAutonomousBattlefield(
       "aria-label",
       operation === null
         ? "춘천지구 자율 난전 전장 · 작전 대기"
-        : `춘천지구 자율 난전 전장 · 전투 집단 ${operation.formations.length}개 · 행동 주체 ${operation.formations.reduce((total, formation) => total + formation.actors.length, 0)}명`,
+        : `춘천지구 자율 난전 전장 · 전투 집단 ${operation.formations.length}개 · 행동 주체 ${operation.formations.reduce((total, formation) => total + formation.actors.length, 0)}명 · 교전 압박 ${element.dataset.contactCount}개`,
     );
   };
 
@@ -340,11 +394,14 @@ export function mountAutonomousBattlefield(
       if (destroyed) return;
       destroyed = true;
       overlay.replaceChildren();
+      effects.replaceChildren();
       element.dataset.visualState = "destroyed";
       element.dataset.formationCount = "0";
       element.dataset.actorCount = "0";
       element.dataset.controlledFormationCount = "0";
       element.dataset.uncontrolledFormationCount = "0";
+      element.dataset.exchangeCount = "0";
+      element.dataset.contactCount = "0";
     },
   };
 }

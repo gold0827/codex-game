@@ -29,6 +29,24 @@ const { browserErrors, result } = await runChromeAcceptance(async ({ evaluate, n
       5_000,
       'the rendered battlefield canvas',
     );
+    const actorTransformsBefore = new Map(
+      [...document.querySelectorAll('.battlefield-actor-pip')]
+        .map((actor) => [actor.dataset.actorId, actor.style.transform]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    const actorMotionChanges = [...document.querySelectorAll('.battlefield-actor-pip')]
+      .filter((actor) => actorTransformsBefore.get(actor.dataset.actorId) !== actor.style.transform)
+      .length;
+    const actionEffectCount = document.querySelectorAll('.battlefield-action-effect').length;
+    const contactPressureEffectCount = document.querySelectorAll(
+      '[data-effect-kind="contact-pressure"]',
+    ).length;
+    const pressureFlowEffectCount = document.querySelectorAll(
+      '[data-effect-kind="pressure-flow"]',
+    ).length;
+    const battlefieldExchangeCount = Number(
+      document.querySelector('[data-region="battlefield"]')?.dataset.exchangeCount ?? 0,
+    );
     const guidanceInput = document.querySelector('[aria-label$="하네스 지침"]');
     const formationDock = document.querySelector('.formation-dock-list');
     if (guidanceInput) {
@@ -95,6 +113,11 @@ const { browserErrors, result } = await runChromeAcceptance(async ({ evaluate, n
       battlefieldDrawCount: Number(battlefieldCanvas?.dataset.drawCount ?? 0),
       battlefieldColorSamples: battlefieldColors.size,
       battlefieldOpaqueSamples,
+      actorMotionChanges,
+      actionEffectCount,
+      contactPressureEffectCount,
+      pressureFlowEffectCount,
+      battlefieldExchangeCount,
       guidanceDraftPreserved,
       guidanceFocusPreserved,
       dockScrollPreserved,
@@ -153,6 +176,11 @@ const passed = result?.phase === "debrief" &&
   result.operation.battlefieldDrawCount > 0 &&
   result.operation.battlefieldColorSamples > 4 &&
   result.operation.battlefieldOpaqueSamples > 0 &&
+  result.operation.actorMotionChanges > 0 &&
+  result.operation.actionEffectCount > 0 &&
+  result.operation.contactPressureEffectCount > 0 &&
+  result.operation.pressureFlowEffectCount > 0 &&
+  result.operation.battlefieldExchangeCount > 0 &&
   result.operation.guidanceDraftPreserved === true &&
   result.operation.guidanceFocusPreserved === true &&
   result.operation.dockScrollPreserved === true &&
