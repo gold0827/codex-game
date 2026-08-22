@@ -76,3 +76,10 @@ export {
   type CampaignKeyValueStore,
   type CampaignRepository,
 } from "./repository";
+export type {
+  AutonomousBattleActorDefinition,
+  AutonomousBattleDefinition,
+  AutonomousBattleFormationDefinition,
+  AutonomousBattleFormationEntry,
+  AutonomousBattleObjectiveDefinition,
+} from "./autonomousBattleDefinition";

@@ -159,8 +159,10 @@ factory를 주입하지 않으면 기존 `createCampaignOperation` adapter가 �
 내부를 수정하지 않고 app composition에서 factory만 교체한다. launch와 harness는
 factory 경계에서 복제되며 새 시도와 새 게임마다 새 operation을 조립한다.
 
-가변 자율 난전 구현을 위한 domain 경계는 `AutonomousBattleSimulationFactory`다.
-`AutonomousBattleDefinition.formations[].actors`가 편성의 유일한 크기 원본이므로 이
+시나리오가 작성하는 `AutonomousBattleDefinition`은 `domain/campaign`이 소유하고,
+가변 자율 난전 구현 경계인 `AutonomousBattleSimulationFactory`는
+`domain/operation`이 소유한다. `AutonomousBattleDefinition.formations[].actors`가
+편성의 유일한 크기 원본이므로 이
 계약에는 36명, 4개 부대, 9인 분대 같은 고정 개수가 없다. 각 행동 주체는 고유
 profile과 판단·실행 변동성을 가지며 factory는 scenario definition, seed와 네 하네스
 정책을 입력받는다. runtime 입력은 전투 집단 의도와 하네스 지침을 표현하는 제한적
@@ -263,7 +265,7 @@ game session이나 operation을 import하지 않는다.
 | `authoring` | campaign document와 workshop | `src/authoring/` |
 | `content` | 배포용 해인교 시제품과 확장용 장면 콘텐츠 | `src/scenarios/` |
 | `domain/operation` | clock, deterministic random, 전장 계약과 작전 규칙 | `src/domain/operation/`, `src/simulation/` |
-| `domain/campaign` | campaign type, parse, validate, progress, repository seam | `src/campaign/` |
+| `domain/campaign` | campaign과 전투 정의 type, parse, validate, progress, repository seam | `src/campaign/` |
 
 현재 경로명이 module명과 다른 경우에도 표의 책임이 기준이다. 예를 들어
 `src/ui/GameApp.ts`는 presentation mount adapter이고,
@@ -278,7 +280,7 @@ game session이나 operation을 import하지 않는다.
 | --- | --- | --- | --- | --- |
 | campaign 콘텐츠·parse·validation | [Module 책임과 현재 경로](#module-책임과-현재-경로) | `src/campaign/index.ts` · `parseCampaignJson`, `validateCampaignDefinition`; `src/scenarios/` | `npx vitest run tests/campaign/campaign-parsing.test.ts tests/campaign/campaign.test.ts` | `npm run build && npm run check:dependencies` |
 | operation 규칙·장교 판단·두 부대 난전·결과 | [실행 배선](#실행-배선) | `src/domain/operation/operationEngine.ts` · `createOperationSimulation`, `createSquadBattle` | `npx vitest run tests/simulation/operation-simulation.test.ts tests/domain/operation/squad-battle.test.ts` | `npm run test:monte-carlo && npm run simulate:squad-battle` |
-| 새 가변 자율 난전 adapter | [Public interface](#public-interface) | `src/domain/operation/autonomousBattle.ts` · `AutonomousBattleSimulationFactory`; `tests/contracts/autonomous-battle.contract.ts` | `npx vitest run tests/domain/operation/autonomous-battle-contract.test.ts` | `npm run build && npm run check:dependencies` |
+| 새 가변 자율 난전 definition·adapter | [Public interface](#public-interface) | `src/campaign/autonomousBattleDefinition.ts` · `AutonomousBattleDefinition`; `src/domain/operation/autonomousBattle.ts` · `AutonomousBattleSimulationFactory`; `tests/contracts/autonomous-battle.contract.ts` | `npx vitest run tests/domain/operation/autonomous-battle-contract.test.ts` | `npm run build && npm run check:dependencies` |
 | game session·campaign 진행 | [Public interface](#public-interface) | `src/application/game-session/index.ts` · `createGameSession`, `GameSession`; `src/application/squad-battle-session.ts` · `createSquadBattleSession` | `npx vitest run tests/game/game-session.test.ts tests/game/game-session-flow.test.ts tests/application/squad-battle-session.test.ts` | `npm run build && npm run check:dependencies` |
 | presentation·battlefield projection/rendering | [실행 배선](#실행-배선) | `src/presentation/operation/squadBattleProjector.ts` · `projectSquadBattleFrame`; `src/presentation/battlefield/canvasBattlefield.ts` · `mountCanvasBattlefield` | `npx vitest run tests/ui/squad-battle-projector.test.ts tests/ui/squad-battle-app.test.ts tests/ui/canvas-viewport.test.ts` | `npm run build && node tests/fixtures/run-squad-battle-chrome.mjs` |
 | authoring·`CampaignRepository` | [Public interface](#public-interface) | `src/authoring/campaign-workshop/index.ts` · `createCampaignDocument`, `mountCampaignWorkshop`; `src/campaign/repository.ts` · `CampaignRepository` | `npx vitest run tests/campaign/campaign-repository.test.ts tests/ui/campaign-editor.test.ts` | `npm run build && npm run check:dependencies` |
