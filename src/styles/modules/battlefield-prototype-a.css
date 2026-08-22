@@ -147,11 +147,6 @@
   filter: drop-shadow(0 4px 3px rgb(0 0 0 / 38%));
 }
 
-.battlefield-prototype-a .prototype-a-formation[data-marching="true"] {
-  animation: prototype-a-formation-march var(--prototype-a-march-duration) ease-in-out infinite alternate;
-  animation-delay: var(--prototype-a-march-delay);
-}
-
 .battlefield-prototype-a .prototype-a-formation[data-marching="true"]::after {
   position: absolute;
   top: 27px;
@@ -392,11 +387,6 @@
   to { stroke-dashoffset: -5.9; }
 }
 
-@keyframes prototype-a-formation-march {
-  from { translate: var(--prototype-a-march-from-x) var(--prototype-a-march-from-y); }
-  to { translate: var(--prototype-a-march-x) var(--prototype-a-march-y); }
-}
-
 @keyframes prototype-a-march-dust {
   from { opacity: 0.18; scale: 0.76; translate: -58% 0; }
   to { opacity: 0.56; scale: 1.12; translate: -42% 4px; }
@@ -425,7 +415,6 @@
 @media (prefers-reduced-motion: reduce) {
   .battlefield-prototype-a .prototype-a-pressure-line,
   .battlefield-prototype-a .prototype-a-smoke,
-  .battlefield-prototype-a .prototype-a-formation,
   .battlefield-prototype-a .prototype-a-formation::after,
   .battlefield-prototype-a .prototype-a-standard-cloth,
   .battlefield-prototype-a .prototype-a-soldier,

@@ -30,6 +30,22 @@ function stableHash(value: string): number {
   return hash >>> 0;
 }
 
+function tacticalManeuverOffset(
+  formationId: string,
+  elapsedMs: number,
+  direction: number,
+): Readonly<{ x: number; y: number }> {
+  const hash = stableHash(formationId);
+  const durationMs = 4_600 + hash % 900;
+  const phase = ((elapsedMs + hash) % durationMs) / durationMs;
+  const forward = phase < 0.5 ? phase * 4 - 1 : 3 - phase * 4;
+  const lateral = Math.sin(phase * Math.PI * 2 + hash % 11) * (10 + hash % 7);
+  return {
+    x: lateral,
+    y: forward * direction * (48 + hash % 13),
+  };
+}
+
 function terrainLayer(): SVGSVGElement {
   const layer = svg("svg", {
     class: "prototype-a-terrain",
@@ -162,29 +178,18 @@ function formationLine(
   formationElement.dataset.formationId = formation.id;
   formationElement.dataset.side = formation.controllable ? "friendly" : "hostile";
   formationElement.dataset.active = String(formation.active);
-  formationElement.dataset.marching = String(
-    choreography?.actors.some(({ moving }) => moving) ?? false,
-  );
+  // Active means the formation is already operating inside this location's tactical footprint.
+  // The prototype makes that local maneuver readable without inventing a location transition.
+  formationElement.dataset.marching = String(formation.active);
   formationElement.style.left = `${x}%`;
   formationElement.style.top = `${y}%`;
   formationElement.style.setProperty("--prototype-a-rotation", `${rotation}deg`);
   formationElement.style.setProperty("--prototype-a-cluster-offset", `${clusterIndex * 18}px`);
   const marchDirection = formation.controllable ? -1 : 1;
-  const hash = stableHash(formation.id);
-  const marchX = ((hash % 7) - 3) * 2;
-  const marchY = marchDirection * (16 + hash % 9);
-  formationElement.style.setProperty("--prototype-a-march-from-x", `${marchX * -0.42}px`);
-  formationElement.style.setProperty("--prototype-a-march-from-y", `${marchY * -0.42}px`);
-  formationElement.style.setProperty("--prototype-a-march-x", `${marchX}px`);
-  formationElement.style.setProperty("--prototype-a-march-y", `${marchY}px`);
-  formationElement.style.setProperty(
-    "--prototype-a-march-duration",
-    `${5_400 + hash % 2_400}ms`,
-  );
-  formationElement.style.setProperty(
-    "--prototype-a-march-delay",
-    `${-((elapsedMs + hash) % 7_800)}ms`,
-  );
+  const maneuver = formation.active
+    ? tacticalManeuverOffset(formation.id, elapsedMs, marchDirection)
+    : { x: 0, y: 0 };
+  formationElement.style.translate = `${maneuver.x.toFixed(2)}px ${maneuver.y.toFixed(2)}px`;
   formationElement.setAttribute(
     "aria-label",
     `${formation.label} · ${formation.status} · 행동 주체 ${formation.actorCount}명`,
@@ -263,6 +268,9 @@ export function renderBattlefieldPrototypeVariantA(
   operation: AutonomousOperationViewModel,
   onInspectActor: (id: string) => void,
 ): HTMLElement {
+  // The Chuncheon prototype runs operation time at 60 simulated milliseconds per real millisecond.
+  // Normalize only the disposable visual choreography so movement remains legible at 1x speed.
+  const visualElapsedMs = operation.clock.elapsedMs / 60;
   const root = document.createElement("section");
   root.className = "battlefield-prototype battlefield-prototype-a";
   root.dataset.region = "battlefield-prototype";
@@ -301,7 +309,7 @@ export function renderBattlefieldPrototypeVariantA(
       (formation.controllable ? -7 : 7) + (hash % 9) - 4,
       clusterIndex,
       plan,
-      operation.clock.elapsedMs,
+      visualElapsedMs,
       onInspectActor,
     );
   });
