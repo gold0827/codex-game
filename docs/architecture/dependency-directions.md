@@ -164,14 +164,26 @@ factory 경계에서 복제되며 새 시도와 새 게임마다 새 operation�
 `domain/operation`이 소유한다. `AutonomousBattleDefinition.formations[].actors`가
 편성의 유일한 크기 원본이므로 이
 계약에는 36명, 4개 부대, 9인 분대 같은 고정 개수가 없다. 각 행동 주체는 고유
-profile과 판단·실행 변동성을 가지며 factory는 scenario definition, seed와 네 하네스
-정책을 입력받는다. runtime 입력은 전투 집단 의도와 하네스 지침을 표현하는 제한적
-`intervene`뿐이고 개별 행동 주체 직접 조작은 public interface 밖에 있다.
+profile과 판단·실행 변동성을 가진다. factory options는 seed, 네 하네스 정책과
+예외 개입 예산을 한 번에 받으며 seed 값 자체는 snapshot에 노출하지 않는다.
+
+canonical snapshot은 running/resolved resolution, 하네스 정책과 현재 consequence,
+임의 편성 안의 행동 주체, 목표별 상태와 player-facing scalar evidence, 개입 예산과
+bounded recent event window를 함께 소유한다. 행동 주체는 최신 판단 하나에서
+information → verification → authority → action → feedback의 명명된 trace만
+보여준다. random roll, 내부 queue, 행동 점수, 과거 전체 trace는 runtime
+implementation에 남는다.
+
+runtime 입력은 전투 집단 의도와 하네스 지침을 표현하는 제한적 `intervene`뿐이고
+개별 행동 주체 직접 조작은 public interface 밖에 있다. `intervene`는 변경 snapshot과
+accepted receipt를 원자적으로 반환한다. 예산 부족이나 종료 후 요청은 state를 바꾸지
+않고 rejected receipt를 반환하며, 잘못된 형식이나 존재하지 않는 편성 참조만 예외다.
 
 이 domain 계약은 아직 production composition에 연결되지 않았다. 테스트 전용 mock이
-재사용 가능한 contract suite를 실행해 비대칭 편성 보존, 같은 seed 재현, 다른 seed의
-확률 궤적, snapshot 격리와 잘못된 입력 거부를 검증한다. 실제 난전 runtime은 같은
-suite를 통과한 뒤 별도 application adapter에서 `CampaignOperationFactory`로 번역한다.
+재사용 가능한 contract suite를 실행해 비대칭 편성, trace 순서·참조, ratio와 evidence,
+resolution, event window, atomic receipt, 입력·출력 격리, 같은 seed 재현과 다른 seed의
+확률 궤적을 검증한다. 실제 난전 runtime은 같은 suite를 통과한 뒤 별도 application
+adapter에서 `CampaignOperationFactory`로 번역한다.
 
 ## Public interface
 
@@ -195,14 +207,18 @@ type CampaignOperationFactory = (
 
 type AutonomousBattleSimulationFactory = (
   definition: AutonomousBattleDefinition,
-  seed: RandomSeed,
-  harness: AutonomousBattleHarnessPolicies,
+  options: {
+    seed: RandomSeed;
+    harness: AutonomousBattleHarnessPolicies;
+    interventionBudget: number;
+  },
 ) => AutonomousBattleSimulation;
 ```
 
-첫 interface는 campaign application이 소비하는 조립 port이고, 두 번째 interface는
-전투 domain adapter가 구현하는 port다. 둘 사이의 snapshot·result 변환은 이후의
-application adapter 한 곳이 소유한다.
+첫 interface는 campaign application이 소비하는 조립 seam이고, 두 번째 interface는
+전투 domain Adapter가 구현하는 in-process seam이다. `AutonomousBattleSimulation`은
+`snapshot`, `advance`, `intervene` 세 동작만 공개하며 두 factory 사이의
+snapshot·result 변환은 이후의 application Adapter 한 곳이 소유한다.
 
 두 부대 난전은 브라우저 session과 headless CLI가 같은 domain facade를 실행한다.
 

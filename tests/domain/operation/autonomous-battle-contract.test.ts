@@ -70,4 +70,5 @@ const harness: AutonomousBattleHarnessPolicies = {
 runAutonomousBattleContract("mock adapter", createMockAutonomousBattle, {
   definition,
   harness,
+  interventionBudget: 4,
 });
