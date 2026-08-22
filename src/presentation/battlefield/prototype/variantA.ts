@@ -138,6 +138,7 @@ function actorToken(
   actor: OperationActor,
   choreography: ActorChoreography | undefined,
   elapsedMs: number,
+  engaged: boolean,
   inspect: (actorId: string) => void,
 ): HTMLButtonElement {
   const token = document.createElement("button");
@@ -149,6 +150,7 @@ function actorToken(
   token.dataset.behavior = actor.behavior ?? "waiting";
   token.dataset.moving = String(choreography?.moving ?? false);
   token.dataset.action = choreography?.visualAction ?? "waiting";
+  token.dataset.engaged = String(engaged);
   token.style.setProperty(
     "--prototype-a-step-delay",
     `${-((elapsedMs + stableHash(actor.id)) % 1_200)}ms`,
@@ -171,6 +173,7 @@ function formationLine(
   clusterIndex: number,
   choreography: FormationChoreography | undefined,
   elapsedMs: number,
+  engaged: boolean,
   inspect: (actorId: string) => void,
 ): HTMLElement {
   const formationElement = document.createElement("article");
@@ -180,13 +183,14 @@ function formationLine(
   formationElement.dataset.active = String(formation.active);
   // Active means the formation is already operating inside this location's tactical footprint.
   // The prototype makes that local maneuver readable without inventing a location transition.
-  formationElement.dataset.marching = String(formation.active);
+  formationElement.dataset.marching = String(formation.active && !engaged);
+  formationElement.dataset.engaged = String(engaged);
   formationElement.style.left = `${x}%`;
   formationElement.style.top = `${y}%`;
   formationElement.style.setProperty("--prototype-a-rotation", `${rotation}deg`);
   formationElement.style.setProperty("--prototype-a-cluster-offset", `${clusterIndex * 18}px`);
   const marchDirection = formation.controllable ? -1 : 1;
-  const maneuver = formation.active
+  const maneuver = formation.active && !engaged
     ? tacticalManeuverOffset(formation.id, elapsedMs, marchDirection)
     : { x: 0, y: 0 };
   formationElement.style.translate = `${maneuver.x.toFixed(2)}px ${maneuver.y.toFixed(2)}px`;
@@ -206,7 +210,7 @@ function formationLine(
   label.textContent = formation.label;
   const status = document.createElement("span");
   status.className = "prototype-a-formation-status";
-  status.textContent = formation.status;
+  status.textContent = engaged ? "교전" : formation.status;
   standard.append(pole, flag, label, status);
 
   const regiment = document.createElement("div");
@@ -214,7 +218,7 @@ function formationLine(
   regiment.style.setProperty("--prototype-a-count", String(Math.max(1, formation.actors.length)));
   formation.actors.forEach((actor, index) => {
     const actorPlan = choreography?.actors.find(({ actorId }) => actorId === actor.id);
-    const token = actorToken(actor, actorPlan, elapsedMs, inspect);
+    const token = actorToken(actor, actorPlan, elapsedMs, engaged, inspect);
     const hash = stableHash(actor.id);
     const spread = formation.actors.length <= 1 ? 0 : index / (formation.actors.length - 1) - 0.5;
     token.style.setProperty("--prototype-a-position", String(index));
@@ -294,6 +298,11 @@ export function renderBattlefieldPrototypeVariantA(
   );
   const locationCounts = new Map<string, number>();
   const positions = new Map<string, Readonly<{ x: number; y: number }>>();
+  const engagedFormationIds = new Set(
+    choreography.exchanges
+      .filter(({ kind }) => kind === "contact-pressure")
+      .flatMap(({ fromFormationId, toFormationId }) => [fromFormationId, toFormationId]),
+  );
   const formations = operation.formations.map((formation) => {
     const plan = planByFormation.get(formation.id);
     const clusterIndex = locationCounts.get(formation.location) ?? 0;
@@ -310,6 +319,7 @@ export function renderBattlefieldPrototypeVariantA(
       clusterIndex,
       plan,
       visualElapsedMs,
+      engagedFormationIds.has(formation.id),
       onInspectActor,
     );
   });
