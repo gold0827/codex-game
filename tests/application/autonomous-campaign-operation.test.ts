@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  createAutonomousCampaignOperationFactory,
-  createProductionAutonomousCampaignOperationFactory,
-} from "../../src/application/autonomous-campaign-operation";
+  createCampaignOperationFactory,
+  createProductionCampaignOperationFactory,
+} from "../../src/application/campaign-operation";
 import { createCampaignRun, type OperationLaunch } from "../../src/campaign";
 import type {
   AutonomousBattleDefinition,
@@ -12,7 +12,7 @@ import type {
   AutonomousBattleSimulationFactory,
   AutonomousBattleSnapshot,
 } from "../../src/domain/operation/operationEngine";
-import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { chuncheonCampaign } from "../../src/scenarios/chuncheonCampaign";
 
 const definition: AutonomousBattleDefinition = {
   id: "adapter-battle",
@@ -58,7 +58,7 @@ const harness: AutonomousBattleHarnessPolicies = {
 };
 
 function launch(): OperationLaunch {
-  const current = createCampaignRun(completeCampaign, "campaign-adapter-seed").read().launch;
+  const current = createCampaignRun(chuncheonCampaign, "campaign-adapter-seed").read().launch;
   if (!current) throw new Error("The campaign fixture must provide an operation launch.");
   return current;
 }
@@ -149,7 +149,7 @@ describe("autonomous campaign operation Adapter", () => {
     const controlled = controlledFactory();
     const suppliedLaunch = launch();
     const suppliedHarness = structuredClone(harness);
-    const createOperation = createAutonomousCampaignOperationFactory(
+    const createOperation = createCampaignOperationFactory(
       definition,
       controlled.factory,
     );
@@ -182,7 +182,7 @@ describe("autonomous campaign operation Adapter", () => {
     const controlled = controlledFactory();
     const suppliedLaunch = structuredClone(launch());
     const expectedLesson = suppliedLaunch.scene.copy.lesson;
-    const operation = createAutonomousCampaignOperationFactory(
+    const operation = createCampaignOperationFactory(
       definition,
       controlled.factory,
     )(suppliedLaunch, harness);
@@ -206,7 +206,7 @@ describe("autonomous campaign operation Adapter", () => {
     });
 
     const failed = controlledFactory();
-    const failedOperation = createAutonomousCampaignOperationFactory(
+    const failedOperation = createCampaignOperationFactory(
       definition,
       failed.factory,
     )(launch(), harness);
@@ -219,7 +219,7 @@ describe("autonomous campaign operation Adapter", () => {
   });
 
   it("binds the production canonical runtime behind the same Interface", () => {
-    const createOperation = createProductionAutonomousCampaignOperationFactory(definition);
+    const createOperation = createProductionCampaignOperationFactory(definition);
     const operation = createOperation(launch(), harness);
 
     expect(operation.read()).toMatchObject({
@@ -242,7 +242,7 @@ describe("autonomous campaign operation Adapter", () => {
       ...snapshot(),
       battleId: "foreign-battle",
     });
-    const operation = createAutonomousCampaignOperationFactory(
+    const operation = createCampaignOperationFactory(
       definition,
       foreign.factory,
     )(launch(), harness);

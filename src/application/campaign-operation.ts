@@ -3,22 +3,52 @@ import type {
   OperationLaunch,
   OperationResult,
 } from "../campaign/campaignRun";
-import { createOperationSimulation } from "../domain/operation/operationEngine";
-import type {
-  HarnessConfiguration,
-  OperationSimulation,
-  OperationSnapshot,
-} from "../simulation/simulationTypes";
+import {
+  createAutonomousBattleSimulation,
+  type AutonomousBattleDefinition,
+  type AutonomousBattleHarnessPolicies,
+  type AutonomousBattleIntervention,
+  type AutonomousBattleInterventionResult,
+  type AutonomousBattleSimulationFactory,
+  type AutonomousBattleSnapshot,
+} from "../domain/operation/operationEngine";
+
+export const DEFAULT_HARNESS: AutonomousBattleHarnessPolicies = Object.freeze({
+  informationReach: 0.68,
+  authorityClarity: 0.72,
+  verificationDepth: 0.68,
+  feedbackCompression: 0.7,
+});
 
 export type CampaignOperation = Readonly<{
-  simulation: OperationSimulation;
+  read: () => AutonomousBattleSnapshot;
+  advance: (deltaMs: number) => AutonomousBattleSnapshot;
+  intervene: (
+    intervention: AutonomousBattleIntervention,
+  ) => AutonomousBattleInterventionResult;
   result: () => OperationResult;
 }>;
 
 export type CampaignOperationFactory = (
   launch: OperationLaunch,
-  harness: HarnessConfiguration,
+  harness: AutonomousBattleHarnessPolicies,
 ) => CampaignOperation;
+
+function clone<Value>(value: Value): Value {
+  return structuredClone(value);
+}
+
+function assertBattle(
+  snapshot: AutonomousBattleSnapshot,
+  battleId: string,
+): AutonomousBattleSnapshot {
+  if (snapshot.battleId !== battleId) {
+    throw new RangeError(
+      `Autonomous operation snapshot "${snapshot.battleId}" does not belong to battle "${battleId}".`,
+    );
+  }
+  return snapshot;
+}
 
 function lessonChoices(launch: OperationLaunch): OfficerLesson[] {
   return launch.officers.map(({ id: officerId }) => ({
@@ -28,41 +58,52 @@ function lessonChoices(launch: OperationLaunch): OfficerLesson[] {
   }));
 }
 
-function terminalResult(
-  launch: OperationLaunch,
-  snapshot: OperationSnapshot,
-): OperationResult {
-  if (snapshot.status === "running" || snapshot.outcomeId === null) {
-    throw new RangeError("An operation result is only available after the operation terminates.");
-  }
-  if (snapshot.sceneId !== launch.scene.identity.id) {
-    throw new RangeError("The operation snapshot does not belong to its campaign launch.");
-  }
-  return {
-    sceneId: snapshot.sceneId,
-    status: snapshot.status,
-    outcomeId: snapshot.outcomeId,
-    lessonChoices: snapshot.status === "success" ? lessonChoices(launch) : [],
+export function createCampaignOperationFactory(
+  suppliedDefinition: AutonomousBattleDefinition,
+  simulationFactory: AutonomousBattleSimulationFactory,
+): CampaignOperationFactory {
+  const definition = clone(suppliedDefinition);
+
+  return (suppliedLaunch, suppliedHarness) => {
+    const launch = clone(suppliedLaunch);
+    const simulation = simulationFactory(clone(definition), {
+      seed: launch.seed,
+      harness: clone(suppliedHarness),
+      interventionBudget: launch.scene.gameplayTuning.interventionBudget,
+    });
+    const read = (): AutonomousBattleSnapshot =>
+      assertBattle(simulation.snapshot(), definition.id);
+
+    return {
+      read,
+      advance: (deltaMs) => assertBattle(simulation.advance(deltaMs), definition.id),
+      intervene: (intervention) => {
+        const result = simulation.intervene(intervention);
+        assertBattle(result.snapshot, definition.id);
+        return result;
+      },
+      result: () => {
+        const snapshot = read();
+        if (snapshot.resolution.state === "running") {
+          throw new RangeError(
+            "A campaign operation result is only available after the operation resolves.",
+          );
+        }
+        return {
+          sceneId: launch.scene.identity.id,
+          status: snapshot.resolution.disposition === "success" ? "success" : "retry",
+          outcomeId: snapshot.resolution.outcomeId,
+          lessonChoices: snapshot.resolution.disposition === "success"
+            ? lessonChoices(launch)
+            : [],
+        };
+      },
+    };
   };
 }
 
-export function createCampaignOperation(
-  suppliedLaunch: OperationLaunch,
-  harness: HarnessConfiguration,
-): CampaignOperation {
-  const launch = structuredClone(suppliedLaunch);
-  const simulation = createOperationSimulation(
-    launch.scene,
-    launch.officers,
-    launch.seed,
-    harness,
-    launch.memory.map(({ officerId, lessons }) => ({
-      officerId,
-      level: lessons.length,
-    })),
-  );
-  return {
-    simulation,
-    result: () => terminalResult(launch, simulation.snapshot()),
-  };
+export function createProductionCampaignOperationFactory(
+  definition: AutonomousBattleDefinition,
+): CampaignOperationFactory {
+  return createCampaignOperationFactory(definition, createAutonomousBattleSimulation);
 }

@@ -72,5 +72,8 @@ describe("춘천지구 전투 prototype campaign", () => {
 
     expect(operation.guidance).toEqual([]);
     expect(operation.gameplayTuning.interventionBudget).toBeGreaterThan(0);
+    expect(JSON.stringify(chuncheonCampaign)).not.toMatch(
+      /bridge|haein|route-report|spatial-signal|inspect-officer/,
+    );
   });
 });

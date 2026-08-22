@@ -3,25 +3,20 @@ import { describe, expect, it, vi } from "vitest";
 import { createWorkbenchManual } from "../../src/app/WorkbenchManual";
 
 describe("workbench manual module", () => {
-  it("keeps complete and bridge copy behind the same interface", () => {
-    const complete = createWorkbenchManual({
-      variant: "complete-campaign",
-      onRequestClose: () => undefined,
-    });
-    const bridge = createWorkbenchManual({
-      variant: "bridge-prototype",
+  it("explains the canonical autonomous command loop", () => {
+    const manual = createWorkbenchManual({
+      variant: "chuncheon-prototype",
       onRequestClose: () => undefined,
     });
 
-    expect(complete.element.textContent).toContain("여섯 작전");
-    expect(bridge.element.textContent).toContain("해인교");
-    expect(bridge.element.textContent).toContain("공간 신호");
-    expect(bridge.element.textContent).not.toContain("장면 편집");
+    expect(manual.element.textContent).toContain("정보 수신, 검증, 권한 판단, 행동, 피드백");
+    expect(manual.element.textContent).toContain("전투 집단의 의도");
+    expect(manual.element.textContent).not.toContain("직접 명령");
   });
 
   it("owns audio credit DOM and show lifecycle", () => {
     const manual = createWorkbenchManual({
-      variant: "complete-campaign",
+      variant: "chuncheon-prototype",
       audioCredits: [{
         title: "행진곡",
         author: "작곡가",
@@ -48,7 +43,7 @@ describe("workbench manual module", () => {
   it("routes close requests and removes its DOM on destroy", () => {
     const onRequestClose = vi.fn();
     const manual = createWorkbenchManual({
-      variant: "complete-campaign",
+      variant: "chuncheon-prototype",
       onRequestClose,
     });
     document.body.append(manual.element);

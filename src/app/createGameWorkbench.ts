@@ -4,7 +4,9 @@ import {
   createBrowserFrameScheduler,
   createBrowserStorage,
 } from "../platform/browser/adapters";
-import { bridgeDefenseCampaign } from "../scenarios/bridgeDefenseOperation";
+import { createProductionCampaignOperationFactory } from "../application/campaign-operation";
+import { chuncheonAutonomousBattle } from "../scenarios/chuncheonAutonomousBattle";
+import { chuncheonCampaign } from "../scenarios/chuncheonCampaign";
 import { mountGameWorkbench, type GameWorkbench } from "./GameWorkbench";
 import { productionSoundtrackCatalog } from "./musicCatalog";
 import { createPlayerSettingsStore } from "./PlayerSettings";
@@ -17,7 +19,7 @@ type AuthoredCampaign = Parameters<typeof mountGameWorkbench>[1];
 
 export function mountProductionGame(
   root: HTMLElement,
-  campaign: AuthoredCampaign = bridgeDefenseCampaign,
+  campaign: AuthoredCampaign = chuncheonCampaign,
 ): GameWorkbench {
   const storage = createBrowserStorage();
   return mountGameWorkbench(root, campaign, {
@@ -26,7 +28,7 @@ export function mountProductionGame(
     audioFactory: () => createBrowserAudio(productionSoundtrackCatalog),
     audioCredits: productionSoundtrackCatalog,
     editorEnabled: new URLSearchParams(window.location.search).get("editor") === "1",
-    fieldManualVariant: "bridge-prototype",
+    fieldManualVariant: "chuncheon-prototype",
     settingsStore: createPlayerSettingsStore(
       storage,
       `player-settings:${campaign.id}:v1`,
@@ -35,5 +37,6 @@ export function mountProductionGame(
       storage,
       `campaign-progress:${campaign.id}:v1`,
     )),
+    operationFactory: createProductionCampaignOperationFactory(chuncheonAutonomousBattle),
   });
 }

@@ -1,10 +1,14 @@
-import type {
-  AutonomousBattleDecisionTrace,
-  AutonomousBattleEvent,
-  AutonomousBattleHarnessConsequence,
-  AutonomousBattleObjectiveEvidence,
-  AutonomousBattleSnapshot,
-} from "../../domain/operation/autonomousBattle";
+import type { GameSnapshot } from "../../application/game-session";
+
+type AutonomousBattleSnapshot = NonNullable<GameSnapshot["operation"]>;
+type AutonomousBattleDecisionTrace = NonNullable<
+  AutonomousBattleSnapshot["formations"][number]["actors"][number]["latestDecision"]
+>;
+type AutonomousBattleEvent = AutonomousBattleSnapshot["recentEvents"]["items"][number];
+type AutonomousBattleHarnessConsequence =
+  AutonomousBattleSnapshot["harness"]["consequences"][number];
+type AutonomousBattleObjectiveEvidence =
+  AutonomousBattleSnapshot["objectives"][number]["evidence"][number];
 
 export type AutonomousOperationViewModel = ReturnType<
   typeof projectAutonomousOperation
@@ -151,7 +155,7 @@ function traceStages(trace: AutonomousBattleDecisionTrace) {
         missing: "피드백 없음",
         ignored: "미반영",
       }[trace.feedback.state],
-      detail: trace.feedback.sourceActionTraceId === null
+      detail: trace.feedback.source === "none"
         ? "이전 행동 결과 없음"
         : trace.feedback.outcomeId === null
           ? "이전 행동 결과 있음"

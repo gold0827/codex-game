@@ -7,7 +7,7 @@ import {
   type CampaignKeyValueStore,
   type CampaignRepository,
 } from "../../src/campaign";
-import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { chuncheonCampaign } from "../../src/scenarios/chuncheonCampaign";
 
 function editedTitle(repository: CampaignRepository, title: string) {
   const campaign = repository.load();
@@ -17,22 +17,22 @@ function editedTitle(repository: CampaignRepository, title: string) {
 
 describe("campaign repositories", () => {
   it("exposes the immutable built-in campaign and restores defensive clones", () => {
-    const repository = createBuiltInCampaignRepository(completeCampaign);
+    const repository = createBuiltInCampaignRepository(chuncheonCampaign);
     const loaded = repository.load();
     (loaded.scenes[0]!.copy as { title: string }).title = "외부 변이";
 
-    expect(repository.load()).toEqual(completeCampaign);
-    expect(repository.restore()).toEqual(completeCampaign);
+    expect(repository.load()).toEqual(chuncheonCampaign);
+    expect(repository.restore()).toEqual(chuncheonCampaign);
     expect(() => repository.save(loaded)).toThrow(/read-only/);
   });
 
   it("persists and restores an in-memory override", () => {
-    const repository = createInMemoryCampaignRepository(completeCampaign);
+    const repository = createInMemoryCampaignRepository(chuncheonCampaign);
     repository.save(editedTitle(repository, "메모리 수정"));
 
     expect(repository.load().scenes[0]!.copy.title).toBe("메모리 수정");
-    expect(repository.restore()).toEqual(completeCampaign);
-    expect(repository.load()).toEqual(completeCampaign);
+    expect(repository.restore()).toEqual(chuncheonCampaign);
+    expect(repository.load()).toEqual(chuncheonCampaign);
   });
 
   it("persists and clears a local-storage override", () => {
@@ -43,7 +43,7 @@ describe("campaign repositories", () => {
       removeItem: (key) => { values.delete(key); },
     };
     const repository = createLocalStorageCampaignRepository(
-      completeCampaign,
+      chuncheonCampaign,
       storage,
       "campaign-test",
     );
@@ -51,7 +51,7 @@ describe("campaign repositories", () => {
 
     expect(repository.load().scenes[0]!.copy.title).toBe("브라우저 수정");
     expect(values.has("campaign-test")).toBe(true);
-    expect(repository.restore()).toEqual(completeCampaign);
+    expect(repository.restore()).toEqual(chuncheonCampaign);
     expect(values.has("campaign-test")).toBe(false);
   });
 });

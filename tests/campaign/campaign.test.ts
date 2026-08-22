@@ -10,7 +10,6 @@ import {
   type CampaignScene,
   type CampaignTransition,
 } from "../../src/campaign";
-import { createOperationSimulation } from "../../src/domain/operation/operationEngine";
 
 type SpatialSignalGuidance = Extract<CampaignGuidanceStep, { action: "signal" }>;
 
@@ -497,22 +496,6 @@ describe("campaign definition", () => {
       });
     },
   );
-
-  it("launches every reachable playable scene that passes campaign validation", () => {
-    const definition = createDefinition();
-    expect(validateCampaignDefinition(definition).valid).toBe(true);
-
-    definition.scenes
-      .filter(({ identity }) => identity.kind !== "epilogue")
-      .forEach((scene) => {
-        expect(() => createOperationSimulation(scene, definition.officers, "campaign-contract", {
-          informationReach: 0.5,
-          authorityClarity: 0.5,
-          verificationDepth: 0.5,
-          feedbackCompression: 0.5,
-        })).not.toThrow();
-      });
-  });
 
   it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
     "rejects invalid threat telegraph duration %s",

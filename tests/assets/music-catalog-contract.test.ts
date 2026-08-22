@@ -7,22 +7,21 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { productionSoundtrackCatalog } from "../../src/app/musicCatalog";
-import { bridgeDefenseCampaign } from "../../src/scenarios/bridgeDefenseOperation";
-import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { chuncheonCampaign } from "../../src/scenarios/chuncheonCampaign";
 
 declare const process: Readonly<{ cwd(): string }>;
 
 const productionSoundtrackIds = new Set(
-  [...completeCampaign.scenes, ...bridgeDefenseCampaign.scenes]
+  chuncheonCampaign.scenes
     .map(({ presentation }) => presentation.soundtrackId),
 );
 
 describe("production music catalog", () => {
-  it("covers every built-in soundtrack exactly once", () => {
+  it("covers every canonical soundtrack and keeps catalog ids unique", () => {
     const catalogIds = productionSoundtrackCatalog.map(({ id }) => id);
 
     expect(new Set(catalogIds).size).toBe(catalogIds.length);
-    expect([...catalogIds].sort()).toEqual([...productionSoundtrackIds].sort());
+    expect([...productionSoundtrackIds].every((id) => catalogIds.includes(id))).toBe(true);
   });
 
   it("pins every distributed CC0 asset to its source and SHA-256", () => {

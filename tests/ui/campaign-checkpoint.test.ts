@@ -4,8 +4,10 @@ import {
   createCampaignCheckpoint,
   createCampaignCheckpointStore,
 } from "../../src/app/CampaignCheckpoint";
+import { createProductionCampaignOperationFactory } from "../../src/application/campaign-operation";
 import { createGameSession, type GameSessionResume } from "../../src/application/game-session";
-import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { chuncheonAutonomousBattle } from "../../src/scenarios/chuncheonAutonomousBattle";
+import { chuncheonCampaign } from "../../src/scenarios/chuncheonCampaign";
 
 describe("campaign checkpoint module", () => {
   it("deduplicates snapshots and restores through its three-operation interface", () => {
@@ -24,7 +26,9 @@ describe("campaign checkpoint module", () => {
       recoveredFromFailure: false,
     });
 
-    const snapshot = createGameSession(completeCampaign, "checkpoint").read();
+    const snapshot = createGameSession(chuncheonCampaign, "checkpoint", undefined, {
+      operationFactory: createProductionCampaignOperationFactory(chuncheonAutonomousBattle),
+    }).read();
     checkpoint.capture(snapshot);
     checkpoint.capture(snapshot);
     expect(save).toHaveBeenCalledOnce();

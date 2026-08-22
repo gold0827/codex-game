@@ -95,7 +95,7 @@ const chuncheonOperation = {
   presentation: {
     mapId: "chuncheon-soyang-1950",
     backdropId: "chuncheon-ridge-june-dawn",
-    soundtrackId: "chuncheon-delay-operation",
+    soundtrackId: "six-signals-over-water",
     accentColor: "#7f9b72",
   },
   mapTopology: chuncheonOperationMap,
@@ -148,7 +148,7 @@ const chuncheonEpilogue = {
   presentation: {
     mapId: "chuncheon-soyang-1950",
     backdropId: "chuncheon-ridge-june-morning",
-    soundtrackId: "chuncheon-after-action",
+    soundtrackId: "quiet-water-after-action",
     accentColor: "#879c7c",
   },
   guidance: [],

@@ -12,19 +12,6 @@
     var(--phase-backdrop-image) center / cover;
 }
 
-.briefing-screen[data-backdrop-style="haein-river-dusk"],
-.debrief-screen[data-backdrop-style="haein-river-dusk"] {
-  --phase-backdrop-overlay:
-    linear-gradient(115deg, rgba(25, 11, 38, 0.9), rgba(8, 24, 27, 0.76)),
-    linear-gradient(0deg, rgba(198, 91, 45, 0.16), transparent 62%);
-}
-
-.epilogue-screen[data-backdrop-style="haein-river-dawn"] {
-  --phase-backdrop-overlay:
-    linear-gradient(125deg, rgba(255, 227, 166, 0.82), rgba(142, 190, 166, 0.63)),
-    linear-gradient(0deg, rgba(255, 185, 94, 0.22), transparent 58%);
-}
-
 .briefing-copy,
 .briefing-harness {
   overflow: auto;
@@ -384,35 +371,6 @@
   display: flex;
   gap: 7px;
   overflow-x: auto;
-}
-
-.spatial-signal-controls {
-  min-width: max-content;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-right: 8px;
-  border-right: 1px solid var(--line);
-}
-
-.spatial-signal-controls.guidance-target {
-  padding: 5px 8px;
-  border: 1px solid var(--gold);
-  background: rgba(233, 198, 108, 0.08);
-}
-
-.spatial-signal-target {
-  min-width: 126px;
-  color: var(--gold);
-  font: 800 9px ui-monospace, monospace;
-}
-
-.spatial-signal-controls select {
-  min-height: 30px;
-  border: 1px solid var(--line);
-  background: #102019;
-  color: var(--ink);
-  font-size: 10px;
 }
 
 .intervention-actions .game-button {

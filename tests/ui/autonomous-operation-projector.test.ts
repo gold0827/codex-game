@@ -39,7 +39,7 @@ const trace: AutonomousBattleDecisionTrace = {
   },
   feedback: {
     atMs: 65_000,
-    sourceActionTraceId: "trace:alpha:1",
+    source: "prior-action",
     state: "integrated",
     outcomeId: "delay-maintained",
     confidence: 0.79,

@@ -48,7 +48,7 @@ export type GameWorkbenchOptions = Readonly<{
   fieldManualVariant?: WorkbenchManualVariant;
   settingsStore?: PlayerSettingsStore;
   checkpoint?: CampaignCheckpoint;
-  operationFactory?: CampaignOperationFactory;
+  operationFactory: CampaignOperationFactory;
 }>;
 
 export type GameWorkbench = Readonly<{
@@ -63,7 +63,7 @@ export type GameWorkbench = Readonly<{
 export function mountGameWorkbench(
   root: HTMLElement,
   authoredCampaign: CampaignDefinition,
-  options: GameWorkbenchOptions = {},
+  options: GameWorkbenchOptions,
 ): GameWorkbench {
   const campaignDocument = createCampaignDocument(authoredCampaign, {
     repository: options.repository,
@@ -99,7 +99,7 @@ export function mountGameWorkbench(
   if (editorEnabled) tools.append(editorToggle);
   let requestManualClose = (): void => undefined;
   const manual = createWorkbenchManual({
-    variant: options.fieldManualVariant ?? "complete-campaign",
+    variant: options.fieldManualVariant ?? "chuncheon-prototype",
     audioCredits: options.audioCredits,
     onRequestClose: () => requestManualClose(),
   });

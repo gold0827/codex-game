@@ -6,9 +6,9 @@ import {
   type OfficerLesson,
   type OperationResult,
 } from "../../src/campaign";
-import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { chuncheonCampaign } from "../../src/scenarios/chuncheonCampaign";
 
-const officerId = completeCampaign.officers[0]!.id;
+const officerId = chuncheonCampaign.officers[0]!.id;
 
 function lesson(id: string, summary = id): OfficerLesson {
   return { id, officerId, summary };
@@ -22,14 +22,14 @@ function result(
   return {
     sceneId,
     status,
-    outcomeId: status === "success" ? "success" : "retry",
+    outcomeId: status === "success" ? "objectives-achieved" : "retry",
     lessonChoices,
   };
 }
 
 describe("CampaignRun", () => {
   it("retries with the same seed and the exact pre-attempt memory", () => {
-    const run = createCampaignRun(completeCampaign, "stable-retry", [
+    const run = createCampaignRun(chuncheonCampaign, "stable-retry", [
       { officerId, lessons: [lesson("before-attempt")] },
     ]);
     const first = run.read();
@@ -51,7 +51,7 @@ describe("CampaignRun", () => {
   });
 
   it("commits only a selected successful lesson and caps recent lessons at two", () => {
-    const run = createCampaignRun(completeCampaign, 99, [
+    const run = createCampaignRun(chuncheonCampaign, 99, [
       { officerId, lessons: [lesson("old-1"), lesson("old-2")] },
     ]);
     const firstSceneId = run.read().progress.currentSceneId;
@@ -66,7 +66,7 @@ describe("CampaignRun", () => {
     ]);
 
     const advanced = run.decide({ lessonId: "selected" });
-    expect(advanced.status).toBe("operation");
+    expect(advanced.status).toBe("complete");
     expect(advanced.progress.currentSceneId).not.toBe(firstSceneId);
     expect(advanced.memory.find(({ officerId: id }) => id === officerId)?.lessons).toEqual([
       lesson("old-2"),
@@ -76,17 +76,10 @@ describe("CampaignRun", () => {
       lesson("not-selected"),
     );
 
-    const secondSceneId = advanced.progress.currentSceneId;
-    run.resolve(result(secondSceneId, "success", [lesson("newest")]));
-    const secondAdvance = run.decide({ lessonId: "newest" });
-    expect(secondAdvance.memory.find(({ officerId: id }) => id === officerId)?.lessons).toEqual([
-      lesson("selected"),
-      lesson("newest"),
-    ]);
   });
 
   it("rejects stale results and unoffered decisions without changing state", () => {
-    const run = createCampaignRun(completeCampaign, "atomic");
+    const run = createCampaignRun(chuncheonCampaign, "atomic");
     const initial = run.read();
 
     expect(() => run.resolve(result("stale-scene", "retry"))).toThrow(CampaignRunError);

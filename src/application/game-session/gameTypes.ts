@@ -1,29 +1,22 @@
 import type {
-  CampaignGuidanceStep,
-  OfficerLesson,
-  OfficerLessonMemory,
   CampaignObjective,
   CampaignProgressSnapshot,
   CampaignScene,
   CampaignSceneCopy,
   CampaignScenePresentation,
-  CampaignTilePosition,
+  OfficerLesson,
+  OfficerLessonMemory,
 } from "../../campaign";
-import type { RandomSeed } from "../../simulation/seededRandom";
 import type {
-  HarnessConfiguration,
-  OperationEvent,
-  OperationIntervention,
-  OperationReplayEntry,
-  OperationSnapshot,
-  OperationStatus,
-  SpatialSignalKind,
-  SpatialSignalStrength,
-} from "../../simulation/simulationTypes";
+  AutonomousBattleHarnessPolicies,
+  AutonomousBattleInterventionReceipt,
+  AutonomousBattleSnapshot,
+} from "../../domain/operation/operationEngine";
+import type { RandomSeed } from "../../simulation/seededRandom";
 
 export type GamePhase = "briefing" | "operation" | "debrief" | "epilogue";
 export type PlayerSpeed = 0.5 | 1 | 2;
-export type HarnessAxis = keyof HarnessConfiguration;
+export type HarnessAxis = keyof AutonomousBattleHarnessPolicies;
 
 export type HarnessBudgetSnapshot = Readonly<{
   available: number;
@@ -39,25 +32,12 @@ export type GameBriefingSnapshot = Readonly<{
   harnessBudget: HarnessBudgetSnapshot;
 }>;
 
-export type TutorialGuidanceSnapshot = Readonly<{
-  active: boolean;
-  currentStepIndex: number;
-  currentStep: CampaignGuidanceStep | null;
-  completedStepIds: readonly string[];
-}>;
-
 export type GameDebriefSnapshot = Readonly<{
-  status: Exclude<OperationStatus, "running">;
+  status: "success" | "retry";
   outcomeId: string;
   copy: string;
   lessonChoices: readonly OfficerLesson[];
-}>;
-
-export type InterventionResultSnapshot = Readonly<{
-  command: OperationIntervention;
-  autonomyCost: number;
-  logisticsCost: number;
-  interventionCount: number;
+  objectives: AutonomousBattleSnapshot["objectives"];
 }>;
 
 export type GameSnapshot = Readonly<{
@@ -67,17 +47,13 @@ export type GameSnapshot = Readonly<{
   officerMemory: readonly OfficerLessonMemory[];
   attemptNumber: number;
   attemptSeed: RandomSeed;
-  harness: HarnessConfiguration;
+  harness: AutonomousBattleHarnessPolicies;
   harnessBudget: HarnessBudgetSnapshot;
   briefing: GameBriefingSnapshot | null;
-  operation: OperationSnapshot | null;
-  operationEvents: readonly OperationEvent[];
-  replay: readonly OperationReplayEntry[];
+  operation: AutonomousBattleSnapshot | null;
   paused: boolean;
   playerSpeed: PlayerSpeed;
-  selectedOfficerId: string | null;
-  tutorial: TutorialGuidanceSnapshot;
-  lastIntervention: InterventionResultSnapshot | null;
+  lastIntervention: AutonomousBattleInterventionReceipt | null;
   debrief: GameDebriefSnapshot | null;
 }>;
 
@@ -88,28 +64,21 @@ export type GameSessionResume = Readonly<{
 
 export type GameCommand =
   | Readonly<{ type: "configure-harness"; axis: HarnessAxis; value: number }>
-  | Readonly<{ type: "set-harness"; harness: HarnessConfiguration }>
+  | Readonly<{ type: "set-harness"; harness: AutonomousBattleHarnessPolicies }>
   | Readonly<{ type: "start-attempt" }>
   | Readonly<{ type: "set-player-speed"; speed: PlayerSpeed }>
   | Readonly<{ type: "pause" }>
   | Readonly<{ type: "resume" }>
-  | Readonly<{ type: "inspect-officer"; officerId: string }>
   | Readonly<{
-      type: "issue-spatial-signal";
-      signal: SpatialSignalKind;
-      strength: SpatialSignalStrength;
-      position: CampaignTilePosition;
+      type: "set-formation-intent";
+      formationId: string;
+      intentId: string;
     }>
-  /** Delivers a selected runtime report to one officer as a limited direct intervention. */
   | Readonly<{
-      type: "route-report";
-      reportId: string;
-      recipientOfficerId: string;
+      type: "issue-guidance";
+      guidanceId: string;
+      recipientFormationIds: readonly string[];
     }>
-  /** Grants one officer exception authority as a limited direct intervention. */
-  | Readonly<{ type: "authorize-officer"; officerId: string }>
-  /** Moves one runtime report to the front of verification as a limited direct intervention. */
-  | Readonly<{ type: "prioritize-verification"; reportId: string }>
   | Readonly<{ type: "continue-campaign" }>
   | Readonly<{ type: "choose-lesson"; lessonId: string }>
   | Readonly<{ type: "reset" }>;
