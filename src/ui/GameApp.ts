@@ -13,6 +13,7 @@ import {
   projectGameViewModel,
   type PresentationCampaign,
 } from "../presentation/gameViewModel";
+import { mountAutonomousBattlefield } from "../presentation/battlefield/autonomousBattlefield";
 import { renderBriefingView } from "../presentation/phases/briefingView";
 import { renderDebriefView } from "../presentation/phases/debriefView";
 import { renderEpilogueView } from "../presentation/phases/epilogueView";
@@ -40,6 +41,65 @@ type GameAppCampaign = Readonly<{
   scenes: readonly unknown[];
   roles: PresentationCampaign["roles"];
 }>;
+
+type RenderContinuity = Readonly<{
+  focusKey?: string;
+  drafts: ReadonlyMap<string, Readonly<{
+    value: string;
+    selectionStart: number | null;
+    selectionEnd: number | null;
+  }>>;
+  scrollPositions: ReadonlyMap<string, Readonly<{ left: number; top: number }>>;
+}>;
+
+function captureRenderContinuity(root: HTMLElement): RenderContinuity {
+  const activeElement = document.activeElement;
+  return {
+    focusKey: activeElement instanceof HTMLElement && root.contains(activeElement)
+      ? activeElement.dataset.focusKey
+      : undefined,
+    drafts: new Map(
+      [...root.querySelectorAll<HTMLInputElement>("input[data-draft-key]")]
+        .map((input) => [input.dataset.draftKey ?? "", {
+          value: input.value,
+          selectionStart: input.selectionStart,
+          selectionEnd: input.selectionEnd,
+        }] as const),
+    ),
+    scrollPositions: new Map(
+      [...root.querySelectorAll<HTMLElement>("[data-scroll-key]")]
+        .map((element) => [element.dataset.scrollKey ?? "", {
+          left: element.scrollLeft,
+          top: element.scrollTop,
+        }] as const),
+    ),
+  };
+}
+
+function restoreRenderContinuity(
+  root: HTMLElement,
+  continuity: RenderContinuity,
+  restoreFocus: (focusKey?: string) => void,
+): void {
+  for (const input of root.querySelectorAll<HTMLInputElement>("input[data-draft-key]")) {
+    const draft = continuity.drafts.get(input.dataset.draftKey ?? "");
+    if (draft) input.value = draft.value;
+  }
+  for (const element of root.querySelectorAll<HTMLElement>("[data-scroll-key]")) {
+    const position = continuity.scrollPositions.get(element.dataset.scrollKey ?? "");
+    if (position) {
+      element.scrollLeft = position.left;
+      element.scrollTop = position.top;
+    }
+  }
+  restoreFocus(continuity.focusKey);
+  const focused = document.activeElement;
+  if (!(focused instanceof HTMLInputElement)) return;
+  const draft = continuity.drafts.get(focused.dataset.draftKey ?? "");
+  if (draft && draft.selectionStart !== null && draft.selectionEnd !== null) {
+    focused.setSelectionRange(draft.selectionStart, draft.selectionEnd);
+  }
+}
 
 function isolateOptionalAudio(audio: GameAudio): GameAudio {
   return {
@@ -103,6 +163,7 @@ export function mountGameApp(
   let message = "";
   let destroyed = false;
   let selectedActorId: string | null = null;
+  let battlefield: ReturnType<typeof mountAutonomousBattlefield> | null = null;
   const prefersReducedMotion = (): boolean => {
     if (typeof options.reducedMotion === "function") return options.reducedMotion();
     return options.reducedMotion
@@ -126,8 +187,14 @@ export function mountGameApp(
     effects.syncFrameLoop();
   };
 
+  const inspectActor = (actorId: string): void => {
+    selectedActorId = actorId;
+    render();
+  };
+
   function render(): void {
     if (destroyed) return;
+    const continuity = captureRenderContinuity(root);
     const snapshot = session.read();
     const reducedMotion = prefersReducedMotion();
     options.onSnapshot?.(snapshot);
@@ -149,18 +216,20 @@ export function mountGameApp(
       shell.append(notice);
     }
     if (view.phase === "briefing") shell.append(renderBriefingView(view, dispatch));
-    else if (view.phase === "operation") shell.append(renderOperationView(
-      view,
-      dispatch,
-      (actorId) => {
-        selectedActorId = actorId;
-        render();
-        effects.restoreFocus(`inspect-${actorId}`);
-      },
-    ));
+    else if (view.phase === "operation") {
+      battlefield ??= mountAutonomousBattlefield({ onInspectActor: inspectActor });
+      battlefield.update(view.operation, reducedMotion);
+      shell.append(renderOperationView(
+        view,
+        dispatch,
+        inspectActor,
+        battlefield.element,
+      ));
+    }
     else if (view.phase === "debrief") shell.append(renderDebriefView(view, dispatch));
     else shell.append(renderEpilogueView(view, dispatch));
     root.replaceChildren(shell);
+    restoreRenderContinuity(root, continuity, effects.restoreFocus);
   }
 
   const effects = createGameEffects(root, session, scheduler, audio, render);
@@ -172,6 +241,8 @@ export function mountGameApp(
     render,
     destroy: () => {
       destroyed = true;
+      battlefield?.destroy();
+      battlefield = null;
       effects.destroy();
       root.replaceChildren();
     },

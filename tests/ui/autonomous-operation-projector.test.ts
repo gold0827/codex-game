@@ -259,7 +259,7 @@ describe("canonical autonomous operation projector", () => {
       "반영",
     ]);
     expect(view.selectedActor?.trace?.stages[4]?.detail).toBe(
-      "이전 행동 결과 있음 · delay-maintained",
+      "이전 행동 결과를 다음 판단에 반영",
     );
     expect("commands" in view).toBe(false);
     expect("actions" in (view.selectedActor ?? {})).toBe(false);

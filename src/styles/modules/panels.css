@@ -157,13 +157,13 @@
   position: relative;
   min-height: 0;
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr) 76px 78px;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
 }
 
 .operation-commandbar {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
   padding: 6px 12px;
@@ -193,26 +193,38 @@
   font: 800 10px ui-monospace, monospace;
 }
 
+.intervention-receipt {
+  grid-column: 1 / -1;
+  margin: -1px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
 .operation-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(176px, 13.5%) minmax(560px, 1fr) minmax(176px, 13.5%);
+  grid-template-columns:
+    clamp(176px, 14vw, 208px)
+    minmax(0, 1fr)
+    clamp(176px, 14vw, 208px);
   overflow: hidden;
 }
 
 .operation-sidebar {
   min-height: 0;
   display: grid;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   background: #07100e;
 }
 
 .operation-sidebar-left {
-  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
 }
 
 .operation-sidebar-right {
-  grid-template-rows: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  align-content: start;
 }
 
 .operation-sidebar-left {
@@ -224,9 +236,18 @@
 }
 
 .operation-sidebar .panel-card {
-  overflow: hidden;
-  padding: 12px;
+  overflow: visible;
+  padding: 10px;
   border-width: 0 0 1px;
+}
+
+.operation-sidebar .panel-card h2 {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.operation-sidebar .eyebrow {
+  font-size: 8px;
 }
 
 .operation-sidebar .briefing-harness {
@@ -244,37 +265,29 @@
 }
 
 .operation-event-flow {
-  display: grid;
-  grid-template-columns: 108px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: 10px;
+  display: block;
   padding: 8px 12px;
   border-width: 1px 0 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .operation-event-flow h2 {
-  grid-column: 1;
   font-size: 14px;
 }
 
 .event-flow-list {
-  grid-column: 2;
-  grid-row: 1 / 3;
   min-width: 0;
-  display: flex;
+  display: grid;
   gap: 7px;
-  margin: 0;
+  margin: 8px 0 0;
   padding: 0;
-  overflow-x: auto;
   list-style: none;
-  scrollbar-width: thin;
 }
 
 .event-flow-item,
 .event-flow-empty {
-  min-width: 210px;
-  max-width: 280px;
+  min-width: 0;
+  max-width: none;
   padding: 6px 8px;
   border-left: 2px solid var(--cyan);
   background: #0d1c18;
@@ -417,13 +430,228 @@
   color: var(--mint);
 }
 
+.canonical-policy-list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 8px;
+  margin: 9px 0 0;
+  font-size: 9px;
+}
+
+.canonical-policy-list dt {
+  color: var(--muted);
+}
+
+.canonical-policy-list dd {
+  margin: 0;
+  color: var(--cyan);
+  font: 800 9px ui-monospace, monospace;
+}
+
+.canonical-consequence-list,
+.objective-evidence-list,
+.decision-stage-list {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.canonical-consequence-list,
+.objective-evidence-list {
+  color: var(--dim);
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.objective-progress {
+  align-content: start;
+  overflow: visible;
+}
+
+.objective-progress > .objective-row {
+  display: block;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+
+.objective-progress > .objective-row > strong,
+.objective-progress > .objective-row > span {
+  display: block;
+}
+
+.objective-progress > .objective-row > span {
+  margin-top: 3px;
+  color: var(--cyan);
+  font-size: 8px;
+}
+
+.evidence-satisfied {
+  color: var(--mint);
+}
+
+.evidence-unsatisfied {
+  color: var(--dim);
+}
+
+.selected-actor > strong,
+.selected-actor > p {
+  display: block;
+  margin: 7px 0 0;
+  font-size: 9px;
+}
+
+.decision-stage {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 6px;
+  padding: 5px 6px;
+  border-left: 2px solid var(--cyan);
+  background: #0d1c18;
+  font-size: 8px;
+}
+
+.decision-stage time {
+  color: var(--cyan);
+  font: 700 7px ui-monospace, monospace;
+}
+
+.decision-stage span,
+.decision-stage p {
+  grid-column: 1 / -1;
+}
+
+.decision-stage p {
+  margin: 0;
+  color: var(--dim);
+}
+
+.formation-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 9px;
+  padding: 9px;
+  overflow: hidden;
+  border-width: 1px 0 0;
+  background: rgba(7, 16, 14, 0.98);
+}
+
+.formation-dock-heading {
+  min-width: 0;
+  padding: 4px 0 0 3px;
+}
+
+.formation-dock-heading h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.formation-dock-list {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 0 0 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.formation-card {
+  flex: 0 0 252px;
+  min-width: 0;
+  padding: 7px;
+  overflow: hidden;
+  border: 1px solid #2b473c;
+  background: #0c1a16;
+}
+
+.formation-card.formation-controllable {
+  flex-basis: 358px;
+  border-color: color-mix(in srgb, var(--scene-accent) 58%, #2b473c);
+  box-shadow: inset 3px 0 color-mix(in srgb, var(--scene-accent) 68%, transparent);
+}
+
+.formation-card.formation-observed {
+  border-color: color-mix(in srgb, var(--red) 42%, #2b473c);
+}
+
+.formation-card > strong,
+.formation-card > p {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.formation-card > strong {
+  color: var(--ink);
+  font-size: 9px;
+}
+
+.formation-card > p {
+  margin: 3px 0 0;
+  color: var(--dim);
+  font-size: 7px;
+}
+
+.actor-roster {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.actor-select.game-button {
+  flex: 0 0 128px;
+  min-width: 0;
+  min-height: 25px;
+  padding: 3px 5px;
+  overflow: hidden;
+  font-size: 7px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.formation-intervention {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.formation-intervention input {
+  min-width: 0;
+  height: 25px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  background: #07100e;
+  color: var(--ink);
+  font-size: 7px;
+}
+
+.formation-intervention .game-button {
+  min-height: 25px;
+  padding: 3px 7px;
+  font-size: 7px;
+}
+
 @media (max-height: 760px) {
   .game-shell { grid-template-rows: 68px minmax(0, 1fr); }
   .title-hud { padding-block: 7px; }
   .scene-subtitle { display: none; }
-  .operation-screen { grid-template-rows: 40px minmax(0, 1fr); }
   .operation-sidebar .panel-card { padding: 9px; }
   .harness-control { gap: 3px; padding: 6px; }
+  .formation-panel { grid-template-columns: 74px minmax(0, 1fr); padding: 7px; }
+  .formation-card { flex-basis: 220px; padding: 5px; }
+  .formation-card.formation-controllable { flex-basis: 330px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

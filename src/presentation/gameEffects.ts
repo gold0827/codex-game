@@ -74,7 +74,7 @@ export function createGameEffects(
       if (!focusKey) return;
       [...root.querySelectorAll<HTMLElement>("[data-focus-key]")]
         .find((element) => element.dataset.focusKey === focusKey)
-        ?.focus();
+        ?.focus({ preventScroll: true });
     },
     destroy: () => {
       destroyed = true;

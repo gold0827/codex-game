@@ -11,6 +11,7 @@ export function renderOperationView(
   view: GameViewModel,
   dispatch: CommandDispatcher,
   onSelectActor: (actorId: string) => void,
+  battlefield: HTMLElement,
 ): HTMLElement {
   const operation = view.operation;
   const main = node("main", "operation-screen autonomous-operation-screen");
@@ -18,20 +19,27 @@ export function renderOperationView(
   if (!operation) return main;
 
   const left = node("aside", "operation-sidebar operation-sidebar-left");
+  left.dataset.scrollKey = "operation-left-sidebar";
   left.append(
     renderHarnessSection(operation.harness),
     renderObjectivesSection(operation.objectives),
   );
-  const center = node("section", "formation-column");
-  center.append(renderFormationsSection(
-    {
-      formations: operation.formations,
-      remainingBudget: operation.interventionBudget.remaining,
-    },
-    dispatch,
-    onSelectActor,
-  ));
+  const center = node("section", "battlefield-column");
+  const battlefieldStage = node("div", "battlefield-stage");
+  battlefieldStage.append(battlefield);
+  center.append(
+    battlefieldStage,
+    renderFormationsSection(
+      {
+        formations: operation.formations,
+        remainingBudget: operation.interventionBudget.remaining,
+      },
+      dispatch,
+      onSelectActor,
+    ),
+  );
   const right = node("aside", "operation-sidebar operation-sidebar-right");
+  right.dataset.scrollKey = "operation-right-sidebar";
   right.append(
     renderTraceSection(operation.selectedActor),
     renderRecentEventsSection(operation.recentEvents),
