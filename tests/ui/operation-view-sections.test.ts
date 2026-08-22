@@ -103,6 +103,27 @@ describe("canonical operation section renderers", () => {
     expect(card.querySelector('[data-action="issue-guidance"]')).toBeNull();
   });
 
+  it("explains a rejected intervention against a formation outside player control", () => {
+    const { session } = operationView();
+    const hostile = session.read().operation?.formations.find(({ sideId }) => sideId === "kpa");
+    if (!hostile) throw new Error("The Chuncheon fixture must include a hostile formation.");
+
+    session.dispatch({
+      type: "set-formation-intent",
+      formationId: hostile.id,
+      intentId: "retreat",
+    });
+    const projected = projectGameViewModel(session.read(), {
+      title: chuncheonCampaign.title,
+      sceneCount: chuncheonCampaign.scenes.length,
+      roles: chuncheonCampaign.roles,
+    }).operation;
+    if (!projected) throw new Error("The projected operation must be present.");
+
+    expect(renderOperationCommandBar(projected, vi.fn<CommandDispatcher>()).textContent)
+      .toContain("통제 권한이 없는 편성입니다.");
+  });
+
   it("renders the selected actor's ordered five-stage trace and the empty state", () => {
     const unselected = operationView().operation;
     expect(renderTraceSection(unselected.selectedActor).textContent)
