@@ -1,7 +1,4 @@
-import {
-  CAMPAIGN_SPATIAL_SIGNAL_KINDS,
-  type CampaignDefinition,
-} from "./types";
+import type { CampaignDefinition } from "./types";
 import {
   validateCampaignDefinition,
   type CampaignDiagnosticCode,
@@ -25,12 +22,7 @@ export type CampaignParseResult =
 
 type JsonRecord = Record<string, unknown>;
 
-const officerDispositions = ["action", "verification", "communication"];
-const sceneKinds = ["tutorial", "operation", "epilogue"];
-const reportTones = ["confident", "cautious", "urgent", "relieved", "deadpan"];
-const threatKinds = ["communications", "flood", "artillery", "ambush", "misinformation", "obstruction"];
-const threatLanes = ["north", "center", "south", "command"];
-const threatSeverities = ["low", "medium", "high", "critical"];
+const sceneKinds = ["operation", "epilogue"];
 
 function shapeDiagnostic(
   diagnostics: CampaignParseDiagnostic[],
@@ -91,6 +83,24 @@ function expectStrings(
   keys.forEach((key) => expectType(record, key, "string", path, diagnostics));
 }
 
+function expectOnlyKeys(
+  record: JsonRecord,
+  keys: readonly string[],
+  path: string,
+  diagnostics: CampaignParseDiagnostic[],
+): void {
+  const supported = new Set(keys);
+  Object.keys(record).forEach((key) => {
+    if (supported.has(key)) return;
+    diagnostics.push({
+      kind: "shape",
+      code: "invalid-shape",
+      path: propertyPath(path, key),
+      message: `${propertyPath(path, key)} is not part of the campaign schema.`,
+    });
+  });
+}
+
 function expectMember(
   record: JsonRecord,
   key: string,
@@ -128,182 +138,15 @@ function checkArray(
   });
 }
 
-function checkOfficer(
+function checkRole(
   value: unknown,
   path: string,
   diagnostics: CampaignParseDiagnostic[],
 ): void {
-  const officer = recordAt(value, path, diagnostics);
-  if (!officer) return;
-  expectStrings(officer, ["id", "name", "rank", "role"], path, diagnostics);
-  expectMember(officer, "disposition", officerDispositions, path, diagnostics);
-  if (officer.profile !== undefined) {
-    const profilePath = propertyPath(path, "profile");
-    const profile = recordAt(officer.profile, profilePath, diagnostics);
-    if (!profile) return;
-    [
-      "initiative",
-      "caution",
-      "discipline",
-      "cooperation",
-      "stressTolerance",
-      "memoryCapacity",
-    ].forEach((key) => expectType(profile, key, "number", profilePath, diagnostics));
-    checkArray(profile, "sourceTrust", profilePath, diagnostics, (entry, entryPath, entryDiagnostics) => {
-      const trust = recordAt(entry, entryPath, entryDiagnostics);
-      if (!trust) return;
-      expectType(trust, "officerId", "string", entryPath, entryDiagnostics);
-      expectType(trust, "trust", "number", entryPath, entryDiagnostics);
-    });
-  }
-}
-
-function checkGuidance(
-  value: unknown,
-  path: string,
-  diagnostics: CampaignParseDiagnostic[],
-): void {
-  const guidance = recordAt(value, path, diagnostics);
-  if (!guidance) return;
-  expectStrings(guidance, ["id", "instruction"], path, diagnostics);
-  const action = expectMember(
-    guidance,
-    "action",
-    ["pause", "inspect", "route", "resume", "signal"],
-    path,
-    diagnostics,
-  );
-  const targetPath = propertyPath(path, "target");
-  const target = recordAt(guidance.target, targetPath, diagnostics);
-  if (!target || !action) return;
-
-  if (action === "pause" || action === "resume") {
-    expectMember(target, "kind", ["operation-clock"], targetPath, diagnostics);
-    expectMember(
-      guidance,
-      "completionEvent",
-      [action === "pause" ? "operation-paused" : "operation-resumed"],
-      path,
-      diagnostics,
-    );
-  } else if (action === "inspect") {
-    expectMember(target, "kind", ["officer"], targetPath, diagnostics);
-    expectType(target, "officerId", "string", targetPath, diagnostics);
-    expectMember(
-      guidance,
-      "completionEvent",
-      ["officer-inspected"],
-      path,
-      diagnostics,
-    );
-  } else if (action === "route") {
-    expectMember(target, "kind", ["report-recipient"], targetPath, diagnostics);
-    expectStrings(target, ["reportId", "recipientOfficerId"], targetPath, diagnostics);
-    expectMember(
-      guidance,
-      "completionEvent",
-      ["report-routed"],
-      path,
-      diagnostics,
-    );
-  } else {
-    expectMember(target, "kind", ["spatial-signal"], targetPath, diagnostics);
-    expectMember(
-      target,
-      "signal",
-      CAMPAIGN_SPATIAL_SIGNAL_KINDS,
-      targetPath,
-      diagnostics,
-    );
-    expectType(target, "strength", "number", targetPath, diagnostics);
-    checkPosition(
-      target.position,
-      propertyPath(targetPath, "position"),
-      diagnostics,
-    );
-    expectMember(
-      guidance,
-      "completionEvent",
-      ["spatial-signal-issued"],
-      path,
-      diagnostics,
-    );
-  }
-}
-
-function checkReport(
-  value: unknown,
-  path: string,
-  diagnostics: CampaignParseDiagnostic[],
-): void {
-  const report = recordAt(value, path, diagnostics);
-  if (!report) return;
-  expectStrings(report, ["id", "officerId", "text"], path, diagnostics);
-  expectMember(report, "tone", reportTones, path, diagnostics);
-}
-
-function checkThreat(
-  value: unknown,
-  path: string,
-  diagnostics: CampaignParseDiagnostic[],
-): void {
-  const threat = recordAt(value, path, diagnostics);
-  if (!threat) return;
-  expectType(threat, "id", "string", path, diagnostics);
-  expectMember(threat, "kind", threatKinds, path, diagnostics);
-  expectMember(threat, "lane", threatLanes, path, diagnostics);
-  expectMember(threat, "severity", threatSeverities, path, diagnostics);
-  expectType(threat, "telegraphDurationMs", "number", path, diagnostics);
-}
-
-function checkBeat(
-  value: unknown,
-  path: string,
-  diagnostics: CampaignParseDiagnostic[],
-): void {
-  const beat = recordAt(value, path, diagnostics);
-  if (!beat) return;
-  expectStrings(beat, ["id", "headline", "description"], path, diagnostics);
-  expectType(beat, "timeMs", "number", path, diagnostics);
-  checkArray(beat, "reports", path, diagnostics, checkReport);
-  checkArray(beat, "threats", path, diagnostics, checkThreat);
-}
-
-function checkPosition(
-  value: unknown,
-  path: string,
-  diagnostics: CampaignParseDiagnostic[],
-): void {
-  const position = recordAt(value, path, diagnostics);
-  if (!position) return;
-  expectType(position, "x", "number", path, diagnostics);
-  expectType(position, "y", "number", path, diagnostics);
-}
-
-function checkMapTopology(
-  value: unknown,
-  path: string,
-  diagnostics: CampaignParseDiagnostic[],
-): void {
-  const topology = recordAt(value, path, diagnostics);
-  if (!topology) return;
-  expectType(topology, "width", "number", path, diagnostics);
-  expectType(topology, "height", "number", path, diagnostics);
-  checkArray(topology, "blocked", path, diagnostics, checkPosition);
-  checkArray(topology, "terrain", path, diagnostics, (value, itemPath) => {
-    const tile = recordAt(value, itemPath, diagnostics);
-    if (!tile) return;
-    checkPosition(tile.position, propertyPath(itemPath, "position"), diagnostics);
-    expectType(tile, "movementCost", "number", itemPath, diagnostics);
-  });
-  (["spawns", "destinations"] as const).forEach((collection) => {
-    checkArray(topology, collection, path, diagnostics, (value, itemPath) => {
-      const location = recordAt(value, itemPath, diagnostics);
-      if (!location) return;
-      expectType(location, "id", "string", itemPath, diagnostics);
-      checkPosition(location.position, propertyPath(itemPath, "position"), diagnostics);
-    });
-  });
+  const role = recordAt(value, path, diagnostics);
+  if (!role) return;
+  expectOnlyKeys(role, ["id", "name", "rank", "role"], path, diagnostics);
+  expectStrings(role, ["id", "name", "rank", "role"], path, diagnostics);
 }
 
 function checkScene(
@@ -313,6 +156,20 @@ function checkScene(
 ): void {
   const scene = recordAt(value, path, diagnostics);
   if (!scene) return;
+  expectOnlyKeys(
+    scene,
+    [
+      "identity",
+      "copy",
+      "presentation",
+      "objectives",
+      "transitions",
+      "encounterParameters",
+      "gameplayTuning",
+    ],
+    path,
+    diagnostics,
+  );
 
   const identityPath = propertyPath(path, "identity");
   const identity = recordAt(scene.identity, identityPath, diagnostics);
@@ -335,24 +192,20 @@ function checkScene(
   const presentationPath = propertyPath(path, "presentation");
   const presentation = recordAt(scene.presentation, presentationPath, diagnostics);
   if (presentation) {
+    expectOnlyKeys(
+      presentation,
+      ["backdropId", "soundtrackId", "accentColor"],
+      presentationPath,
+      diagnostics,
+    );
     expectStrings(
       presentation,
-      ["mapId", "backdropId", "soundtrackId", "accentColor"],
+      ["backdropId", "soundtrackId", "accentColor"],
       presentationPath,
       diagnostics,
     );
   }
 
-  if (scene.mapTopology !== undefined) {
-    checkMapTopology(
-      scene.mapTopology,
-      propertyPath(path, "mapTopology"),
-      diagnostics,
-    );
-  }
-
-  checkArray(scene, "guidance", path, diagnostics, checkGuidance);
-  checkArray(scene, "beats", path, diagnostics, checkBeat);
   checkArray(
     scene, "objectives", path, diagnostics, (objectiveValue, objectivePath) => {
       const objective = recordAt(objectiveValue, objectivePath, diagnostics);
@@ -388,9 +241,15 @@ function shapeDiagnostics(value: unknown): CampaignParseDiagnostic[] {
   const diagnostics: CampaignParseDiagnostic[] = [];
   const definition = recordAt(value, "$", diagnostics);
   if (!definition) return diagnostics;
+  expectOnlyKeys(
+    definition,
+    ["id", "title", "version", "startSceneId", "roles", "scenes"],
+    "$",
+    diagnostics,
+  );
   expectStrings(definition, ["id", "title", "startSceneId"], "$", diagnostics);
   expectType(definition, "version", "number", "$", diagnostics);
-  checkArray(definition, "officers", "$", diagnostics, checkOfficer);
+  checkArray(definition, "roles", "$", diagnostics, checkRole);
   checkArray(definition, "scenes", "$", diagnostics, checkScene);
   return diagnostics;
 }
@@ -402,11 +261,6 @@ export function parseCampaignValue(value: unknown): CampaignParseResult {
   let campaign: CampaignDefinition;
   try {
     campaign = structuredClone(value) as CampaignDefinition;
-    campaign.scenes.forEach((scene) => {
-      const encounter = scene.encounterParameters as unknown as Record<string, unknown>;
-      delete encounter.threatBudget;
-      delete encounter.reinforcementIntervalMs;
-    });
     const validation = validateCampaignDefinition(campaign);
     if (!validation.valid) {
       return {

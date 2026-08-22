@@ -12,19 +12,6 @@
     var(--phase-backdrop-image) center / cover;
 }
 
-.briefing-screen[data-backdrop-style="haein-river-dusk"],
-.debrief-screen[data-backdrop-style="haein-river-dusk"] {
-  --phase-backdrop-overlay:
-    linear-gradient(115deg, rgba(25, 11, 38, 0.9), rgba(8, 24, 27, 0.76)),
-    linear-gradient(0deg, rgba(198, 91, 45, 0.16), transparent 62%);
-}
-
-.epilogue-screen[data-backdrop-style="haein-river-dawn"] {
-  --phase-backdrop-overlay:
-    linear-gradient(125deg, rgba(255, 227, 166, 0.82), rgba(142, 190, 166, 0.63)),
-    linear-gradient(0deg, rgba(255, 185, 94, 0.22), transparent 58%);
-}
-
 .briefing-copy,
 .briefing-harness {
   overflow: auto;
@@ -82,24 +69,24 @@
   opacity: 0.72;
 }
 
-.briefing-officer-lessons {
+.briefing-role-lessons {
   display: grid;
   gap: 8px;
   margin: 0 0 24px;
 }
 
-.briefing-officer-memory {
+.briefing-role-memory {
   padding: 10px 12px;
   border: 1px solid #29483c;
   background: rgba(103, 193, 163, 0.06);
 }
 
-.briefing-officer-memory strong {
+.briefing-role-memory strong {
   color: var(--scene-accent);
   font-size: 11px;
 }
 
-.briefing-officer-memory ul {
+.briefing-role-memory ul {
   display: grid;
   gap: 4px;
   margin: 7px 0 0;
@@ -172,10 +159,6 @@
   display: grid;
   grid-template-rows: 44px minmax(0, 1fr) 76px 78px;
   overflow: hidden;
-}
-
-.operation-screen.tutorial-active {
-  grid-template-rows: 50px 44px minmax(0, 1fr) 76px 78px;
 }
 
 .operation-commandbar {
@@ -251,11 +234,6 @@
   box-shadow: none;
 }
 
-.operation-sidebar .officer-panel {
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
 .operation-sidebar .harness-controls {
   grid-template-columns: 1fr;
   margin-top: 10px;
@@ -323,11 +301,6 @@
   margin: 3px 0 0;
 }
 
-.event-threat-telegraphed,
-.event-threat-resolved {
-  border-left-color: var(--red);
-}
-
 .event-intervention {
   border-left-color: var(--gold);
 }
@@ -384,35 +357,6 @@
   display: flex;
   gap: 7px;
   overflow-x: auto;
-}
-
-.spatial-signal-controls {
-  min-width: max-content;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-right: 8px;
-  border-right: 1px solid var(--line);
-}
-
-.spatial-signal-controls.guidance-target {
-  padding: 5px 8px;
-  border: 1px solid var(--gold);
-  background: rgba(233, 198, 108, 0.08);
-}
-
-.spatial-signal-target {
-  min-width: 126px;
-  color: var(--gold);
-  font: 800 9px ui-monospace, monospace;
-}
-
-.spatial-signal-controls select {
-  min-height: 30px;
-  border: 1px solid var(--line);
-  background: #102019;
-  color: var(--ink);
-  font-size: 10px;
 }
 
 .intervention-actions .game-button {
@@ -473,128 +417,6 @@
   color: var(--mint);
 }
 
-.tutorial-guidance {
-  position: relative;
-  z-index: 15;
-  width: min(520px, 44vw);
-  box-sizing: border-box;
-  align-self: center;
-  justify-self: center;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 3px 10px;
-  padding: 9px 12px;
-  border: 1px solid var(--gold);
-  background: rgba(38, 31, 12, 0.96);
-  box-shadow: 0 12px 35px #000;
-  font-size: 10px;
-}
-
-.tutorial-guidance strong {
-  grid-row: 1 / 3;
-  color: var(--gold);
-}
-
-.tutorial-guidance small {
-  color: #bbaa75;
-  font-size: 8px;
-}
-
-.tutorial-guidance span,
-.tutorial-guidance small {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.guidance-target {
-  position: relative;
-  border-color: var(--gold) !important;
-  box-shadow: 0 0 0 2px rgba(233, 198, 108, 0.24), 0 0 18px rgba(233, 198, 108, 0.25);
-  animation: guidance-pulse 1s steps(2, end) infinite;
-}
-
-.pixel-garden {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(#9bc7c0 0 55%, #789461 55% 76%, #6a513a 76%);
-  image-rendering: pixelated;
-}
-
-.garden-sun {
-  position: absolute;
-  top: 11%;
-  right: 13%;
-  width: 70px;
-  height: 70px;
-  background: #f5d56a;
-  box-shadow: 14px 0 #f5d56a, -14px 0 #f5d56a, 0 14px #f5d56a, 0 -14px #f5d56a;
-}
-
-.garden-house {
-  position: absolute;
-  left: 9%;
-  bottom: 23%;
-  width: 38%;
-  height: 31%;
-  background: #e8dbad;
-  box-shadow: inset -14px 0 rgba(64, 65, 44, 0.1);
-}
-
-.garden-house::before {
-  content: "";
-  position: absolute;
-  left: -8%;
-  bottom: 100%;
-  width: 116%;
-  height: 42%;
-  background: #a85d43;
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
-}
-
-.garden-person {
-  position: absolute;
-  z-index: 3;
-  left: 55%;
-  bottom: 20%;
-  width: 22px;
-  height: 42px;
-  background: #586f4f;
-  box-shadow: 0 -17px #d6aa7e, -9px 7px #769066, 9px 7px #769066, -6px 42px #34483b, 6px 42px #34483b;
-  animation: garden-water 2.4s steps(2, end) infinite;
-}
-
-.garden-can {
-  position: absolute;
-  z-index: 4;
-  left: 64%;
-  bottom: 22%;
-  width: 25px;
-  height: 17px;
-  background: #7b9a95;
-  box-shadow: 19px -4px #7b9a95;
-}
-
-.garden-plant {
-  position: absolute;
-  bottom: 10%;
-  width: 9px;
-  height: 28px;
-  background: #3f6c3d;
-  box-shadow: -9px 5px #5f8f52, 9px -3px #4e8148, 0 20px #314d32;
-}
-
-.plant-one { left: 69%; }
-.plant-two { left: 79%; transform: scale(0.85); }
-.plant-three { left: 89%; transform: scale(1.18); }
-
-@keyframes guidance-pulse {
-  50% { filter: brightness(1.25); }
-}
-
-@keyframes garden-water {
-  50% { rotate: 4deg; }
-}
-
 @media (max-height: 760px) {
   .game-shell { grid-template-rows: 68px minmax(0, 1fr); }
   .title-hud { padding-block: 7px; }
@@ -602,8 +424,6 @@
   .operation-screen { grid-template-rows: 40px minmax(0, 1fr); }
   .operation-sidebar .panel-card { padding: 9px; }
   .harness-control { gap: 3px; padding: 6px; }
-  .officer-facts { margin-block: 4px; }
-  .report-card { padding: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

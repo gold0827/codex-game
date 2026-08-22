@@ -4,8 +4,10 @@ import {
   createCampaignCheckpoint,
   createCampaignCheckpointStore,
 } from "../../src/app/CampaignCheckpoint";
+import { createProductionCampaignOperationFactory } from "../../src/application/campaign-operation";
 import { createGameSession, type GameSessionResume } from "../../src/application/game-session";
-import { completeCampaign } from "../../src/scenarios/completeCampaign";
+import { chuncheonAutonomousBattle } from "../../src/scenarios/chuncheonAutonomousBattle";
+import { chuncheonCampaign } from "../../src/scenarios/chuncheonCampaign";
 
 describe("campaign checkpoint module", () => {
   it("deduplicates snapshots and restores through its three-operation interface", () => {
@@ -24,7 +26,9 @@ describe("campaign checkpoint module", () => {
       recoveredFromFailure: false,
     });
 
-    const snapshot = createGameSession(completeCampaign, "checkpoint").read();
+    const snapshot = createGameSession(chuncheonCampaign, "checkpoint", undefined, {
+      operationFactory: createProductionCampaignOperationFactory(chuncheonAutonomousBattle),
+    }).read();
     checkpoint.capture(snapshot);
     checkpoint.capture(snapshot);
     expect(save).toHaveBeenCalledOnce();
@@ -33,7 +37,7 @@ describe("campaign checkpoint module", () => {
     expect(restored.recoveredFromFailure).toBe(false);
     expect(restored.resume).toEqual({
       progress: snapshot.progress,
-      officerMemory: snapshot.officerMemory,
+      roleMemory: snapshot.roleMemory,
     });
   });
 
@@ -53,5 +57,27 @@ describe("campaign checkpoint module", () => {
       recoveredFromFailure: true,
     });
     expect(values.has("progress:v1")).toBe(false);
+  });
+
+  it("rejects and clears the retired officer-memory checkpoint shape", () => {
+    const clear = vi.fn();
+    const checkpoint = createCampaignCheckpoint({
+      load: () => ({
+        progress: {
+          currentSceneId: chuncheonCampaign.startSceneId,
+          completedSceneIds: [],
+          completed: false,
+        },
+        officerMemory: [],
+      }),
+      save: () => undefined,
+      clear,
+    });
+
+    expect(checkpoint.restore()).toEqual({
+      resume: undefined,
+      recoveredFromFailure: true,
+    });
+    expect(clear).toHaveBeenCalledOnce();
   });
 });

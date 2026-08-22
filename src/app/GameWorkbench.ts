@@ -3,12 +3,11 @@ import {
   type GameSession,
   type GameSessionResume,
 } from "../application/game-session";
+import type { CampaignOperationFactory } from "../application/campaign-operation";
 import {
   createCampaignDocument,
-  mountCampaignWorkshop,
   type CampaignDefinition,
   type CampaignRepository,
-  type CampaignWorkshop,
 } from "../authoring/campaign-workshop";
 import {
   mountGameApp,
@@ -31,7 +30,6 @@ import {
 import {
   createWorkbenchManual,
   type GameAudioCredit,
-  type WorkbenchManualVariant,
 } from "./WorkbenchManual";
 
 export type { PlayerSettings, PlayerSettingsStore, PlayerUiScale } from "./PlayerSettings";
@@ -43,14 +41,12 @@ export type GameWorkbenchOptions = Readonly<{
   audioFactory?: () => GameAudio;
   audioCredits?: readonly GameAudioCredit[];
   seed?: string | number;
-  editorEnabled?: boolean;
-  fieldManualVariant?: WorkbenchManualVariant;
   settingsStore?: PlayerSettingsStore;
   checkpoint?: CampaignCheckpoint;
+  operationFactory: CampaignOperationFactory;
 }>;
 
 export type GameWorkbench = Readonly<{
-  document: ReturnType<typeof createCampaignDocument>;
   session: () => GameSession;
   openTool: (name: WorkbenchOverlayName) => void;
   closeTool: (name: WorkbenchOverlayName) => void;
@@ -61,13 +57,12 @@ export type GameWorkbench = Readonly<{
 export function mountGameWorkbench(
   root: HTMLElement,
   authoredCampaign: CampaignDefinition,
-  options: GameWorkbenchOptions = {},
+  options: GameWorkbenchOptions,
 ): GameWorkbench {
   const campaignDocument = createCampaignDocument(authoredCampaign, {
     repository: options.repository,
   });
   const loadResult = campaignDocument.load();
-  const editorEnabled = options.editorEnabled ?? true;
   const shell = document.createElement("main");
   shell.className = "game-workbench";
   const gameRoot = document.createElement("div");
@@ -88,23 +83,13 @@ export function mountGameWorkbench(
   settingsToggle.setAttribute("aria-haspopup", "dialog");
   settingsToggle.setAttribute("aria-controls", "player-settings");
   settingsToggle.textContent = "설정";
-  const editorToggle = document.createElement("button");
-  editorToggle.type = "button";
-  editorToggle.className = "workbench-tool-toggle workbench-editor-toggle";
-  editorToggle.dataset.action = "open-editor";
-  editorToggle.textContent = "장면 편집";
   tools.append(manualToggle, settingsToggle);
-  if (editorEnabled) tools.append(editorToggle);
   let requestManualClose = (): void => undefined;
   const manual = createWorkbenchManual({
-    variant: options.fieldManualVariant ?? "complete-campaign",
     audioCredits: options.audioCredits,
     onRequestClose: () => requestManualClose(),
   });
-  const editorRoot = document.createElement("div");
-  editorRoot.className = "workbench-editor";
-  editorRoot.hidden = true;
-  shell.append(gameRoot, tools, manual.element, editorRoot);
+  shell.append(gameRoot, tools, manual.element);
   if (!loadResult.ok) {
     const startupNotice = document.createElement("div");
     startupNotice.className = "workbench-notice";
@@ -120,7 +105,6 @@ export function mountGameWorkbench(
   let gameApp: GameApp;
   let activeAudio: GameAudio | null = null;
   let settingsPanel: PlayerSettingsPanel;
-  let workshop: CampaignWorkshop;
   let overlays: WorkbenchOverlays;
   let destroyed = false;
 
@@ -145,7 +129,9 @@ export function mountGameWorkbench(
   const createFreshGame = (resume?: GameSessionResume): GameApp => {
     const snapshot = structuredClone(campaignDocument.snapshot());
     const seed = `${String(options.seed ?? "production-campaign")}:restart-${generation}`;
-    const session = createGameSession(snapshot, seed, resume);
+    const session = createGameSession(snapshot, seed, resume, {
+      operationFactory: options.operationFactory,
+    });
     generation += 1;
     const audio = options.audioFactory?.();
     activeAudio = audio ?? null;
@@ -202,10 +188,6 @@ export function mountGameWorkbench(
     notice.textContent = "저장된 진행이 현재 캠페인과 맞지 않아 새 게임으로 시작했습니다.";
     shell.append(notice);
   }
-  workshop = mountCampaignWorkshop(editorRoot, campaignDocument, {
-    onClose: () => closeTool("editor"),
-    onRestart: restartGame,
-  });
   overlays = createWorkbenchOverlays({
     shell,
     gameRoot,
@@ -221,16 +203,6 @@ export function mountGameWorkbench(
         hide: () => { settingsPanel.close(); },
         focusTrigger: () => { settingsToggle.focus(); },
       },
-      ...(editorEnabled ? {
-        editor: {
-          show: () => {
-            editorRoot.hidden = false;
-            workshop.render();
-          },
-          hide: () => { editorRoot.hidden = true; },
-          focusTrigger: () => { editorToggle.focus(); },
-        },
-      } : {}),
     },
     operation: {
       read: () => gameApp.session.read(),
@@ -246,13 +218,9 @@ export function mountGameWorkbench(
   });
   manualToggle.addEventListener("click", () => openTool("manual"));
   settingsToggle.addEventListener("click", () => openTool("settings"));
-  if (editorEnabled) editorToggle.addEventListener("click", () => openTool("editor"));
   document.addEventListener("keydown", handleKeyDown);
 
-  if (!loadResult.ok) workshop.showDiagnostics(loadResult.diagnostics);
-
   return {
-    document: campaignDocument,
     session: () => gameApp.session,
     openTool,
     closeTool,
@@ -263,7 +231,6 @@ export function mountGameWorkbench(
       gameApp.destroy();
       manual.destroy();
       settingsPanel.destroy();
-      workshop.destroy();
       document.removeEventListener("keydown", handleKeyDown);
       root.replaceChildren();
     },

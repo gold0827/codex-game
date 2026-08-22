@@ -19,9 +19,6 @@ export function renderEpilogueView(view: GameViewModel, dispatch: CommandDispatc
   });
   reset.classList.add("primary-button");
   copy.append(reset);
-  const garden = node("section", "pixel-garden");
-  garden.setAttribute("aria-label", "전장을 떠나 바질을 돌보는 조용한 온실");
-  garden.innerHTML = '<span class="garden-sun"></span><span class="garden-house"></span><span class="garden-person"></span><span class="garden-can"></span><span class="garden-plant plant-one"></span><span class="garden-plant plant-two"></span><span class="garden-plant plant-three"></span>';
-  main.append(copy, garden);
+  main.append(copy);
   return main;
 }

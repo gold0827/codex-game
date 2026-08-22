@@ -46,7 +46,7 @@ export function createInMemoryCampaignRepository(campaign: CampaignDefinition): 
 export function createLocalStorageCampaignRepository(
   campaign: CampaignDefinition,
   storage: CampaignKeyValueStore,
-  storageKey = `campaign-document:${campaign.id}`,
+  storageKey = `campaign-document:${campaign.id}:v${campaign.version}`,
 ): CampaignRepository {
   const builtIn = validatedClone(campaign);
   return {

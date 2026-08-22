@@ -4,7 +4,8 @@ export {
   type GameSession,
   type GameSessionResume,
   type GameSnapshot,
+  type GameOperationSnapshot,
   type HarnessAxis,
   type PlayerSpeed,
 } from "./gameTypes";
-export { createGameSession } from "./gameSession";
+export { createGameSession, type GameSessionOptions } from "./gameSession";

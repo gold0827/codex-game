@@ -34,16 +34,19 @@ function resumeFrom(value: unknown): GameSessionResume | undefined {
     throw new TypeError("Campaign checkpoint must be an object.");
   }
   const supplied = value as Partial<GameSessionResume>;
-  if (!supplied.progress || !Array.isArray(supplied.officerMemory)) {
-    throw new TypeError("Campaign checkpoint is missing progress or officer memory.");
+  if (!supplied.progress || !Array.isArray(supplied.roleMemory)) {
+    throw new TypeError("Campaign checkpoint is missing progress or role memory.");
   }
-  return structuredClone(supplied as GameSessionResume);
+  return {
+    progress: structuredClone(supplied.progress),
+    roleMemory: structuredClone(supplied.roleMemory),
+  };
 }
 
 function snapshotResume(snapshot: GameSnapshot): GameSessionResume {
   return {
     progress: structuredClone(snapshot.progress),
-    officerMemory: structuredClone(snapshot.officerMemory),
+    roleMemory: structuredClone(snapshot.roleMemory),
   };
 }
 

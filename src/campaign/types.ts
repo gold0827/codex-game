@@ -1,67 +1,10 @@
-export type SceneKind = "tutorial" | "operation" | "epilogue";
-export type OfficerDisposition = "action" | "verification" | "communication";
-export type OfficerReportTone =
-  | "confident"
-  | "cautious"
-  | "urgent"
-  | "relieved"
-  | "deadpan";
-export type ThreatKind =
-  | "communications"
-  | "flood"
-  | "artillery"
-  | "ambush"
-  | "misinformation"
-  | "obstruction";
-export type ThreatLane = "north" | "center" | "south" | "command";
-export type ThreatSeverity = "low" | "medium" | "high" | "critical";
+export type SceneKind = "operation" | "epilogue";
 
-export interface OfficerSourceTrust {
-  readonly officerId: string;
-  readonly trust: number;
-}
-
-export interface AgentProfile {
-  readonly initiative: number;
-  readonly caution: number;
-  readonly discipline: number;
-  readonly cooperation: number;
-  readonly stressTolerance: number;
-  readonly memoryCapacity: number;
-  readonly sourceTrust: readonly OfficerSourceTrust[];
-}
-
-export interface CampaignTilePosition {
-  readonly x: number;
-  readonly y: number;
-}
-
-export interface CampaignTerrainTile {
-  readonly position: CampaignTilePosition;
-  readonly movementCost: number;
-}
-
-export interface CampaignMapLocation {
-  readonly id: string;
-  readonly position: CampaignTilePosition;
-}
-
-export interface CampaignMapTopology {
-  readonly width: number;
-  readonly height: number;
-  readonly blocked: readonly CampaignTilePosition[];
-  readonly terrain: readonly CampaignTerrainTile[];
-  readonly spawns: readonly CampaignMapLocation[];
-  readonly destinations: readonly CampaignMapLocation[];
-}
-
-export interface CampaignOfficer {
+export interface CampaignRole {
   readonly id: string;
   readonly name: string;
   readonly rank: string;
   readonly role: string;
-  readonly disposition: OfficerDisposition;
-  readonly profile?: AgentProfile;
 }
 
 export interface CampaignSceneIdentity {
@@ -79,97 +22,9 @@ export interface CampaignSceneCopy {
 }
 
 export interface CampaignScenePresentation {
-  readonly mapId: string;
   readonly backdropId: string;
   readonly soundtrackId: string;
   readonly accentColor: string;
-}
-
-export const CAMPAIGN_SPATIAL_SIGNAL_KINDS = [
-  "investigate",
-  "defend",
-  "avoid",
-] as const;
-export type CampaignSpatialSignalKind =
-  (typeof CAMPAIGN_SPATIAL_SIGNAL_KINDS)[number];
-
-export const CAMPAIGN_SPATIAL_SIGNAL_STRENGTHS = [1, 2, 3] as const;
-export type CampaignSpatialSignalStrength =
-  (typeof CAMPAIGN_SPATIAL_SIGNAL_STRENGTHS)[number];
-
-export type CampaignSpatialSignalGuidanceStep = Readonly<{
-  id: string;
-  instruction: string;
-  action: "signal";
-  target: Readonly<{
-    kind: "spatial-signal";
-    signal: CampaignSpatialSignalKind;
-    strength: CampaignSpatialSignalStrength;
-    position: CampaignTilePosition;
-    // Keeps legacy route-only projections source-compatible until #146 and #147.
-    reportId?: never;
-    recipientOfficerId?: never;
-  }>;
-  completionEvent: "spatial-signal-issued";
-}>;
-
-export type CampaignGuidanceStep =
-  | Readonly<{
-      id: string;
-      instruction: string;
-      action: "pause";
-      target: Readonly<{ kind: "operation-clock" }>;
-      completionEvent: "operation-paused";
-    }>
-  | Readonly<{
-      id: string;
-      instruction: string;
-      action: "inspect";
-      target: Readonly<{ kind: "officer"; officerId: string }>;
-      completionEvent: "officer-inspected";
-    }>
-  | Readonly<{
-      id: string;
-      instruction: string;
-      action: "route";
-      target: Readonly<{
-        kind: "report-recipient";
-        reportId: string;
-        recipientOfficerId: string;
-      }>;
-      completionEvent: "report-routed";
-    }>
-  | Readonly<{
-      id: string;
-      instruction: string;
-      action: "resume";
-      target: Readonly<{ kind: "operation-clock" }>;
-      completionEvent: "operation-resumed";
-    }>
-  | CampaignSpatialSignalGuidanceStep;
-
-export interface CampaignOfficerReport {
-  readonly id: string;
-  readonly officerId: string;
-  readonly tone: OfficerReportTone;
-  readonly text: string;
-}
-
-export interface CampaignThreat {
-  readonly id: string;
-  readonly kind: ThreatKind;
-  readonly lane: ThreatLane;
-  readonly severity: ThreatSeverity;
-  readonly telegraphDurationMs: number;
-}
-
-export interface CampaignEncounterBeat {
-  readonly id: string;
-  readonly timeMs: number;
-  readonly headline: string;
-  readonly description: string;
-  readonly reports: readonly CampaignOfficerReport[];
-  readonly threats: readonly CampaignThreat[];
 }
 
 export interface CampaignObjective {
@@ -197,9 +52,6 @@ export interface CampaignScene {
   readonly identity: CampaignSceneIdentity;
   readonly copy: CampaignSceneCopy;
   readonly presentation: CampaignScenePresentation;
-  readonly mapTopology?: CampaignMapTopology;
-  readonly guidance: readonly CampaignGuidanceStep[];
-  readonly beats: readonly CampaignEncounterBeat[];
   readonly objectives: readonly CampaignObjective[];
   readonly transitions: readonly CampaignTransition[];
   readonly encounterParameters: CampaignEncounterParameters;
@@ -211,6 +63,6 @@ export interface CampaignDefinition {
   readonly title: string;
   readonly version: number;
   readonly startSceneId: string;
-  readonly officers: readonly CampaignOfficer[];
+  readonly roles: readonly CampaignRole[];
   readonly scenes: readonly CampaignScene[];
 }

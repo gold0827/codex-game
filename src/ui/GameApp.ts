@@ -5,10 +5,6 @@ import {
 } from "../application/game-session";
 import { type CommandDispatcher, node } from "../presentation/dom";
 import {
-  mountCanvasBattlefield,
-  type MountedCanvasBattlefield,
-} from "../presentation/battlefield/canvasBattlefield";
-import {
   createGameEffects,
   type GameFrameScheduler,
 } from "../presentation/gameEffects";
@@ -21,7 +17,6 @@ import { renderBriefingView } from "../presentation/phases/briefingView";
 import { renderDebriefView } from "../presentation/phases/debriefView";
 import { renderEpilogueView } from "../presentation/phases/epilogueView";
 import { renderOperationView } from "../presentation/phases/operationView";
-import { projectBattlefieldFrame } from "../presentation/operation/battlefieldProjector";
 import type { GameAudio } from "./GameAudio";
 
 export type { GameFrameScheduler } from "../presentation/gameEffects";
@@ -43,7 +38,7 @@ export type GameApp = Readonly<{
 type GameAppCampaign = Readonly<{
   title: string;
   scenes: readonly unknown[];
-  officers: PresentationCampaign["officers"];
+  roles: PresentationCampaign["roles"];
 }>;
 
 function isolateOptionalAudio(audio: GameAudio): GameAudio {
@@ -103,12 +98,11 @@ export function mountGameApp(
   const campaignView: PresentationCampaign = {
     title: campaign.title,
     sceneCount: campaign.scenes.length,
-    officers: campaign.officers,
+    roles: campaign.roles,
   };
   let message = "";
   let destroyed = false;
-  let battlefield: MountedCanvasBattlefield | null = null;
-  let selectedSignalPosition: Readonly<{ x: number; y: number }> | null = null;
+  let selectedActorId: string | null = null;
   const prefersReducedMotion = (): boolean => {
     if (typeof options.reducedMotion === "function") return options.reducedMotion();
     return options.reducedMotion
@@ -138,24 +132,7 @@ export function mountGameApp(
     const reducedMotion = prefersReducedMotion();
     options.onSnapshot?.(snapshot);
     effects.observe(snapshot);
-    const battlefieldFrame = projectBattlefieldFrame(snapshot, {
-      reducedMotion,
-      effectTrack: effects.effectTrack,
-    });
-    if (battlefieldFrame) {
-      battlefield ??= mountCanvasBattlefield(scheduler, {
-        onTileSelected: (position) => {
-          selectedSignalPosition = position;
-          render();
-        },
-      });
-      battlefield.update(battlefieldFrame);
-    } else if (battlefield) {
-      battlefield.destroy();
-      battlefield = null;
-      selectedSignalPosition = null;
-    }
-    const view = projectGameViewModel(snapshot, campaignView);
+    const view = projectGameViewModel(snapshot, campaignView, selectedActorId);
     const shell = node("div", "game-shell");
     shell.dataset.reducedMotion = String(reducedMotion);
     shell.style.setProperty("--scene-accent", view.accentColor);
@@ -172,11 +149,15 @@ export function mountGameApp(
       shell.append(notice);
     }
     if (view.phase === "briefing") shell.append(renderBriefingView(view, dispatch));
-    else if (view.phase === "operation" && battlefield) {
-      shell.append(renderOperationView(view, dispatch, battlefield.element, {
-        selectedSignalPosition,
-      }));
-    }
+    else if (view.phase === "operation") shell.append(renderOperationView(
+      view,
+      dispatch,
+      (actorId) => {
+        selectedActorId = actorId;
+        render();
+        effects.restoreFocus(`inspect-${actorId}`);
+      },
+    ));
     else if (view.phase === "debrief") shell.append(renderDebriefView(view, dispatch));
     else shell.append(renderEpilogueView(view, dispatch));
     root.replaceChildren(shell);
@@ -191,8 +172,6 @@ export function mountGameApp(
     render,
     destroy: () => {
       destroyed = true;
-      battlefield?.destroy();
-      battlefield = null;
       effects.destroy();
       root.replaceChildren();
     },

@@ -49,8 +49,7 @@
 }
 
 .workbench-manual,
-.workbench-settings,
-.workbench-editor {
+.workbench-settings {
   position: fixed;
   z-index: 50;
   inset: 0;
@@ -59,8 +58,7 @@
 }
 
 .workbench-manual[hidden],
-.workbench-settings[hidden],
-.workbench-editor[hidden] {
+.workbench-settings[hidden] {
   display: none;
 }
 
@@ -208,16 +206,6 @@
   animation-iteration-count: 1 !important;
   scroll-behavior: auto !important;
   transition-duration: 0.001ms !important;
-}
-
-.game-workbench[data-show-tutorial="false"] .tutorial-guidance {
-  display: none;
-}
-
-.game-workbench[data-show-tutorial="false"] .guidance-target {
-  border-color: var(--line) !important;
-  box-shadow: none;
-  animation: none;
 }
 
 @media (max-width: 1100px) {

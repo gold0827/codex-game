@@ -20,13 +20,13 @@ export function renderBriefingView(view: GameViewModel, dispatch: CommandDispatc
   briefing?.objectives.forEach((objective) => {
     objectives.append(node("li", objective.required ? "required-objective" : "optional-objective", objective.label));
   });
-  const lessons = node("section", "briefing-officer-lessons");
-  lessons.dataset.region = "officer-lessons";
-  if (briefing?.officerLessons.length) {
-    lessons.append(node("h3", undefined, "장교가 기억한 교훈"));
-    briefing.officerLessons.forEach((memory) => {
-      const item = node("article", "briefing-officer-memory");
-      item.append(node("strong", undefined, memory.officer));
+  const lessons = node("section", "briefing-role-lessons");
+  lessons.dataset.region = "role-lessons";
+  if (briefing?.roleLessons.length) {
+    lessons.append(node("h3", undefined, "지휘 역할이 기억한 교훈"));
+    briefing.roleLessons.forEach((memory) => {
+      const item = node("article", "briefing-role-memory");
+      item.append(node("strong", undefined, memory.role));
       const summaries = node("ul");
       memory.lessons.forEach((summary) => summaries.append(node("li", undefined, summary)));
       item.append(summaries);
@@ -38,7 +38,7 @@ export function renderBriefingView(view: GameViewModel, dispatch: CommandDispatc
   });
   start.classList.add("primary-button");
   copy.append(objectives);
-  if (briefing?.officerLessons.length) copy.append(lessons);
+  if (briefing?.roleLessons.length) copy.append(lessons);
   copy.append(start);
   main.append(copy, renderHarnessControls(view, dispatch));
   return main;
