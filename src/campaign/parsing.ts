@@ -22,7 +22,7 @@ export type CampaignParseResult =
 
 type JsonRecord = Record<string, unknown>;
 
-const sceneKinds = ["tutorial", "operation", "epilogue"];
+const sceneKinds = ["operation", "epilogue"];
 
 function shapeDiagnostic(
   diagnostics: CampaignParseDiagnostic[],

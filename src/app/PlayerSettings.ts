@@ -8,7 +8,6 @@ export type PlayerSettings = Readonly<{
   musicVolume: number;
   effectsVolume: number;
   reducedMotion: boolean;
-  showTutorial: boolean;
   uiScale: PlayerUiScale;
 }>;
 
@@ -45,7 +44,6 @@ const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
   musicVolume: 0.7,
   effectsVolume: 0.8,
   reducedMotion: false,
-  showTutorial: true,
   uiScale: "standard",
 };
 
@@ -68,9 +66,6 @@ export function normalizePlayerSettings(value: unknown): PlayerSettings {
     reducedMotion: typeof supplied.reducedMotion === "boolean"
       ? supplied.reducedMotion
       : false,
-    showTutorial: typeof supplied.showTutorial === "boolean"
-      ? supplied.showTutorial
-      : true,
     uiScale,
   };
 }
@@ -154,10 +149,6 @@ export function mountPlayerSettingsPanel(
             <span>화면 움직임 줄이기</span>
             <input type="checkbox" data-setting="reducedMotion" />
           </label>
-          <label class="settings-toggle-row">
-            <span>작전 안내 표시</span>
-            <input type="checkbox" data-setting="showTutorial" />
-          </label>
           <button type="button" class="editor-button" data-action="toggle-fullscreen">전체 화면</button>
           <p class="settings-help">점멸과 반복 애니메이션을 줄이고 전장 효과를 정적으로 표시합니다.</p>
         </section>
@@ -185,11 +176,9 @@ export function mountPlayerSettingsPanel(
   const syncControls = (): void => {
     const muted = root.querySelector<HTMLInputElement>('[data-setting="muted"]');
     const reducedMotion = root.querySelector<HTMLInputElement>('[data-setting="reducedMotion"]');
-    const showTutorial = root.querySelector<HTMLInputElement>('[data-setting="showTutorial"]');
     const uiScale = root.querySelector<HTMLSelectElement>('[data-setting="uiScale"]');
     if (muted) muted.checked = settings.muted;
     if (reducedMotion) reducedMotion.checked = settings.reducedMotion;
-    if (showTutorial) showTutorial.checked = settings.showTutorial;
     if (uiScale) uiScale.value = settings.uiScale;
     (["masterVolume", "musicVolume", "effectsVolume"] as const).forEach((key) => {
       const input = root.querySelector<HTMLInputElement>(`[data-setting="${key}"]`);
@@ -202,7 +191,6 @@ export function mountPlayerSettingsPanel(
   const apply = (save: boolean, notify: boolean): void => {
     shell.dataset.uiScale = settings.uiScale;
     shell.dataset.reducedMotion = String(settings.reducedMotion);
-    shell.dataset.showTutorial = String(settings.showTutorial);
     audio?.setMuted(settings.muted);
     audio?.setMasterVolume?.(settings.masterVolume);
     audio?.setMusicVolume?.(settings.musicVolume);
@@ -232,10 +220,6 @@ export function mountPlayerSettingsPanel(
   root.querySelector<HTMLInputElement>('[data-setting="reducedMotion"]')
     ?.addEventListener("change", (event) => {
       update({ reducedMotion: (event.currentTarget as HTMLInputElement).checked });
-    });
-  root.querySelector<HTMLInputElement>('[data-setting="showTutorial"]')
-    ?.addEventListener("change", (event) => {
-      update({ showTutorial: (event.currentTarget as HTMLInputElement).checked });
     });
   root.querySelector<HTMLSelectElement>('[data-setting="uiScale"]')
     ?.addEventListener("change", (event) => {

@@ -49,8 +49,7 @@
 }
 
 .workbench-manual,
-.workbench-settings,
-.workbench-editor {
+.workbench-settings {
   position: fixed;
   z-index: 50;
   inset: 0;
@@ -59,8 +58,7 @@
 }
 
 .workbench-manual[hidden],
-.workbench-settings[hidden],
-.workbench-editor[hidden] {
+.workbench-settings[hidden] {
   display: none;
 }
 

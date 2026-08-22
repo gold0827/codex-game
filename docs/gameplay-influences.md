@@ -23,16 +23,13 @@
 제품이 아니다. 하네스 또한 능력치나 전투 버프가 아니라 정보·권한·검증·피드백을
 연결하는 행동양식이어야 한다.
 
-이슈 이력도 같은 경계를 뒷받침한다. [#229](https://github.com/gold0827/codex-game/issues/229)는
-난전의 재미를 묻는 일회성 프로토타입이며 본편 UI/UX, 캠페인 저장, 보고·검증 흐름을
-변경하지 않는다고 선언했다. [#230](https://github.com/gold0827/codex-game/issues/230)과
-[#231](https://github.com/gold0827/codex-game/pull/231)은 이를 headless operation runtime으로
-이식했지만 UI와 캠페인 연결은 범위 밖으로 유지했다. 반면
-[#232](https://github.com/gold0827/codex-game/issues/232)는 난전을 기본 브라우저 게임으로
-올리는 실험을 거쳤다. 현재 [README](../README.md)의 기본 게임과
-레거시 설명은 이 마지막 통합을 반영하므로, 현재 한국전쟁 기반 캠페인의 개념적
-출발점으로 삼아서는 안 된다. 이 문서가 유지할 경계는 난전이 하네스 캠페인의 목적을
-다시 대체하지 않아야 한다는 점이다.
+초기 이슈 [#229](https://github.com/gold0827/codex-game/issues/229)부터
+[#232](https://github.com/gold0827/codex-game/issues/232)까지는 난전과 headless operation을
+각각 검증했다. 현재 production은 이 실험을 별도 게임 모드로 유지하지 않고, 춘천지구
+캠페인의 canonical 자율전투로 통합한다. 현재 실행 경로는 [README](../README.md), 모듈
+책임과 의존 방향은 [architecture](architecture/dependency-directions.md)를 기준으로 한다.
+이 문서가 유지할 경계는 난전이 하네스 캠페인의 목적을 다시 대체하지 않아야 한다는
+점이다.
 
 ## 참고작에서 가져올 것
 

@@ -24,14 +24,13 @@ describe("workbench overlays module", () => {
     },
   });
 
-  const create = (includeEditor = true) => createWorkbenchOverlays({
+  const create = (includeSettings = true) => createWorkbenchOverlays({
     shell,
     gameRoot,
     tools,
     adapters: {
       manual: adapter("manual"),
-      settings: adapter("settings"),
-      ...(includeEditor ? { editor: adapter("editor") } : {}),
+      ...(includeSettings ? { settings: adapter("settings") } : {}),
     },
     operation: {
       read: () => state,
@@ -53,7 +52,6 @@ describe("workbench overlays module", () => {
         <div class="workbench-tools"></div>
         <button data-trigger="manual"></button>
         <button data-trigger="settings"></button>
-        <button data-trigger="editor"></button>
       </main>
     `;
     shell = document.querySelector(".game-workbench")!;
@@ -62,7 +60,6 @@ describe("workbench overlays module", () => {
     triggers = {
       manual: document.querySelector('[data-trigger="manual"]')!,
       settings: document.querySelector('[data-trigger="settings"]')!,
-      editor: document.querySelector('[data-trigger="editor"]')!,
     };
     state = { phase: "operation", paused: false };
     commands = [];
@@ -74,19 +71,15 @@ describe("workbench overlays module", () => {
 
     overlays.open("manual");
     overlays.open("settings");
-    overlays.open("editor");
 
     expect(commands).toEqual(["pause"]);
     expect(adapterEvents).toEqual([
       "show:manual",
       "hide:manual",
       "show:settings",
-      "hide:settings",
-      "show:editor",
     ]);
     expect(shell.classList.contains("manual-open")).toBe(false);
-    expect(shell.classList.contains("settings-open")).toBe(false);
-    expect(shell.classList.contains("editor-open")).toBe(true);
+    expect(shell.classList.contains("settings-open")).toBe(true);
     expect(tools.hidden).toBe(true);
     expect(gameRoot.inert).toBe(true);
 
@@ -95,7 +88,7 @@ describe("workbench overlays module", () => {
     expect(commands).toEqual(["pause", "resume"]);
     expect(tools.hidden).toBe(false);
     expect(gameRoot.inert).not.toBe(true);
-    expect(document.activeElement).toBe(triggers.editor);
+    expect(document.activeElement).toBe(triggers.settings);
   });
 
   it("does not resume an operation that was already paused", () => {
@@ -122,7 +115,7 @@ describe("workbench overlays module", () => {
   it("ignores unavailable and inactive overlays", () => {
     const overlays = create(false);
 
-    overlays.open("editor");
+    overlays.open("settings");
     overlays.close("manual");
     overlays.closeActive();
 

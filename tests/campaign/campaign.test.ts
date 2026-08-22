@@ -114,6 +114,18 @@ describe("canonical campaign schema", () => {
     },
   );
 
+  it("rejects the removed tutorial scene kind", () => {
+    const source = structuredClone(createDefinition()) as unknown as {
+      scenes: Array<{ identity: { kind: string } }>;
+    };
+    source.scenes[0]!.identity.kind = "tutorial";
+
+    expect(parseCampaignValue(source)).toMatchObject({
+      ok: false,
+      diagnostics: [expect.objectContaining({ path: "$.scenes[0].identity.kind" })],
+    });
+  });
+
   it.each([
     ["officer disposition", (source: Record<string, unknown>): string => {
       const officers = source.officers as Array<Record<string, unknown>>;

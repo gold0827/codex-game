@@ -8,7 +8,7 @@ const { browserErrors, result: overlayReport } = await runChromeAcceptance(async
   await navigate({
     path: "./?editor=1",
     readyExpression: `document.querySelector("#app [data-phase='briefing']") !== null`,
-    readyLabel: "the editor-enabled Chuncheon briefing",
+    readyLabel: "the Chuncheon briefing with an inert retired editor query",
   });
   await importFixture(
     "/codex-game/tests/fixtures/workbench-overlays-chrome.ts",

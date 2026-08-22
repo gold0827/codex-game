@@ -25,7 +25,6 @@ export function mountProductionGame(
     frameScheduler: createBrowserFrameScheduler(),
     audioFactory: () => createBrowserAudio(productionSoundtrackCatalog),
     audioCredits: productionSoundtrackCatalog,
-    editorEnabled: new URLSearchParams(window.location.search).get("editor") === "1",
     settingsStore: createPlayerSettingsStore(
       storage,
       `player-settings:${campaign.id}:v1`,

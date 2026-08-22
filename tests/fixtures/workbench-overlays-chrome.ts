@@ -1,6 +1,6 @@
 import { createFixtureAction, nextFrame } from "./chrome-fixture-helpers";
 
-type OverlayName = "manual" | "settings" | "editor";
+type OverlayName = "manual" | "settings";
 
 type OverlayTransition = Readonly<{
   from: OverlayName;
@@ -14,7 +14,7 @@ type OverlayTransition = Readonly<{
 declare global {
   var __overlayFixtureResult: Readonly<{
     passed: boolean;
-    editorEnabled: boolean;
+    editorAbsent: boolean;
     openedManual: boolean;
     transitions: readonly OverlayTransition[];
     closed: boolean;
@@ -33,7 +33,6 @@ const overlay = (name: OverlayName): HTMLElement => {
   const selectors = {
     manual: ".workbench-manual",
     settings: ".workbench-settings",
-    editor: ".workbench-editor",
   } as const;
   const element = root.querySelector<HTMLElement>(selectors[name]);
   if (!element) throw new Error(`Missing ${name} overlay.`);
@@ -48,7 +47,7 @@ const mountedGameRoot = root.querySelector<HTMLElement>(".workbench-game");
 if (!workbenchShell || !mountedGameRoot) throw new Error("Workbench shell is missing.");
 const shell: HTMLElement = workbenchShell;
 const gameRoot: HTMLElement = mountedGameRoot;
-const editorEnabled = root.querySelector('[data-action="open-editor"]') !== null;
+const editorAbsent = root.querySelector('[data-action="open-editor"]') === null;
 
 action("open-manual").click();
 await nextFrame();
@@ -70,20 +69,17 @@ async function transition(from: OverlayName, to: OverlayName): Promise<OverlayTr
   };
 }
 
-const transitions = [
-  await transition("manual", "settings"),
-  await transition("settings", "editor"),
-];
+const transitions = [await transition("manual", "settings")];
 
-const editorTrigger = action("open-editor");
-action("close-editor").click();
+const settingsTrigger = action("open-settings");
+action("close-settings").click();
 await nextFrame();
-const closed = overlay("editor").hidden !== false &&
-  !shell.classList.contains("editor-open") &&
+const closed = overlay("settings").hidden !== false &&
+  !shell.classList.contains("settings-open") &&
   !gameRoot.inert;
 const resumed = action("pause").textContent === "일시정지";
-const focusRestored = document.activeElement === editorTrigger;
-const passed = editorEnabled &&
+const focusRestored = document.activeElement === settingsTrigger;
+const passed = editorAbsent &&
   openedManual &&
   transitions.every((step) => step.fromHidden && step.toVisible && step.paused && step.stayedInert) &&
   closed &&
@@ -92,7 +88,7 @@ const passed = editorEnabled &&
 
 globalThis.__overlayFixtureResult = {
   passed,
-  editorEnabled,
+  editorAbsent,
   openedManual,
   transitions,
   closed,

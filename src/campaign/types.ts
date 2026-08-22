@@ -1,4 +1,4 @@
-export type SceneKind = "tutorial" | "operation" | "epilogue";
+export type SceneKind = "operation" | "epilogue";
 
 export interface CampaignOfficer {
   readonly id: string;

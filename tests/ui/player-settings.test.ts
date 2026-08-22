@@ -37,7 +37,6 @@ describe("player settings module", () => {
       musicVolume: 0,
       effectsVolume: 0.8,
       reducedMotion: true,
-      showTutorial: false,
       uiScale: "standard",
     });
   });
@@ -55,7 +54,6 @@ describe("player settings module", () => {
       musicVolume: 0.6,
       effectsVolume: 0.7,
       reducedMotion: true,
-      showTutorial: false,
       uiScale: "large",
     };
 
@@ -89,8 +87,8 @@ describe("player settings module", () => {
 
     panel.connectAudio(audio);
     panel.open();
-    expect(host.textContent).toContain("작전 안내 표시");
-    expect(host.textContent).not.toMatch(/학교|훈련|가상 교전/);
+    expect(host.querySelector('[data-setting="showTutorial"]')).toBeNull();
+    expect(shell.dataset.showTutorial).toBeUndefined();
     const master = host.querySelector<HTMLInputElement>('[data-setting="masterVolume"]')!;
     master.value = "0.45";
     master.dispatchEvent(new Event("input", { bubbles: true }));

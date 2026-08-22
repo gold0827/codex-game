@@ -1,4 +1,4 @@
-export type WorkbenchOverlayName = "manual" | "settings" | "editor";
+export type WorkbenchOverlayName = "manual" | "settings";
 
 export type WorkbenchOverlayAdapter = Readonly<{
   show: () => void;
