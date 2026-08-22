@@ -5,7 +5,6 @@ import { createWorkbenchManual } from "../../src/app/WorkbenchManual";
 describe("workbench manual module", () => {
   it("explains the canonical autonomous command loop", () => {
     const manual = createWorkbenchManual({
-      variant: "chuncheon-prototype",
       onRequestClose: () => undefined,
     });
 
@@ -16,7 +15,6 @@ describe("workbench manual module", () => {
 
   it("owns audio credit DOM and show lifecycle", () => {
     const manual = createWorkbenchManual({
-      variant: "chuncheon-prototype",
       audioCredits: [{
         title: "행진곡",
         author: "작곡가",
@@ -43,7 +41,6 @@ describe("workbench manual module", () => {
   it("routes close requests and removes its DOM on destroy", () => {
     const onRequestClose = vi.fn();
     const manual = createWorkbenchManual({
-      variant: "chuncheon-prototype",
       onRequestClose,
     });
     document.body.append(manual.element);

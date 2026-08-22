@@ -32,7 +32,6 @@ import {
 import {
   createWorkbenchManual,
   type GameAudioCredit,
-  type WorkbenchManualVariant,
 } from "./WorkbenchManual";
 
 export type { PlayerSettings, PlayerSettingsStore, PlayerUiScale } from "./PlayerSettings";
@@ -45,7 +44,6 @@ export type GameWorkbenchOptions = Readonly<{
   audioCredits?: readonly GameAudioCredit[];
   seed?: string | number;
   editorEnabled?: boolean;
-  fieldManualVariant?: WorkbenchManualVariant;
   settingsStore?: PlayerSettingsStore;
   checkpoint?: CampaignCheckpoint;
   operationFactory: CampaignOperationFactory;
@@ -99,7 +97,6 @@ export function mountGameWorkbench(
   if (editorEnabled) tools.append(editorToggle);
   let requestManualClose = (): void => undefined;
   const manual = createWorkbenchManual({
-    variant: options.fieldManualVariant ?? "chuncheon-prototype",
     audioCredits: options.audioCredits,
     onRequestClose: () => requestManualClose(),
   });

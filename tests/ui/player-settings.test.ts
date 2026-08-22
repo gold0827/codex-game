@@ -89,6 +89,8 @@ describe("player settings module", () => {
 
     panel.connectAudio(audio);
     panel.open();
+    expect(host.textContent).toContain("작전 안내 표시");
+    expect(host.textContent).not.toMatch(/학교|훈련|가상 교전/);
     const master = host.querySelector<HTMLInputElement>('[data-setting="masterVolume"]')!;
     master.value = "0.45";
     master.dispatchEvent(new Event("input", { bubbles: true }));

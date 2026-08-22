@@ -155,7 +155,7 @@ export function mountPlayerSettingsPanel(
             <input type="checkbox" data-setting="reducedMotion" />
           </label>
           <label class="settings-toggle-row">
-            <span>훈련 안내 표시</span>
+            <span>작전 안내 표시</span>
             <input type="checkbox" data-setting="showTutorial" />
           </label>
           <button type="button" class="editor-button" data-action="toggle-fullscreen">전체 화면</button>

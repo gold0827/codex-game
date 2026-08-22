@@ -15,12 +15,10 @@ import {
   createCampaignCheckpointStore,
 } from "./CampaignCheckpoint";
 
-type AuthoredCampaign = Parameters<typeof mountGameWorkbench>[1];
-
 export function mountProductionGame(
   root: HTMLElement,
-  campaign: AuthoredCampaign = chuncheonCampaign,
 ): GameWorkbench {
+  const campaign = chuncheonCampaign;
   const storage = createBrowserStorage();
   return mountGameWorkbench(root, campaign, {
     repository: createBrowserCampaignRepository(campaign),
@@ -28,7 +26,6 @@ export function mountProductionGame(
     audioFactory: () => createBrowserAudio(productionSoundtrackCatalog),
     audioCredits: productionSoundtrackCatalog,
     editorEnabled: new URLSearchParams(window.location.search).get("editor") === "1",
-    fieldManualVariant: "chuncheon-prototype",
     settingsStore: createPlayerSettingsStore(
       storage,
       `player-settings:${campaign.id}:v1`,

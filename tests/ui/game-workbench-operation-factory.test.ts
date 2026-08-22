@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
   createProductionCampaignOperationFactory,
@@ -8,6 +8,7 @@ import {
   mountGameWorkbench,
   type GameWorkbench,
 } from "../../src/app/GameWorkbench";
+import { mountProductionGame } from "../../src/app/createGameWorkbench";
 import { chuncheonAutonomousBattle } from "../../src/scenarios/chuncheonAutonomousBattle";
 import { chuncheonCampaign } from "../../src/scenarios/chuncheonCampaign";
 import type { GameFrameScheduler } from "../../src/ui/GameApp";
@@ -27,6 +28,10 @@ describe("game workbench operation assembly", () => {
   afterEach(() => {
     workbench?.destroy();
     vi.restoreAllMocks();
+  });
+
+  it("fixes production assembly to the canonical campaign", () => {
+    expectTypeOf(mountProductionGame).parameters.toEqualTypeOf<[root: HTMLElement]>();
   });
 
   it("passes its operation factory into fresh and restarted sessions", () => {

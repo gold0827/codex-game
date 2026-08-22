@@ -6,8 +6,6 @@ export type GameAudioCredit = Readonly<{
   licenseUrl: string;
 }>;
 
-export type WorkbenchManualVariant = "chuncheon-prototype";
-
 export type WorkbenchManual = Readonly<{
   element: HTMLElement;
   show: () => void;
@@ -16,7 +14,6 @@ export type WorkbenchManual = Readonly<{
 }>;
 
 type WorkbenchManualOptions = Readonly<{
-  variant: WorkbenchManualVariant;
   audioCredits?: readonly GameAudioCredit[];
   onRequestClose: () => void;
 }>;

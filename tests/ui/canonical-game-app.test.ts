@@ -59,4 +59,28 @@ describe("canonical game app", () => {
     root.querySelector<HTMLButtonElement>('[data-action="set-formation-intent"]')?.click();
     expect(root.querySelector(".intervention-accepted")?.textContent).toContain("편성 개입 접수");
   });
+
+  it("finishes the Chuncheon campaign without legacy epilogue framing", () => {
+    app.session.dispatch({
+      type: "set-harness",
+      harness: {
+        informationReach: 1,
+        authorityClarity: 1,
+        verificationDepth: 1,
+        feedbackCompression: 0,
+      },
+    });
+    app.session.dispatch({ type: "start-attempt" });
+    app.session.advance(chuncheonAutonomousBattle.durationMs);
+    app.render();
+
+    const lesson = root.querySelector<HTMLButtonElement>('[data-action="choose-lesson"]');
+    expect(lesson).not.toBeNull();
+    lesson?.click();
+
+    expect(root.querySelector('[data-phase="epilogue"]')).not.toBeNull();
+    expect(root.textContent).toContain("춘천지구 지연전 종료");
+    expect(root.textContent).not.toMatch(/학교|훈련|온실|바질/);
+    expect(root.querySelector(".pixel-garden")).toBeNull();
+  });
 });
