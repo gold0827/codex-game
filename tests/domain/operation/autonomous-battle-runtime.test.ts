@@ -128,6 +128,7 @@ describe("autonomous battle headless runtime", () => {
         guidanceId: "test-guidance",
         recipientFormationIds: ["friendly-forward"],
       });
+      simulation.advance(250);
       return actorTrace(simulation.advance(250), "friendly-1");
     });
 
@@ -135,6 +136,25 @@ describe("autonomous battle headless runtime", () => {
       .forEach((field) => {
         expect(traces(field, 0), field).not.toEqual(traces(field, 1));
       });
+  });
+
+  it("feeds an actor's prior autonomous action result into its next decision without intervention", () => {
+    const traces = (feedbackCompression: number) => Array.from({ length: 32 }, (_, seed) => {
+      const simulation = createAutonomousBattleSimulation(definition(), seed, {
+        informationReach: 1,
+        authorityClarity: 1,
+        verificationDepth: 1,
+        feedbackCompression,
+      });
+      simulation.advance(250);
+      return actorTrace(simulation.advance(250), "friendly-1");
+    });
+
+    const withoutFeedback = traces(0);
+    const compressedFeedback = traces(1);
+    expect(compressedFeedback).not.toEqual(withoutFeedback);
+    expect(compressedFeedback.some(({ selectedBehaviorId }) => selectedBehaviorId === "feedback-repeat"))
+      .toBe(true);
   });
 
   it("lets authored profile and execution variability affect autonomous decisions", () => {
@@ -179,5 +199,22 @@ describe("autonomous battle headless runtime", () => {
     const invalid = definition([actor("hostile-1")]);
     expect(() => createAutonomousBattleSimulation(invalid, "duplicate", balancedHarness))
       .toThrow(/globally unique/);
+  });
+
+  it("requires exactly the four autonomous harness policy axes", () => {
+    const missing = {
+      informationReach: 0.5,
+      authorityClarity: 0.5,
+      verificationDepth: 0.5,
+    } as unknown as AutonomousBattleHarnessPolicies;
+    const additional = {
+      ...balancedHarness,
+      directOutcomeBonus: 1,
+    } as unknown as AutonomousBattleHarnessPolicies;
+
+    expect(() => createAutonomousBattleSimulation(definition(), "missing-harness", missing))
+      .toThrow(/must define exactly/);
+    expect(() => createAutonomousBattleSimulation(definition(), "additional-harness", additional))
+      .toThrow(/must define exactly/);
   });
 });

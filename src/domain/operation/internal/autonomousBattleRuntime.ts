@@ -26,6 +26,10 @@ type ActorRuntime = {
   condition: AutonomousBattleActorCondition;
   selectedBehaviorId: string | null;
   decisionConfidence: number;
+  previousTrace: Readonly<{
+    behaviorId: string;
+    executionSucceeded: boolean;
+  }> | null;
 };
 
 type FormationRuntime = {
@@ -102,7 +106,21 @@ function validateDefinition(definition: AutonomousBattleDefinition): void {
 }
 
 function validateHarness(harness: AutonomousBattleHarnessPolicies): void {
-  (Object.keys(harness) as Array<keyof AutonomousBattleHarnessPolicies>).forEach((field) => {
+  const fields = [
+    "informationReach",
+    "authorityClarity",
+    "verificationDepth",
+    "feedbackCompression",
+  ] as const satisfies readonly (keyof AutonomousBattleHarnessPolicies)[];
+  const suppliedFields = harness === null || typeof harness !== "object"
+    ? []
+    : Object.keys(harness).sort();
+  const expectedFields = [...fields].sort();
+  if (suppliedFields.length !== expectedFields.length ||
+      suppliedFields.some((field, index) => field !== expectedFields[index])) {
+    throw new TypeError(`An autonomous battle harness must define exactly: ${fields.join(", ")}.`);
+  }
+  fields.forEach((field) => {
     assertRatio(harness[field], `Autonomous battle harness ${field}`);
   });
 }
@@ -149,6 +167,7 @@ export function createAutonomousBattleSimulation(
         condition: "effective",
         selectedBehaviorId: null,
         decisionConfidence: 0,
+        previousTrace: null,
       })),
     };
   });
@@ -172,14 +191,20 @@ export function createAutonomousBattleSimulation(
       harness.authorityClarity * 0.7 + actor.profile.discipline * 0.2 + actor.profile.initiative * 0.1 -
       actor.decisionNoise * 0.15,
     );
-    const feedbackApplied = formation.guidanceId !== null && feedbackRoll < clamp(
+    const previousTrace = actor.previousTrace;
+    const feedbackApplied = previousTrace !== null && feedbackRoll < clamp(
       harness.feedbackCompression * 0.65 + actor.profile.cooperation * 0.2 +
       Math.min(1, actor.profile.memoryCapacity / 4) * 0.15 - actor.decisionNoise * 0.15,
     );
 
     if (!observed) actor.selectedBehaviorId = "seek-information";
     else if (!verified && actor.profile.caution >= verificationRoll) actor.selectedBehaviorId = "verify";
-    else if (feedbackApplied) actor.selectedBehaviorId = `guidance:${formation.guidanceId}`;
+    else if (feedbackApplied) {
+      actor.selectedBehaviorId = previousTrace.executionSucceeded ? "feedback-repeat" : "feedback-revise";
+    }
+    else if (formation.guidanceId !== null && authorityUnderstood) {
+      actor.selectedBehaviorId = `guidance:${formation.guidanceId}`;
+    }
     else if (authorityUnderstood) actor.selectedBehaviorId = `intent:${formation.intentId}`;
     else actor.selectedBehaviorId = "act-independently";
 
@@ -198,9 +223,16 @@ export function createAutonomousBattleSimulation(
       if (executionRoll < disruptionChance) actor.condition = "suppressed";
     }
 
+    actor.previousTrace = {
+      behaviorId: actor.selectedBehaviorId,
+      executionSucceeded: actor.condition === "effective",
+    };
+
     const conditionFactor = actor.condition === "effective" ? 1 : 0.35;
     const behaviorFactor = actor.selectedBehaviorId.startsWith("intent:") ||
-      actor.selectedBehaviorId.startsWith("guidance:") ? 1 : 0.45;
+      actor.selectedBehaviorId.startsWith("guidance:") || actor.selectedBehaviorId === "feedback-repeat"
+      ? 1
+      : 0.45;
     return actor.decisionConfidence * conditionFactor * behaviorFactor;
   };
 
