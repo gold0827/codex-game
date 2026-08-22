@@ -34,25 +34,83 @@ function seedValue(seed: string | number): number {
 /** Test-only outcome model; this is deliberately not a gameplay proposal. */
 const createFakeBattle: AutonomousBattleSimulationFactory = (
   suppliedDefinition,
-  seed,
-  harness,
+  options,
 ) => {
   let elapsedMs = 0;
-  const progress = Math.min(1, (seedValue(seed) + harness.authorityClarity * 4) / 4);
-  const read = () => ({
-    battleId: suppliedDefinition.id,
-    elapsedMs,
-    durationMs: suppliedDefinition.durationMs,
-    status: elapsedMs >= suppliedDefinition.durationMs ? "resolved" as const : "running" as const,
-    outcomeId: elapsedMs >= suppliedDefinition.durationMs
-      ? progress >= 0.75 ? "held" : "withdrawn"
-      : null,
-    formations: [],
-    objectives: [
-      { id: "delay", progress, completed: progress >= 0.75 },
-      { id: "preserve", progress: 1 - progress / 2, completed: progress <= 0.5 },
-    ],
-  });
+  const progress = Math.min(
+    1,
+    (seedValue(options.seed) + options.harness.authorityClarity * 4) / 4,
+  );
+  const preserveProgress = 1 - progress / 2;
+  const read = () => {
+    const resolved = elapsedMs >= suppliedDefinition.durationMs;
+    return {
+      battleId: suppliedDefinition.id,
+      elapsedMs,
+      durationMs: suppliedDefinition.durationMs,
+      resolution: resolved
+        ? {
+            state: "resolved" as const,
+            disposition: progress >= 0.75 ? "success" as const : "failure" as const,
+            outcomeId: progress >= 0.75 ? "held" : "withdrawn",
+            resolvedAtMs: elapsedMs,
+          }
+        : { state: "running" as const },
+      harness: {
+        policies: structuredClone(options.harness),
+        consequences: [],
+      },
+      formations: [],
+      objectives: [
+        {
+          id: "delay",
+          label: "진격 지연",
+          required: true,
+          progress,
+          state: resolved ? progress >= 0.75 ? "achieved" as const : "failed" as const : "active" as const,
+          evidence: [{
+            id: "delay-progress",
+            label: "지연 시간 확보율",
+            kind: "number" as const,
+            observed: progress,
+            required: 0.75,
+            comparator: "at-least" as const,
+            unit: "ratio" as const,
+            satisfied: progress >= 0.75,
+          }],
+        },
+        {
+          id: "preserve",
+          label: "전력 보존",
+          required: true,
+          progress: preserveProgress,
+          state: resolved ? preserveProgress >= 0.75 ? "achieved" as const : "failed" as const : "active" as const,
+          evidence: [{
+            id: "preserve-progress",
+            label: "잔존 전투력",
+            kind: "number" as const,
+            observed: preserveProgress,
+            required: 0.75,
+            comparator: "at-least" as const,
+            unit: "ratio" as const,
+            satisfied: preserveProgress >= 0.75,
+          }],
+        },
+      ],
+      interventionBudget: {
+        available: options.interventionBudget,
+        spent: 0,
+        remaining: options.interventionBudget,
+        count: 0,
+      },
+      recentEvents: {
+        capacity: 64,
+        firstSequence: 0,
+        nextSequence: 0,
+        items: [],
+      },
+    };
+  };
 
   return {
     snapshot: read,
@@ -60,7 +118,25 @@ const createFakeBattle: AutonomousBattleSimulationFactory = (
       elapsedMs = Math.min(suppliedDefinition.durationMs, elapsedMs + deltaMs);
       return read();
     },
-    intervene: () => read(),
+    intervene(intervention) {
+      const formationIds = intervention.kind === "set-formation-intent"
+        ? [intervention.formationId]
+        : [...intervention.recipientFormationIds];
+      return {
+        snapshot: read(),
+        receipt: {
+          status: "rejected",
+          id: "fake-no-budget",
+          kind: intervention.kind,
+          rejectedAtMs: elapsedMs,
+          reason: elapsedMs >= suppliedDefinition.durationMs
+            ? "operation-resolved"
+            : "insufficient-budget",
+          cost: 0,
+          affectedFormationIds: formationIds,
+        },
+      };
+    },
   };
 };
 
@@ -88,6 +164,18 @@ describe("autonomous battle evaluation", () => {
         mean: 0.5,
         completionCount: 1,
         completionRate: 0.333333,
+        states: [
+          { state: "achieved", count: 1, share: 0.333333 },
+          { state: "failed", count: 2, share: 0.666667 },
+        ],
+        evidence: [{
+          evidenceId: "delay-progress",
+          label: "지연 시간 확보율",
+          kind: "number",
+          observedSamples: [0.75, 0.25, 0.5],
+          satisfactionCount: 1,
+          satisfactionRate: 0.333333,
+        }],
       },
       {
         objectiveId: "preserve",
@@ -97,6 +185,18 @@ describe("autonomous battle evaluation", () => {
         mean: 0.75,
         completionCount: 2,
         completionRate: 0.666667,
+        states: [
+          { state: "achieved", count: 2, share: 0.666667 },
+          { state: "failed", count: 1, share: 0.333333 },
+        ],
+        evidence: [{
+          evidenceId: "preserve-progress",
+          label: "잔존 전투력",
+          kind: "number",
+          observedSamples: [0.625, 0.875, 0.75],
+          satisfactionCount: 2,
+          satisfactionRate: 0.666667,
+        }],
       },
     ]);
     expect(JSON.stringify(
@@ -217,8 +317,7 @@ describe("autonomous battle evaluation", () => {
       let advanceCount = 0;
       const unresolved = () => ({
         ...simulation.snapshot(),
-        status: "running" as const,
-        outcomeId: null,
+        resolution: { state: "running" as const },
       });
       return {
         snapshot: unresolved,

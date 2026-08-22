@@ -1,6 +1,7 @@
 import type {
   AutonomousBattleDefinition,
   AutonomousBattleHarnessPolicies,
+  AutonomousBattleObjectiveEvidence,
   AutonomousBattleObjectiveSnapshot,
   AutonomousBattleSimulationFactory,
   AutonomousBattleSnapshot,
@@ -8,7 +9,7 @@ import type {
 import type { RandomSeed } from "../simulation/seededRandom";
 
 export type AutonomousBattleOutcomeDistributionEntry = Readonly<{
-  outcomeId: string | null;
+  outcomeId: string;
   count: number;
   share: number;
 }>;
@@ -21,11 +22,24 @@ export type AutonomousBattleObjectiveDistribution = Readonly<{
   mean: number;
   completionCount: number;
   completionRate: number;
+  states: readonly Readonly<{
+    state: Exclude<AutonomousBattleObjectiveSnapshot["state"], "active">;
+    count: number;
+    share: number;
+  }>[];
+  evidence: readonly Readonly<{
+    evidenceId: string;
+    label: string;
+    kind: AutonomousBattleObjectiveEvidence["kind"];
+    observedSamples: readonly AutonomousBattleObjectiveEvidence["observed"][];
+    satisfactionCount: number;
+    satisfactionRate: number;
+  }>[];
 }>;
 
 export type AutonomousBattleEvaluationRun = Readonly<{
   seed: RandomSeed;
-  outcomeId: string | null;
+  outcomeId: string;
   objectives: readonly AutonomousBattleObjectiveSnapshot[];
 }>;
 
@@ -58,8 +72,8 @@ export type PairedAutonomousBattleEvaluation = Readonly<{
   comparison: AutonomousBattleEvaluation;
   pairs: readonly Readonly<{
     seed: RandomSeed;
-    baselineOutcomeId: string | null;
-    comparisonOutcomeId: string | null;
+    baselineOutcomeId: string;
+    comparisonOutcomeId: string;
     objectives: readonly Readonly<{
       objectiveId: string;
       baselineProgress: number;
@@ -73,10 +87,8 @@ function rounded(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000;
 }
 
-function compareOutcomeIds(left: string | null, right: string | null): number {
+function compareOutcomeIds(left: string, right: string): number {
   if (left === right) return 0;
-  if (left === null) return -1;
-  if (right === null) return 1;
   if (left < right) return -1;
   return left > right ? 1 : 0;
 }
@@ -108,18 +120,21 @@ function terminalSnapshot(
 ): AutonomousBattleSnapshot {
   const simulation = input.factory(
     structuredClone(input.definition),
-    seed,
-    structuredClone(input.harness),
+    {
+      seed,
+      harness: structuredClone(input.harness),
+      interventionBudget: 0,
+    },
   );
   let snapshot = simulation.snapshot();
   let remainingMs = input.definition.durationMs;
 
-  while (snapshot.status === "running" && remainingMs > 0) {
+  while (snapshot.resolution.state === "running" && remainingMs > 0) {
     const deltaMs = Math.min(input.stepMs, remainingMs);
     snapshot = simulation.advance(deltaMs);
     remainingMs -= deltaMs;
   }
-  if (snapshot.status === "running") {
+  if (snapshot.resolution.state === "running") {
     throw new RangeError(
       `Autonomous battle ${input.definition.id} did not resolve within its declared duration for seed ${String(seed)}.`,
     );
@@ -139,7 +154,23 @@ function findObjective(
   if (!Number.isFinite(objective.progress)) {
     throw new RangeError(`Autonomous battle objective ${objectiveId} has invalid progress.`);
   }
+  if (objective.state === "active") {
+    throw new RangeError(`Terminal autonomous battle objective ${objectiveId} remains active.`);
+  }
   return objective;
+}
+
+function findEvidence(
+  objective: AutonomousBattleObjectiveSnapshot,
+  evidenceId: string,
+): AutonomousBattleObjectiveEvidence {
+  const evidence = objective.evidence.find(({ id }) => id === evidenceId);
+  if (!evidence) {
+    throw new RangeError(
+      `Autonomous battle objective ${objective.id} is missing evidence ${evidenceId}.`,
+    );
+  }
+  return evidence;
 }
 
 export function evaluateAutonomousBattles(
@@ -148,15 +179,18 @@ export function evaluateAutonomousBattles(
   assertEvaluationInput(input);
   const runs = input.seeds.map((seed): AutonomousBattleEvaluationRun => {
     const snapshot = terminalSnapshot(input, seed);
+    if (snapshot.resolution.state !== "resolved") {
+      throw new RangeError(`Autonomous battle ${input.definition.id} has no terminal resolution.`);
+    }
     return {
       seed,
-      outcomeId: snapshot.outcomeId,
+      outcomeId: snapshot.resolution.outcomeId,
       objectives: input.definition.objectives.map(({ id }) => ({
         ...findObjective(snapshot.objectives, id),
       })),
     };
   });
-  const outcomeCounts = new Map<string | null, number>();
+  const outcomeCounts = new Map<string, number>();
   runs.forEach(({ outcomeId }) => {
     outcomeCounts.set(outcomeId, (outcomeCounts.get(outcomeId) ?? 0) + 1);
   });
@@ -172,7 +206,35 @@ export function evaluateAutonomousBattles(
       findObjective(runObjectives, objectiveId),
     );
     const progress = samples.map(({ progress: value }) => value);
-    const completionCount = samples.filter(({ completed }) => completed).length;
+    const completionCount = samples.filter(({ state }) => state === "achieved").length;
+    const states = (["achieved", "failed"] as const).flatMap((state) => {
+      const count = samples.filter((objective) => objective.state === state).length;
+      return count === 0 ? [] : [{ state, count, share: rounded(count / samples.length) }];
+    });
+    const firstObjective = samples[0];
+    if (!firstObjective) {
+      throw new RangeError(`Autonomous battle objective ${objectiveId} has no evaluation samples.`);
+    }
+    const evidence = firstObjective.evidence.map((firstEvidence) => {
+      const evidenceSamples = samples.map((objective) => {
+        const sample = findEvidence(objective, firstEvidence.id);
+        if (sample.kind !== firstEvidence.kind || sample.label !== firstEvidence.label) {
+          throw new RangeError(
+            `Autonomous battle evidence ${firstEvidence.id} changed identity across runs.`,
+          );
+        }
+        return sample;
+      });
+      const satisfactionCount = evidenceSamples.filter(({ satisfied }) => satisfied).length;
+      return {
+        evidenceId: firstEvidence.id,
+        label: firstEvidence.label,
+        kind: firstEvidence.kind,
+        observedSamples: evidenceSamples.map(({ observed }) => observed),
+        satisfactionCount,
+        satisfactionRate: rounded(satisfactionCount / evidenceSamples.length),
+      };
+    });
     return {
       objectiveId,
       samples: progress,
@@ -181,6 +243,8 @@ export function evaluateAutonomousBattles(
       mean: rounded(progress.reduce((total, value) => total + value, 0) / progress.length),
       completionCount,
       completionRate: rounded(completionCount / samples.length),
+      states,
+      evidence,
     };
   });
 
