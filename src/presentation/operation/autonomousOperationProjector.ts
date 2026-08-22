@@ -293,6 +293,16 @@ export function projectAutonomousOperation(
         condition: actor.condition,
         conditionLabel: conditionLabels[actor.condition],
         behavior: actor.latestDecision?.action.behaviorId ?? null,
+        decision: actor.latestDecision === null
+          ? null
+          : {
+              id: actor.latestDecision.id,
+              completedAtMs: actor.latestDecision.completedAtMs,
+              actionState: actor.latestDecision.action.state,
+              behaviorId: actor.latestDecision.action.behaviorId,
+              targetId: actor.latestDecision.action.targetId,
+              confidence: actor.latestDecision.action.confidence,
+            },
         confidence: actor.latestDecision === null
           ? null
           : percentage(actor.latestDecision.action.confidence),

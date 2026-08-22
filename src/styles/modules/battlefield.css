@@ -71,6 +71,43 @@
   pointer-events: none;
 }
 
+.battlefield-effect-layer {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.battlefield-action-effect {
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.battlefield-contact-line {
+  stroke: rgba(237, 210, 111, 0.3);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+  filter: drop-shadow(0 0 3px rgba(237, 210, 111, 0.28));
+}
+
+.battlefield-contact-line[data-effect-kind="pressure-flow"] {
+  stroke: rgba(129, 222, 185, 0.68);
+  stroke-width: 3.5;
+  stroke-dasharray: 1 9;
+}
+
+.battlefield-pressure-pulse {
+  fill: rgba(129, 222, 185, 0.2);
+  stroke: rgba(228, 217, 129, 0.86);
+  stroke-width: 1;
+  filter:
+    drop-shadow(0 0 3px rgba(129, 222, 185, 0.7))
+    drop-shadow(0 0 7px rgba(228, 217, 129, 0.5));
+}
+
 .battlefield-location-cluster {
   position: absolute;
   width: clamp(132px, 12vw, 176px);
@@ -83,14 +120,21 @@
   scrollbar-width: thin;
 }
 
+.battlefield-location-cluster[data-formation-count="1"][data-density="normal"] {
+  overflow: visible;
+}
+
 .battlefield-formation-marker {
   position: relative;
   min-width: 0;
+  min-height: 76px;
   padding: 6px 7px;
   border: 1px solid color-mix(in srgb, var(--red) 62%, #35221e);
   border-left-width: 4px;
   background: rgba(35, 17, 15, 0.9);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+  transition: transform 100ms linear, opacity 140ms ease;
+  will-change: transform;
 }
 
 .battlefield-formation-marker[data-controllable="true"] {
@@ -127,15 +171,20 @@
 }
 
 .battlefield-actor-pips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
+  position: relative;
+  display: block;
+  height: 42px;
   margin-top: 5px;
+  overflow: visible;
 }
 
 .battlefield-actor-pip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 19px;
   height: 19px;
+  margin: -10px 0 0 -10px;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--red) 72%, #6d3d35);
   border-radius: 50%;
@@ -143,6 +192,8 @@
   color: #ffd1cd;
   font: 900 8px ui-monospace, monospace;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  transition: transform 100ms linear, box-shadow 100ms linear, opacity 140ms ease;
+  will-change: transform;
 }
 
 [data-controllable="true"] .battlefield-actor-pip {
@@ -162,11 +213,15 @@
 .battlefield-actor-pip[data-condition="suppressed"] {
   border-color: var(--gold);
   color: var(--gold);
-  animation: battlefield-alert 900ms steps(2, end) infinite;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 0 0 4px rgba(230, 207, 114, 0.18);
 }
 
 .battlefield-actor-pip:not([data-behavior="waiting"]):not([data-condition="suppressed"]) {
-  animation: battlefield-decision 1.6s ease-out infinite;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 0 0 3px color-mix(in srgb, currentColor 13%, transparent);
 }
 
 .battlefield-actor-pip[data-condition="withdrawn"],
@@ -175,26 +230,21 @@
   filter: grayscale(1);
 }
 
-@keyframes battlefield-alert {
-  50% {
-    box-shadow: 0 0 0 4px rgba(230, 207, 114, 0.18);
-  }
+.battlefield-actor-pip[data-visual-action="observe"] {
+  border-style: dashed;
 }
 
-@keyframes battlefield-decision {
-  0%, 72%, 100% {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-  }
-
-  82% {
-    box-shadow:
-      0 2px 6px rgba(0, 0, 0, 0.5),
-      0 0 0 5px color-mix(in srgb, currentColor 20%, transparent);
-  }
+.battlefield-actor-pip[data-visual-action="verify"] {
+  box-shadow: 0 0 0 3px rgba(92, 220, 235, 0.18);
 }
 
-.autonomous-battlefield[data-reduced-motion="true"] .battlefield-actor-pip {
-  animation: none;
+.battlefield-actor-pip[data-visual-action="coordinate"] {
+  box-shadow: 0 0 0 3px rgba(159, 241, 193, 0.22);
+}
+
+.autonomous-battlefield[data-motion-state="reduced"] .battlefield-actor-pip,
+.autonomous-battlefield[data-motion-state="reduced"] .battlefield-formation-marker {
+  transition: none;
 }
 
 @media (max-height: 760px) {

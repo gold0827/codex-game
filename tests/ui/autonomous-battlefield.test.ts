@@ -10,7 +10,7 @@ const originalCanvasContextDescriptor = Object.getOwnPropertyDescriptor(
   "CanvasRenderingContext2D",
 );
 
-function operation(selectedActorId: string | null = null) {
+function operation(selectedActorId: string | null = null, elapsedMs = 250) {
   const simulation = createAutonomousBattleSimulation(chuncheonAutonomousBattle, {
     seed: "battlefield-test",
     harness: {
@@ -21,7 +21,7 @@ function operation(selectedActorId: string | null = null) {
     },
     interventionBudget: 4,
   });
-  simulation.advance(250);
+  simulation.advance(elapsedMs);
   return projectAutonomousOperation(simulation.snapshot(), selectedActorId);
 }
 
@@ -40,6 +40,25 @@ afterEach(() => {
 });
 
 describe("autonomous battlefield presentation", () => {
+  it("moves autonomous actors and shows opposing pressure as operation time advances", () => {
+    const battlefield = mountAutonomousBattlefield({ onInspectActor: () => undefined });
+    const initial = operation(null, 250);
+    battlefield.update(initial, false);
+    const initialPositions = new Map(
+      [...battlefield.element.querySelectorAll<HTMLElement>(".battlefield-actor-pip")]
+        .map((actor) => [actor.dataset.actorId, actor.style.transform]),
+    );
+
+    battlefield.update(operation(null, 2_250), false);
+
+    const movedActors = [...battlefield.element.querySelectorAll<HTMLElement>(
+      ".battlefield-actor-pip",
+    )].filter((actor) => initialPositions.get(actor.dataset.actorId) !== actor.style.transform);
+    expect(movedActors.length).toBeGreaterThan(0);
+    expect(battlefield.element.querySelectorAll(".battlefield-action-effect").length)
+      .toBeGreaterThan(0);
+  });
+
   it("renders arbitrary canonical formations and actor inspection without commands", () => {
     const inspected: string[] = [];
     const battlefield = mountAutonomousBattlefield({
@@ -61,8 +80,11 @@ describe("autonomous battlefield presentation", () => {
       )),
       controlledFormationCount: "3",
       uncontrolledFormationCount: "4",
+      exchangeCount: "2",
+      contactCount: "1",
       reducedMotion: "false",
     });
+    expect(battlefield.element.getAttribute("aria-label")).toContain("교전 압박 1개");
     const canvas = battlefield.element.querySelector<HTMLCanvasElement>(
       'canvas[data-region="battlefield-canvas"]',
     );
@@ -153,6 +175,30 @@ describe("autonomous battlefield presentation", () => {
     expect(battlefield.element.querySelector<HTMLElement>(
       `.battlefield-location-cluster[data-location-id="${first.location}"]`,
     )?.scrollTop).toBe(120);
+  });
+
+  it("keeps dense arbitrary actor rosters reachable without overlapping hit targets", () => {
+    const battlefield = mountAutonomousBattlefield({ onInspectActor: () => undefined });
+    const source = operation();
+    const first = source.formations[0]!;
+    const actors = Array.from({ length: 64 }, (_, index) => ({
+      ...first.actors[index % first.actors.length]!,
+      id: `dense-actor-${index}`,
+    }));
+
+    battlefield.update({
+      ...source,
+      formations: [{ ...first, actors, actorCount: actors.length }],
+    }, true);
+
+    const cluster = battlefield.element.querySelector<HTMLElement>(
+      ".battlefield-location-cluster",
+    );
+    expect(cluster?.dataset.density).toBe("dense");
+    expect(cluster?.querySelectorAll(".battlefield-actor-pip")).toHaveLength(64);
+    expect(Number.parseFloat(
+      cluster?.querySelector<HTMLElement>(".battlefield-actor-pips")?.style.height ?? "0",
+    )).toBeGreaterThan(240);
   });
 
   it("draws nonempty procedural terrain when a Canvas context is available", () => {

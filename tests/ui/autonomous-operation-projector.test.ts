@@ -222,6 +222,15 @@ describe("canonical autonomous operation projector", () => {
       usage: "사용 1 · 1회",
     });
     expect(view.formations.map(({ actorCount }) => actorCount)).toEqual([2, 1, 3]);
+    expect(view.formations[0]?.actors[0]?.decision).toEqual({
+      id: trace.id,
+      completedAtMs: trace.completedAtMs,
+      actionState: "executed",
+      behaviorId: "screen-withdrawal",
+      targetId: "north-road",
+      confidence: 0.68,
+    });
+    expect(view.formations[0]?.actors[1]?.decision).toBeNull();
     expect(view.objectives[0]).toMatchObject({
       label: "북한군 진격 지연",
       requirement: "필수",

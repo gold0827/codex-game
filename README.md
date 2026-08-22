@@ -24,7 +24,8 @@ npm run check
 2배속으로 작전 종료 디브리핑까지 진행하려면 다음을 실행합니다. 이 검사는
 춘천지구의 7개 편성·21개 행동 주체, 목표 근거, 5단계 trace, 하네스,
 최근 사건, 개입 영수증·예산, 북한군 개입 UI 부재를 함께 확인합니다. Canvas가 실제로
-그려졌는지, 전장이 작전 화면의 중심 크기를 차지하는지도 acceptance에 포함됩니다.
+그려졌는지, 전장이 작전 화면의 중심 크기를 차지하는지, 작전 시각 사이에 행동 주체가
+실제로 이동하고 적대 편성 사이의 접촉선·쌍방 압박 흐름이 나타나는지도 acceptance에 포함됩니다.
 
 ```sh
 npm run test:browser
@@ -56,7 +57,7 @@ npm run test:monte-carlo
 - `src/domain/operation`: canonical 자율전투 계약·runtime·Monte Carlo facts
 - `src/application`: campaign operation 포트와 게임 세션
 - `src/presentation`, `src/ui`: canonical snapshot projector와 브라우저 표현
-- `src/presentation/battlefield`: 지속형 Canvas 전장과 편성·행동 주체 시각화
+- `src/presentation/battlefield`: 지속형 Canvas 전장과 결정론적 자율전투 안무
 - `src/campaign`, `src/scenarios`: 캠페인 진행 모델과 춘천지구 콘텐츠
 - `src/app`, `src/platform`: production 조립과 브라우저 adapter
 
