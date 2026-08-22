@@ -6,7 +6,7 @@ const { browserErrors, result: overlayReport } = await runChromeAcceptance(async
   navigate,
 }) => {
   await navigate({
-    path: "./?editor=1",
+    path: "./?legacy=1&editor=1",
     readyExpression: `document.querySelector("#app [data-phase='briefing']") !== null`,
     readyLabel: "the editor-enabled bridge briefing",
   });

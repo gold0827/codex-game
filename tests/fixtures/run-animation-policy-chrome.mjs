@@ -6,7 +6,7 @@ const { browserErrors, result } = await runChromeAcceptance(async ({
   navigate,
 }) => {
   await navigate({
-    path: "./",
+    path: "./?legacy=1",
     readyExpression: `document.querySelector("#app [data-phase='briefing']") !== null`,
     readyLabel: "the production briefing",
   });
