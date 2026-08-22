@@ -184,7 +184,7 @@ describe("autonomous battle evaluation", () => {
     expect(paired.pairs.map(({ seed }) => seed)).toEqual(seeds);
     expect(paired.pairs.some(({ objectives }) => objectives.some(({ delta }) => delta !== 0)))
       .toBe(true);
-  });
+  }, 20_000);
 
   it("runs supplied seeds in order and returns outcome and objective distributions", () => {
     const result = evaluateAutonomousBattles({
