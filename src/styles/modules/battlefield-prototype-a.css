@@ -147,6 +147,25 @@
   filter: drop-shadow(0 4px 3px rgb(0 0 0 / 38%));
 }
 
+.battlefield-prototype-a .prototype-a-formation[data-marching="true"] {
+  animation: prototype-a-formation-march var(--prototype-a-march-duration) ease-in-out infinite alternate;
+  animation-delay: var(--prototype-a-march-delay);
+}
+
+.battlefield-prototype-a .prototype-a-formation[data-marching="true"]::after {
+  position: absolute;
+  top: 27px;
+  left: 50%;
+  z-index: -1;
+  width: 92px;
+  height: 18px;
+  border-radius: 50%;
+  content: "";
+  background: radial-gradient(ellipse, rgb(196 174 125 / 28%), transparent 68%);
+  filter: blur(4px);
+  animation: prototype-a-march-dust 1.5s ease-in-out infinite alternate;
+}
+
 .battlefield-prototype-a .prototype-a-formation[data-active="false"] {
   opacity: 0.48;
   filter: grayscale(0.45) drop-shadow(0 3px 2px rgb(0 0 0 / 30%));
@@ -188,6 +207,11 @@
   height: 11px;
   background: #647e62;
   clip-path: polygon(0 0, 100% 14%, 78% 55%, 100% 100%, 0 88%);
+}
+
+.battlefield-prototype-a .prototype-a-formation[data-marching="true"] .prototype-a-standard-cloth {
+  transform-origin: left center;
+  animation: prototype-a-standard-wave 0.72s ease-in-out infinite alternate;
 }
 
 .battlefield-prototype-a .prototype-a-formation[data-side="hostile"] .prototype-a-standard-cloth {
@@ -257,6 +281,28 @@
   border-radius: 50%;
   content: "";
   background: #b89d7b;
+}
+
+.battlefield-prototype-a .prototype-a-soldier::after {
+  position: absolute;
+  bottom: -5px;
+  left: 2px;
+  width: 7px;
+  height: 6px;
+  border-right: 2px solid #20251f;
+  border-left: 2px solid #20251f;
+  content: "";
+  transform-origin: center top;
+}
+
+.battlefield-prototype-a .prototype-a-soldier[data-moving="true"] {
+  animation: prototype-a-soldier-step 0.42s ease-in-out infinite alternate;
+  animation-delay: var(--prototype-a-step-delay);
+}
+
+.battlefield-prototype-a .prototype-a-soldier[data-moving="true"]::after {
+  animation: prototype-a-soldier-legs 0.42s steps(2, end) infinite;
+  animation-delay: var(--prototype-a-step-delay);
 }
 
 .battlefield-prototype-a .prototype-a-soldier:hover,
@@ -346,6 +392,31 @@
   to { stroke-dashoffset: -5.9; }
 }
 
+@keyframes prototype-a-formation-march {
+  from { translate: var(--prototype-a-march-from-x) var(--prototype-a-march-from-y); }
+  to { translate: var(--prototype-a-march-x) var(--prototype-a-march-y); }
+}
+
+@keyframes prototype-a-march-dust {
+  from { opacity: 0.18; scale: 0.76; translate: -58% 0; }
+  to { opacity: 0.56; scale: 1.12; translate: -42% 4px; }
+}
+
+@keyframes prototype-a-standard-wave {
+  from { transform: skewY(-4deg) scaleX(0.9); }
+  to { transform: skewY(5deg) scaleX(1.08); }
+}
+
+@keyframes prototype-a-soldier-step {
+  from { translate: 0 0; }
+  to { translate: 0 -3px; }
+}
+
+@keyframes prototype-a-soldier-legs {
+  from { transform: skewX(-18deg); }
+  to { transform: skewX(18deg); }
+}
+
 @keyframes prototype-a-smoke-roll {
   0%, 100% { opacity: 0.34; transform: translateY(0) scale(0.88); }
   48% { opacity: 0.64; transform: translateY(-3px) scale(1.17); }
@@ -353,7 +424,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .battlefield-prototype-a .prototype-a-pressure-line,
-  .battlefield-prototype-a .prototype-a-smoke {
+  .battlefield-prototype-a .prototype-a-smoke,
+  .battlefield-prototype-a .prototype-a-formation,
+  .battlefield-prototype-a .prototype-a-formation::after,
+  .battlefield-prototype-a .prototype-a-standard-cloth,
+  .battlefield-prototype-a .prototype-a-soldier,
+  .battlefield-prototype-a .prototype-a-soldier::after {
     animation: none;
   }
 }

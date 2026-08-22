@@ -7,6 +7,8 @@ import { planBattlefieldChoreography } from "../battlefieldChoreography";
 
 type OperationFormation = AutonomousOperationViewModel["formations"][number];
 type OperationActor = OperationFormation["actors"][number];
+type FormationChoreography = ReturnType<typeof planBattlefieldChoreography>["formations"][number];
+type ActorChoreography = FormationChoreography["actors"][number];
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -116,7 +118,12 @@ function terrainLayer(): SVGSVGElement {
   return layer;
 }
 
-function actorToken(actor: OperationActor, inspect: (actorId: string) => void): HTMLButtonElement {
+function actorToken(
+  actor: OperationActor,
+  choreography: ActorChoreography | undefined,
+  elapsedMs: number,
+  inspect: (actorId: string) => void,
+): HTMLButtonElement {
   const token = document.createElement("button");
   token.type = "button";
   token.className = "prototype-a-soldier";
@@ -124,6 +131,12 @@ function actorToken(actor: OperationActor, inspect: (actorId: string) => void): 
   token.dataset.condition = actor.condition;
   token.dataset.selected = String(actor.selected);
   token.dataset.behavior = actor.behavior ?? "waiting";
+  token.dataset.moving = String(choreography?.moving ?? false);
+  token.dataset.action = choreography?.visualAction ?? "waiting";
+  token.style.setProperty(
+    "--prototype-a-step-delay",
+    `${-((elapsedMs + stableHash(actor.id)) % 1_200)}ms`,
+  );
   token.setAttribute("aria-pressed", String(actor.selected));
   token.setAttribute(
     "aria-label",
@@ -140,6 +153,8 @@ function formationLine(
   y: number,
   rotation: number,
   clusterIndex: number,
+  choreography: FormationChoreography | undefined,
+  elapsedMs: number,
   inspect: (actorId: string) => void,
 ): HTMLElement {
   const formationElement = document.createElement("article");
@@ -147,10 +162,29 @@ function formationLine(
   formationElement.dataset.formationId = formation.id;
   formationElement.dataset.side = formation.controllable ? "friendly" : "hostile";
   formationElement.dataset.active = String(formation.active);
+  formationElement.dataset.marching = String(
+    choreography?.actors.some(({ moving }) => moving) ?? false,
+  );
   formationElement.style.left = `${x}%`;
   formationElement.style.top = `${y}%`;
   formationElement.style.setProperty("--prototype-a-rotation", `${rotation}deg`);
   formationElement.style.setProperty("--prototype-a-cluster-offset", `${clusterIndex * 18}px`);
+  const marchDirection = formation.controllable ? -1 : 1;
+  const hash = stableHash(formation.id);
+  const marchX = ((hash % 7) - 3) * 2;
+  const marchY = marchDirection * (16 + hash % 9);
+  formationElement.style.setProperty("--prototype-a-march-from-x", `${marchX * -0.42}px`);
+  formationElement.style.setProperty("--prototype-a-march-from-y", `${marchY * -0.42}px`);
+  formationElement.style.setProperty("--prototype-a-march-x", `${marchX}px`);
+  formationElement.style.setProperty("--prototype-a-march-y", `${marchY}px`);
+  formationElement.style.setProperty(
+    "--prototype-a-march-duration",
+    `${5_400 + hash % 2_400}ms`,
+  );
+  formationElement.style.setProperty(
+    "--prototype-a-march-delay",
+    `${-((elapsedMs + hash) % 7_800)}ms`,
+  );
   formationElement.setAttribute(
     "aria-label",
     `${formation.label} · ${formation.status} · 행동 주체 ${formation.actorCount}명`,
@@ -174,7 +208,8 @@ function formationLine(
   regiment.className = "prototype-a-regiment-line";
   regiment.style.setProperty("--prototype-a-count", String(Math.max(1, formation.actors.length)));
   formation.actors.forEach((actor, index) => {
-    const token = actorToken(actor, inspect);
+    const actorPlan = choreography?.actors.find(({ actorId }) => actorId === actor.id);
+    const token = actorToken(actor, actorPlan, elapsedMs, inspect);
     const hash = stableHash(actor.id);
     const spread = formation.actors.length <= 1 ? 0 : index / (formation.actors.length - 1) - 0.5;
     token.style.setProperty("--prototype-a-position", String(index));
@@ -265,6 +300,8 @@ export function renderBattlefieldPrototypeVariantA(
       y,
       (formation.controllable ? -7 : 7) + (hash % 9) - 4,
       clusterIndex,
+      plan,
+      operation.clock.elapsedMs,
       onInspectActor,
     );
   });
