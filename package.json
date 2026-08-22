@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:ci": "vitest run --exclude tests/simulation/monte-carlo-operation.test.ts --exclude tests/simulation/operation-evaluation.test.ts --exclude tests/simulation/bridge-defense-evaluation.test.ts",
     "test:monte-carlo": "vitest run tests/simulation/monte-carlo-operation.test.ts tests/simulation/operation-evaluation.test.ts tests/simulation/bridge-defense-evaluation.test.ts",
+    "test:browser": "node tests/fixtures/run-squad-battle-chrome.mjs && node tests/fixtures/run-bridge-defense-chrome.mjs && node tests/fixtures/run-workbench-overlays-chrome.mjs && node tests/fixtures/run-animation-policy-chrome.mjs && node tests/fixtures/run-panic-canvas-chrome.mjs",
     "assets:sprites": "tsx scripts/assets/generate-officer-sprites.mjs",
     "assets:maps": "tsx scripts/assets/generate-battlefield-map.mjs",
     "check:assets:sprites": "tsx scripts/assets/generate-officer-sprites.mjs --check",

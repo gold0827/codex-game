@@ -19,16 +19,13 @@ npm run dev
 npm run check
 ```
 
-로컬 크롬에서 기본 두 부대 난전이나 기존 훈련 MVP의 브리핑부터
-에필로그·초기화까지 실제 시간으로 검증하려면 각각 다음 명령을 실행합니다.
-개발용 오버레이 검증도 기존 MVP 경로를 사용합니다. 이 명령들은 같은
+로컬 크롬에서 기본 두 부대 난전, 기존 훈련 MVP의 전체 흐름, 개발용 오버레이와
+Canvas 동작 정책을 검증하려면 다음 명령을 실행합니다. 모든 acceptance는 같은
 서버·브라우저 실행 도우미를 재사용합니다.
 크롬을 기본 위치가 아닌 곳에 설치했다면 `CHROME_PATH`를 지정합니다.
 
 ```sh
-node tests/fixtures/run-squad-battle-chrome.mjs
-node tests/fixtures/run-bridge-defense-chrome.mjs
-node tests/fixtures/run-workbench-overlays-chrome.mjs
+npm run test:browser
 ```
 
 `npm run check`는 asset 산출물 일치, TypeScript build, 전체 test, module 의존
@@ -40,7 +37,8 @@ npm run test:monte-carlo
 ```
 
 GitHub CI는 제한된 runner에서 발생하는 몬테카를로 timeout을 피하기 위해
-`npm run check:ci`로 build, asset, module 의존 방향과 나머지 test를 검사합니다.
+`npm run check:ci`로 build, asset, module 의존 방향과 나머지 test를 검사하고,
+`npm run test:browser`로 실제 Chrome acceptance도 차단 조건으로 실행합니다.
 
 ## 전장 asset 생성
 
