@@ -151,6 +151,15 @@ describe("autonomous battle evaluation", () => {
     });
 
     expect(result.runs.map(({ seed }) => seed)).toEqual([3, 1, 2]);
+    expect(result.runs.map(({ disposition }) => disposition)).toEqual([
+      "success",
+      "failure",
+      "failure",
+    ]);
+    expect(result.dispositions).toEqual([
+      { disposition: "success", count: 1, share: 0.333333 },
+      { disposition: "failure", count: 2, share: 0.666667 },
+    ]);
     expect(result.outcomes).toEqual([
       { outcomeId: "held", count: 1, share: 0.333333 },
       { outcomeId: "withdrawn", count: 2, share: 0.666667 },
@@ -172,6 +181,9 @@ describe("autonomous battle evaluation", () => {
           evidenceId: "delay-progress",
           label: "지연 시간 확보율",
           kind: "number",
+          required: 0.75,
+          comparator: "at-least",
+          unit: "ratio",
           observedSamples: [0.75, 0.25, 0.5],
           satisfactionCount: 1,
           satisfactionRate: 0.333333,
@@ -193,6 +205,9 @@ describe("autonomous battle evaluation", () => {
           evidenceId: "preserve-progress",
           label: "잔존 전투력",
           kind: "number",
+          required: 0.75,
+          comparator: "at-least",
+          unit: "ratio",
           observedSamples: [0.625, 0.875, 0.75],
           satisfactionCount: 2,
           satisfactionRate: 0.666667,
@@ -231,6 +246,8 @@ describe("autonomous battle evaluation", () => {
         seed: 1,
         baselineOutcomeId: "withdrawn",
         comparisonOutcomeId: "held",
+        baselineDisposition: "failure",
+        comparisonDisposition: "success",
         objectives: [
           {
             objectiveId: "delay",
@@ -250,6 +267,8 @@ describe("autonomous battle evaluation", () => {
         seed: 2,
         baselineOutcomeId: "withdrawn",
         comparisonOutcomeId: "held",
+        baselineDisposition: "failure",
+        comparisonDisposition: "success",
         objectives: [
           {
             objectiveId: "delay",
@@ -269,6 +288,8 @@ describe("autonomous battle evaluation", () => {
         seed: 3,
         baselineOutcomeId: "held",
         comparisonOutcomeId: "held",
+        baselineDisposition: "success",
+        comparisonDisposition: "success",
         objectives: [
           {
             objectiveId: "delay",
@@ -338,5 +359,45 @@ describe("autonomous battle evaluation", () => {
       stepMs: 1_000,
       factory: createUnfinishedBattle,
     })).toThrow(/did not resolve/);
+  });
+
+  it("rejects evidence whose canonical criterion changes across seeds", () => {
+    const createInconsistentEvidenceBattle: AutonomousBattleSimulationFactory = (
+      suppliedDefinition,
+      options,
+    ) => {
+      const simulation = createFakeBattle(suppliedDefinition, options);
+      const snapshot = () => {
+        const current = simulation.snapshot();
+        if (options.seed !== 2) return current;
+        return {
+          ...current,
+          objectives: current.objectives.map((objective) => objective.id !== "delay"
+            ? objective
+            : {
+                ...objective,
+                evidence: objective.evidence.map((evidence) => evidence.kind !== "number"
+                  ? evidence
+                  : { ...evidence, required: 0.8 }),
+              }),
+        };
+      };
+      return {
+        snapshot,
+        advance(deltaMs) {
+          simulation.advance(deltaMs);
+          return snapshot();
+        },
+        intervene: simulation.intervene,
+      };
+    };
+
+    expect(() => evaluateAutonomousBattles({
+      definition,
+      harness: baselineHarness,
+      seeds: [1, 2],
+      stepMs: 1_000,
+      factory: createInconsistentEvidenceBattle,
+    })).toThrow(/changed identity/);
   });
 });

@@ -8,6 +8,43 @@ import type {
 } from "../domain/operation/autonomousBattle";
 import type { RandomSeed } from "../simulation/seededRandom";
 
+type AutonomousBattleTerminalResolution = Extract<
+  AutonomousBattleSnapshot["resolution"],
+  { state: "resolved" }
+>;
+type AutonomousBattleDisposition = AutonomousBattleTerminalResolution["disposition"];
+type NumberEvidence = Extract<AutonomousBattleObjectiveEvidence, { kind: "number" }>;
+type BooleanEvidence = Extract<AutonomousBattleObjectiveEvidence, { kind: "boolean" }>;
+type StringEvidence = Extract<AutonomousBattleObjectiveEvidence, { kind: "string" }>;
+
+type EvidenceDistributionBase = Readonly<{
+  evidenceId: string;
+  label: string;
+  satisfactionCount: number;
+  satisfactionRate: number;
+}>;
+
+export type AutonomousBattleObjectiveEvidenceDistribution =
+  | Readonly<EvidenceDistributionBase & {
+      kind: "number";
+      required: NumberEvidence["required"];
+      comparator: NumberEvidence["comparator"];
+      unit: NumberEvidence["unit"];
+      observedSamples: readonly NumberEvidence["observed"][];
+    }>
+  | Readonly<EvidenceDistributionBase & {
+      kind: "boolean";
+      required: BooleanEvidence["required"];
+      comparator: BooleanEvidence["comparator"];
+      observedSamples: readonly BooleanEvidence["observed"][];
+    }>
+  | Readonly<EvidenceDistributionBase & {
+      kind: "string";
+      required: StringEvidence["required"];
+      comparator: StringEvidence["comparator"];
+      observedSamples: readonly StringEvidence["observed"][];
+    }>;
+
 export type AutonomousBattleOutcomeDistributionEntry = Readonly<{
   outcomeId: string;
   count: number;
@@ -27,19 +64,19 @@ export type AutonomousBattleObjectiveDistribution = Readonly<{
     count: number;
     share: number;
   }>[];
-  evidence: readonly Readonly<{
-    evidenceId: string;
-    label: string;
-    kind: AutonomousBattleObjectiveEvidence["kind"];
-    observedSamples: readonly AutonomousBattleObjectiveEvidence["observed"][];
-    satisfactionCount: number;
-    satisfactionRate: number;
-  }>[];
+  evidence: readonly AutonomousBattleObjectiveEvidenceDistribution[];
+}>;
+
+export type AutonomousBattleDispositionDistributionEntry = Readonly<{
+  disposition: AutonomousBattleDisposition;
+  count: number;
+  share: number;
 }>;
 
 export type AutonomousBattleEvaluationRun = Readonly<{
   seed: RandomSeed;
   outcomeId: string;
+  disposition: AutonomousBattleDisposition;
   objectives: readonly AutonomousBattleObjectiveSnapshot[];
 }>;
 
@@ -47,6 +84,7 @@ export type AutonomousBattleEvaluation = Readonly<{
   battleId: string;
   runCount: number;
   outcomes: readonly AutonomousBattleOutcomeDistributionEntry[];
+  dispositions: readonly AutonomousBattleDispositionDistributionEntry[];
   objectives: readonly AutonomousBattleObjectiveDistribution[];
   runs: readonly AutonomousBattleEvaluationRun[];
 }>;
@@ -74,6 +112,8 @@ export type PairedAutonomousBattleEvaluation = Readonly<{
     seed: RandomSeed;
     baselineOutcomeId: string;
     comparisonOutcomeId: string;
+    baselineDisposition: AutonomousBattleDisposition;
+    comparisonDisposition: AutonomousBattleDisposition;
     objectives: readonly Readonly<{
       objectiveId: string;
       baselineProgress: number;
@@ -173,6 +213,83 @@ function findEvidence(
   return evidence;
 }
 
+function assertSameEvidenceCriterion(
+  reference: AutonomousBattleObjectiveEvidence,
+  sample: AutonomousBattleObjectiveEvidence,
+): void {
+  const changed = sample.kind !== reference.kind || sample.label !== reference.label;
+  if (changed) {
+    throw new RangeError(`Autonomous battle evidence ${reference.id} changed identity across runs.`);
+  }
+  if (reference.kind === "number") {
+    if (sample.kind !== "number" || sample.required !== reference.required ||
+        sample.comparator !== reference.comparator || sample.unit !== reference.unit) {
+      throw new RangeError(`Autonomous battle evidence ${reference.id} changed identity across runs.`);
+    }
+    return;
+  }
+  if (reference.kind === "boolean") {
+    if (sample.kind !== "boolean" || sample.required !== reference.required ||
+        sample.comparator !== reference.comparator) {
+      throw new RangeError(`Autonomous battle evidence ${reference.id} changed identity across runs.`);
+    }
+    return;
+  }
+  if (sample.kind !== "string" || sample.required !== reference.required ||
+      sample.comparator !== reference.comparator) {
+    throw new RangeError(`Autonomous battle evidence ${reference.id} changed identity across runs.`);
+  }
+}
+
+function evidenceDistribution(
+  reference: AutonomousBattleObjectiveEvidence,
+  samples: readonly AutonomousBattleObjectiveEvidence[],
+): AutonomousBattleObjectiveEvidenceDistribution {
+  samples.forEach((sample) => assertSameEvidenceCriterion(reference, sample));
+  const satisfactionCount = samples.filter(({ satisfied }) => satisfied).length;
+  const common = {
+    evidenceId: reference.id,
+    label: reference.label,
+    satisfactionCount,
+    satisfactionRate: rounded(satisfactionCount / samples.length),
+  };
+  if (reference.kind === "number") {
+    return {
+      ...common,
+      kind: reference.kind,
+      required: reference.required,
+      comparator: reference.comparator,
+      unit: reference.unit,
+      observedSamples: samples.map((sample) => {
+        if (sample.kind !== "number") throw new Error("Validated evidence kind changed.");
+        return sample.observed;
+      }),
+    };
+  }
+  if (reference.kind === "boolean") {
+    return {
+      ...common,
+      kind: reference.kind,
+      required: reference.required,
+      comparator: reference.comparator,
+      observedSamples: samples.map((sample) => {
+        if (sample.kind !== "boolean") throw new Error("Validated evidence kind changed.");
+        return sample.observed;
+      }),
+    };
+  }
+  return {
+    ...common,
+    kind: reference.kind,
+    required: reference.required,
+    comparator: reference.comparator,
+    observedSamples: samples.map((sample) => {
+      if (sample.kind !== "string") throw new Error("Validated evidence kind changed.");
+      return sample.observed;
+    }),
+  };
+}
+
 export function evaluateAutonomousBattles(
   input: EvaluateAutonomousBattlesInput,
 ): AutonomousBattleEvaluation {
@@ -185,6 +302,7 @@ export function evaluateAutonomousBattles(
     return {
       seed,
       outcomeId: snapshot.resolution.outcomeId,
+      disposition: snapshot.resolution.disposition,
       objectives: input.definition.objectives.map(({ id }) => ({
         ...findObjective(snapshot.objectives, id),
       })),
@@ -201,6 +319,10 @@ export function evaluateAutonomousBattles(
       count,
       share: rounded(count / runs.length),
     }));
+  const dispositions = (["success", "failure"] as const).map((disposition) => {
+    const count = runs.filter((run) => run.disposition === disposition).length;
+    return { disposition, count, share: rounded(count / runs.length) };
+  });
   const objectives = input.definition.objectives.map(({ id: objectiveId }) => {
     const samples = runs.map(({ objectives: runObjectives }) =>
       findObjective(runObjectives, objectiveId),
@@ -218,22 +340,9 @@ export function evaluateAutonomousBattles(
     const evidence = firstObjective.evidence.map((firstEvidence) => {
       const evidenceSamples = samples.map((objective) => {
         const sample = findEvidence(objective, firstEvidence.id);
-        if (sample.kind !== firstEvidence.kind || sample.label !== firstEvidence.label) {
-          throw new RangeError(
-            `Autonomous battle evidence ${firstEvidence.id} changed identity across runs.`,
-          );
-        }
         return sample;
       });
-      const satisfactionCount = evidenceSamples.filter(({ satisfied }) => satisfied).length;
-      return {
-        evidenceId: firstEvidence.id,
-        label: firstEvidence.label,
-        kind: firstEvidence.kind,
-        observedSamples: evidenceSamples.map(({ observed }) => observed),
-        satisfactionCount,
-        satisfactionRate: rounded(satisfactionCount / evidenceSamples.length),
-      };
+      return evidenceDistribution(firstEvidence, evidenceSamples);
     });
     return {
       objectiveId,
@@ -252,6 +361,7 @@ export function evaluateAutonomousBattles(
     battleId: input.definition.id,
     runCount: runs.length,
     outcomes,
+    dispositions,
     objectives,
     runs,
   };
@@ -283,6 +393,8 @@ export function compareAutonomousBattleHarnesses(
       seed: baselineRun.seed,
       baselineOutcomeId: baselineRun.outcomeId,
       comparisonOutcomeId: comparisonRun.outcomeId,
+      baselineDisposition: baselineRun.disposition,
+      comparisonDisposition: comparisonRun.disposition,
       objectives: input.definition.objectives.map(({ id: objectiveId }) => {
         const baselineObjective = findObjective(baselineRun.objectives, objectiveId);
         const comparisonObjective = findObjective(comparisonRun.objectives, objectiveId);
