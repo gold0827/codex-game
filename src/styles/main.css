@@ -1,4 +1,8 @@
 @import './modules/tokens.css';
 @import './modules/shell.css';
 @import './modules/battlefield.css';
+@import './modules/battlefield-prototype-a.css';
+@import './modules/battlefield-prototype-b.css';
+@import './modules/battlefield-prototype-c.css';
+@import './modules/battlefield-prototype-switcher.css';
 @import './modules/panels.css';

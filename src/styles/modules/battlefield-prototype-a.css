@@ -1,0 +1,359 @@
+.battlefield-prototype-a {
+  --prototype-a-ink: #e8dfc8;
+  position: relative;
+  min-height: 560px;
+  overflow: hidden;
+  border: 1px solid #2a3028;
+  border-radius: 6px;
+  color: var(--prototype-a-ink);
+  background: #172019;
+  box-shadow: inset 0 0 80px rgb(6 12 8 / 70%), 0 16px 36px rgb(0 0 0 / 28%);
+  isolation: isolate;
+}
+
+.battlefield-prototype-a::after {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  content: "";
+  background: radial-gradient(circle at 50% 45%, transparent 45%, rgb(4 9 6 / 43%) 100%);
+  box-shadow: inset 0 0 0 2px rgb(229 211 165 / 7%);
+}
+
+.battlefield-prototype-a .prototype-a-stage {
+  position: absolute;
+  inset: 0;
+  min-width: 860px;
+  min-height: 560px;
+}
+
+.battlefield-prototype-a .prototype-a-terrain,
+.battlefield-prototype-a .prototype-a-contact-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.battlefield-prototype-a .prototype-a-ground {
+  fill: #536346;
+}
+
+.battlefield-prototype-a .prototype-a-field {
+  stroke: rgb(43 53 35 / 52%);
+  stroke-width: 3;
+}
+
+.battlefield-prototype-a .prototype-a-field-wheat {
+  fill: #737451;
+}
+
+.battlefield-prototype-a .prototype-a-field-fallow {
+  fill: #64624a;
+}
+
+.battlefield-prototype-a .prototype-a-rise {
+  fill: #45563d;
+  stroke: rgb(32 43 31 / 48%);
+  stroke-width: 9;
+}
+
+.battlefield-prototype-a .prototype-a-ridge {
+  fill: none;
+  stroke: rgb(48 60 41 / 57%);
+  stroke-width: 64;
+  stroke-linecap: round;
+}
+
+.battlefield-prototype-a .prototype-a-road-shadow,
+.battlefield-prototype-a .prototype-a-road,
+.battlefield-prototype-a .prototype-a-river-bank,
+.battlefield-prototype-a .prototype-a-river {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.battlefield-prototype-a .prototype-a-road-shadow {
+  stroke: rgb(49 43 31 / 38%);
+  stroke-width: 20;
+}
+
+.battlefield-prototype-a .prototype-a-road {
+  stroke: #928267;
+  stroke-width: 12;
+  stroke-dasharray: 4 2 18 3;
+}
+
+.battlefield-prototype-a .prototype-a-river-bank {
+  stroke: rgb(29 39 31 / 46%);
+  stroke-width: 54;
+}
+
+.battlefield-prototype-a .prototype-a-river {
+  stroke: #446873;
+  stroke-width: 37;
+  filter: drop-shadow(0 2px 2px rgb(4 12 15 / 48%));
+}
+
+.battlefield-prototype-a .prototype-a-tree {
+  fill: #263b2c;
+  stroke: rgb(14 25 17 / 48%);
+  stroke-width: 3;
+}
+
+.battlefield-prototype-a .prototype-a-tree-light {
+  fill: #304735;
+}
+
+.battlefield-prototype-a .prototype-a-map-labels {
+  fill: rgb(230 221 190 / 52%);
+  font: italic 18px Georgia, serif;
+  letter-spacing: 0.18em;
+  text-shadow: 0 1px 1px #172019;
+}
+
+.battlefield-prototype-a .prototype-a-contact-layer {
+  z-index: 2;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.battlefield-prototype-a .prototype-a-pressure-line {
+  fill: none;
+  stroke: rgb(239 211 144 / 66%);
+  stroke-width: 0.38;
+  stroke-dasharray: 1.8 1.15;
+  filter: drop-shadow(0 0 1.4px rgb(247 175 87 / 68%));
+  animation: prototype-a-pressure-march 1.3s linear infinite;
+}
+
+.battlefield-prototype-a .prototype-a-smoke {
+  fill: rgb(207 204 189 / 44%);
+  filter: drop-shadow(0 0 2px rgb(229 215 180 / 26%));
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: prototype-a-smoke-roll 3.4s ease-in-out infinite;
+  animation-delay: var(--prototype-a-smoke-delay);
+}
+
+.battlefield-prototype-a .prototype-a-formation {
+  position: absolute;
+  z-index: 4;
+  width: 210px;
+  height: 54px;
+  transform: translate(-50%, calc(-50% + var(--prototype-a-cluster-offset))) rotate(var(--prototype-a-rotation));
+  transform-origin: center;
+  filter: drop-shadow(0 4px 3px rgb(0 0 0 / 38%));
+}
+
+.battlefield-prototype-a .prototype-a-formation[data-active="false"] {
+  opacity: 0.48;
+  filter: grayscale(0.45) drop-shadow(0 3px 2px rgb(0 0 0 / 30%));
+}
+
+.battlefield-prototype-a .prototype-a-standard {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  min-width: 102px;
+  height: 25px;
+  padding: 0 8px 0 24px;
+  border: 1px solid rgb(240 222 180 / 32%);
+  border-radius: 2px;
+  color: #f1e8d0;
+  background: rgb(28 32 27 / 88%);
+  box-shadow: 0 3px 7px rgb(0 0 0 / 42%);
+  transform: translateX(-50%) rotate(calc(var(--prototype-a-rotation) * -1));
+  white-space: nowrap;
+}
+
+.battlefield-prototype-a .prototype-a-standard-pole {
+  position: absolute;
+  bottom: -20px;
+  left: 10px;
+  width: 2px;
+  height: 39px;
+  background: #b7a176;
+}
+
+.battlefield-prototype-a .prototype-a-standard-cloth {
+  position: absolute;
+  top: 4px;
+  left: 11px;
+  width: 16px;
+  height: 11px;
+  background: #647e62;
+  clip-path: polygon(0 0, 100% 14%, 78% 55%, 100% 100%, 0 88%);
+}
+
+.battlefield-prototype-a .prototype-a-formation[data-side="hostile"] .prototype-a-standard-cloth {
+  background: #985b51;
+}
+
+.battlefield-prototype-a .prototype-a-formation-label {
+  overflow: hidden;
+  max-width: 116px;
+  font: 700 11px/1.1 system-ui, sans-serif;
+  text-overflow: ellipsis;
+}
+
+.battlefield-prototype-a .prototype-a-formation-status {
+  margin-left: 7px;
+  color: #b8b49f;
+  font: 700 9px/1 system-ui, sans-serif;
+}
+
+.battlefield-prototype-a .prototype-a-regiment-line {
+  position: absolute;
+  top: 19px;
+  left: 50%;
+  width: 1px;
+  height: 1px;
+}
+
+.battlefield-prototype-a .prototype-a-regiment-line::before {
+  position: absolute;
+  top: 8px;
+  left: -85px;
+  width: 170px;
+  height: 5px;
+  border-radius: 60%;
+  content: "";
+  background: rgb(22 27 22 / 42%);
+  filter: blur(2px);
+}
+
+.battlefield-prototype-a .prototype-a-soldier {
+  position: absolute;
+  width: 13px;
+  height: 17px;
+  padding: 0;
+  border: 1px solid #1c241d;
+  border-radius: 50% 50% 35% 35%;
+  background: #68806a;
+  box-shadow: inset 0 -4px 0 rgb(23 38 28 / 32%), 0 2px 2px rgb(0 0 0 / 58%);
+  cursor: pointer;
+  transform-origin: center;
+  transition: filter 120ms ease, scale 120ms ease;
+}
+
+.battlefield-prototype-a .prototype-a-formation[data-side="hostile"] .prototype-a-soldier {
+  border-color: #3c2522;
+  background: #955e54;
+  box-shadow: inset 0 -4px 0 rgb(63 28 25 / 34%), 0 2px 2px rgb(0 0 0 / 58%);
+}
+
+.battlefield-prototype-a .prototype-a-soldier::before {
+  position: absolute;
+  top: -4px;
+  left: 3px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgb(22 24 20 / 70%);
+  border-radius: 50%;
+  content: "";
+  background: #b89d7b;
+}
+
+.battlefield-prototype-a .prototype-a-soldier:hover,
+.battlefield-prototype-a .prototype-a-soldier:focus-visible,
+.battlefield-prototype-a .prototype-a-soldier[data-selected="true"] {
+  z-index: 5;
+  outline: 2px solid #f0d284;
+  outline-offset: 2px;
+  filter: brightness(1.25);
+  scale: 1.24;
+}
+
+.battlefield-prototype-a .prototype-a-soldier[data-condition="suppressed"] {
+  filter: saturate(0.45) brightness(0.72);
+  transform: rotate(72deg) !important;
+}
+
+.battlefield-prototype-a .prototype-a-soldier[data-condition="withdrawn"] {
+  opacity: 0.54;
+}
+
+.battlefield-prototype-a .prototype-a-soldier[data-condition="lost"] {
+  opacity: 0.23;
+  transform: rotate(88deg) scale(0.72) !important;
+}
+
+.battlefield-prototype-a .prototype-a-clock {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 18px;
+  min-width: 270px;
+  padding: 8px 14px 9px;
+  border: 1px solid rgb(229 214 177 / 28%);
+  border-radius: 3px;
+  background: rgb(19 23 20 / 88%);
+  box-shadow: 0 5px 14px rgb(0 0 0 / 38%);
+  transform: translateX(-50%);
+  font: 700 12px system-ui, sans-serif;
+}
+
+.battlefield-prototype-a .prototype-a-clock time {
+  color: #d6c79f;
+  text-align: right;
+}
+
+.battlefield-prototype-a .prototype-a-phase {
+  letter-spacing: 0.08em;
+}
+
+.battlefield-prototype-a .prototype-a-clock-progress {
+  position: relative;
+  flex: 0 0 100%;
+  height: 3px;
+  overflow: hidden;
+  background: #343a31;
+}
+
+.battlefield-prototype-a .prototype-a-clock-progress::after {
+  display: block;
+  width: var(--prototype-a-progress);
+  height: 100%;
+  content: "";
+  background: #c5aa69;
+}
+
+.battlefield-prototype-a .prototype-a-legend {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  z-index: 10;
+  max-width: 280px;
+  padding: 6px 9px;
+  border: 1px solid rgb(226 212 173 / 18%);
+  border-radius: 2px;
+  color: rgb(232 223 200 / 72%);
+  background: rgb(18 23 19 / 76%);
+  font: 600 10px system-ui, sans-serif;
+  letter-spacing: 0.05em;
+}
+
+@keyframes prototype-a-pressure-march {
+  to { stroke-dashoffset: -5.9; }
+}
+
+@keyframes prototype-a-smoke-roll {
+  0%, 100% { opacity: 0.34; transform: translateY(0) scale(0.88); }
+  48% { opacity: 0.64; transform: translateY(-3px) scale(1.17); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battlefield-prototype-a .prototype-a-pressure-line,
+  .battlefield-prototype-a .prototype-a-smoke {
+    animation: none;
+  }
+}

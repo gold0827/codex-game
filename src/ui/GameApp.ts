@@ -14,6 +14,12 @@ import {
   type PresentationCampaign,
 } from "../presentation/gameViewModel";
 import { mountAutonomousBattlefield } from "../presentation/battlefield/autonomousBattlefield";
+import {
+  currentBattlefieldPrototypeVariant,
+  installBattlefieldPrototypeKeyboard,
+  renderBattlefieldPrototype,
+  renderBattlefieldPrototypeSwitcher,
+} from "../presentation/battlefield/prototype/battlefieldPrototype";
 import { renderBriefingView } from "../presentation/phases/briefingView";
 import { renderDebriefView } from "../presentation/phases/debriefView";
 import { renderEpilogueView } from "../presentation/phases/epilogueView";
@@ -164,6 +170,10 @@ export function mountGameApp(
   let destroyed = false;
   let selectedActorId: string | null = null;
   let battlefield: ReturnType<typeof mountAutonomousBattlefield> | null = null;
+  const battlefieldPrototypeVariant = currentBattlefieldPrototypeVariant();
+  const removeBattlefieldPrototypeKeyboard = installBattlefieldPrototypeKeyboard(
+    battlefieldPrototypeVariant,
+  );
   const prefersReducedMotion = (): boolean => {
     if (typeof options.reducedMotion === "function") return options.reducedMotion();
     return options.reducedMotion
@@ -217,14 +227,26 @@ export function mountGameApp(
     }
     if (view.phase === "briefing") shell.append(renderBriefingView(view, dispatch));
     else if (view.phase === "operation") {
-      battlefield ??= mountAutonomousBattlefield({ onInspectActor: inspectActor });
-      battlefield.update(view.operation, reducedMotion);
+      const battlefieldElement = battlefieldPrototypeVariant !== null && view.operation !== null
+        ? renderBattlefieldPrototype(
+            battlefieldPrototypeVariant,
+            view.operation,
+            inspectActor,
+          )
+        : (() => {
+            battlefield ??= mountAutonomousBattlefield({ onInspectActor: inspectActor });
+            battlefield.update(view.operation, reducedMotion);
+            return battlefield.element;
+          })();
       shell.append(renderOperationView(
         view,
         dispatch,
         inspectActor,
-        battlefield.element,
+        battlefieldElement,
       ));
+      if (battlefieldPrototypeVariant !== null) {
+        shell.append(renderBattlefieldPrototypeSwitcher(battlefieldPrototypeVariant));
+      }
     }
     else if (view.phase === "debrief") shell.append(renderDebriefView(view, dispatch));
     else shell.append(renderEpilogueView(view, dispatch));
@@ -243,6 +265,7 @@ export function mountGameApp(
       destroyed = true;
       battlefield?.destroy();
       battlefield = null;
+      removeBattlefieldPrototypeKeyboard();
       effects.destroy();
       root.replaceChildren();
     },

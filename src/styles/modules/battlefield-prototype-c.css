@@ -1,0 +1,457 @@
+.battlefield-prototype-c {
+  position: relative;
+  min-width: 0;
+  min-height: 520px;
+  overflow: hidden;
+  isolation: isolate;
+  color: #f1ead4;
+  background: #777957;
+  font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  box-shadow: inset 0 0 90px rgba(22, 24, 15, 0.6);
+}
+
+.battlefield-prototype-c::before {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(circle at 17% 22%, transparent 0 10%, rgba(45, 49, 31, 0.15) 26%, transparent 45%),
+    radial-gradient(circle at 83% 69%, transparent 0 13%, rgba(42, 35, 23, 0.19) 34%, transparent 55%),
+    linear-gradient(90deg, rgba(26, 27, 16, 0.34), transparent 17%, transparent 82%, rgba(22, 24, 15, 0.38));
+  mix-blend-mode: multiply;
+}
+
+.battlefield-prototype-c__map {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.battlefield-prototype-c__mountain-wash {
+  stroke: rgba(56, 59, 38, 0.18);
+  stroke-width: 5;
+}
+
+.battlefield-prototype-c__mountain-wash--1,
+.battlefield-prototype-c__mountain-wash--3 {
+  fill: rgba(61, 75, 46, 0.72);
+}
+
+.battlefield-prototype-c__mountain-wash--2,
+.battlefield-prototype-c__mountain-wash--4 {
+  fill: rgba(50, 66, 43, 0.67);
+}
+
+.battlefield-prototype-c__contours {
+  fill: none;
+  stroke: rgba(71, 57, 34, 0.35);
+  stroke-width: 2;
+  stroke-linecap: round;
+  filter: url("#prototype-c-roughness");
+}
+
+.battlefield-prototype-c__river-shadow,
+.battlefield-prototype-c__river,
+.battlefield-prototype-c__river-highlight,
+.battlefield-prototype-c__roads path,
+.battlefield-prototype-c__front-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.battlefield-prototype-c__river-shadow {
+  stroke: rgba(34, 48, 47, 0.65);
+  stroke-width: 49;
+}
+
+.battlefield-prototype-c__river {
+  stroke: url("#prototype-c-water");
+  stroke-width: 40;
+  filter: url("#prototype-c-roughness");
+}
+
+.battlefield-prototype-c__river-highlight {
+  stroke: rgba(211, 221, 202, 0.24);
+  stroke-width: 3;
+}
+
+.battlefield-prototype-c__river-label {
+  fill: rgba(222, 225, 205, 0.64);
+  font: 700 14px serif;
+  letter-spacing: 0.55em;
+  text-shadow: 0 1px rgba(26, 38, 38, 0.6);
+}
+
+.battlefield-prototype-c__roads path {
+  stroke: rgba(81, 64, 39, 0.58);
+  stroke-width: 7;
+  filter: url("#prototype-c-roughness");
+}
+
+.battlefield-prototype-c__roads path::after {
+  stroke: rgba(204, 188, 137, 0.38);
+}
+
+.battlefield-prototype-c__landmarks circle {
+  fill: #383728;
+  stroke: rgba(232, 215, 163, 0.8);
+  stroke-width: 1.5;
+}
+
+.battlefield-prototype-c__landmarks text {
+  fill: rgba(45, 42, 28, 0.86);
+  font: 800 14px serif;
+  letter-spacing: 0.08em;
+}
+
+.battlefield-prototype-c__front-line {
+  stroke-width: 8;
+  stroke-dasharray: 2 13;
+  filter: drop-shadow(0 2px 2px rgba(34, 28, 17, 0.4));
+}
+
+.battlefield-prototype-c__front-line[data-side="friendly"] {
+  stroke: rgba(61, 119, 111, 0.86);
+}
+
+.battlefield-prototype-c__front-line[data-side="hostile"] {
+  stroke: rgba(142, 54, 42, 0.84);
+}
+
+.battlefield-prototype-c__hud {
+  position: absolute;
+  z-index: 8;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 66px;
+  padding: 8px 18px 10px;
+  border-bottom: 1px solid rgba(221, 205, 156, 0.38);
+  background: linear-gradient(180deg, rgba(24, 28, 22, 0.96), rgba(29, 34, 27, 0.83));
+  box-shadow: 0 8px 26px rgba(22, 24, 17, 0.42);
+}
+
+.battlefield-prototype-c__operation-title {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-width: 170px;
+}
+
+.battlefield-prototype-c__eyebrow,
+.battlefield-prototype-c__clock-label,
+.battlefield-prototype-c__progress-label {
+  color: #c7bb90;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.battlefield-prototype-c__title {
+  color: #f3ead1;
+  font-family: serif;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.battlefield-prototype-c__progress {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+  max-width: 430px;
+  margin-inline: auto;
+}
+
+.battlefield-prototype-c__progress-track {
+  position: relative;
+  height: 5px;
+  flex: 1 1 auto;
+  overflow: hidden;
+  border: 1px solid rgba(222, 209, 165, 0.35);
+  border-radius: 5px;
+  background: rgba(3, 7, 6, 0.75);
+}
+
+.battlefield-prototype-c__progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #947b43, #dfca87);
+  box-shadow: 0 0 8px rgba(219, 195, 120, 0.62);
+}
+
+.battlefield-prototype-c__clock {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 135px;
+}
+
+.battlefield-prototype-c__clock-value {
+  color: #efe3bd;
+  font: 800 15px ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+.battlefield-prototype-c__formations {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  pointer-events: none;
+}
+
+.battlefield-prototype-c__formation {
+  --formation-stagger-x: 0px;
+  --formation-stagger-y: 0px;
+  position: absolute;
+  width: max-content;
+  max-width: 190px;
+  transform: translate(calc(-50% + var(--formation-stagger-x)), calc(-42% + var(--formation-stagger-y)));
+  color: #f3ead5;
+  pointer-events: auto;
+  filter: drop-shadow(0 4px 4px rgba(30, 26, 18, 0.55));
+}
+
+.battlefield-prototype-c__formation[data-active="false"] {
+  opacity: 0.48;
+  filter: grayscale(0.65) drop-shadow(0 3px 3px rgba(30, 26, 18, 0.45));
+}
+
+.battlefield-prototype-c__standard-mast {
+  position: absolute;
+  top: -14px;
+  bottom: -9px;
+  left: -6px;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #3e2d1d, #bca06e 49%, #4a3420 54%);
+}
+
+.battlefield-prototype-c__standard-mast::before {
+  position: absolute;
+  top: -5px;
+  left: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c9b379;
+  box-shadow: 0 1px 2px #2c2117;
+  content: "";
+}
+
+.battlefield-prototype-c__ribbon {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 26px;
+  padding: 5px 14px 5px 9px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 9px) 50%, 100% 100%, 0 100%);
+  background: linear-gradient(105deg, #295d58, #173d3b 70%, #102928);
+  box-shadow: inset 0 0 0 1px rgba(211, 228, 209, 0.38);
+  white-space: nowrap;
+}
+
+.battlefield-prototype-c__formation[data-side="hostile"] .battlefield-prototype-c__ribbon {
+  background: linear-gradient(105deg, #853d32, #5f2822 70%, #3d1b18);
+  box-shadow: inset 0 0 0 1px rgba(237, 190, 166, 0.36);
+}
+
+.battlefield-prototype-c__formation-name {
+  overflow: hidden;
+  max-width: 126px;
+  font-family: serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+}
+
+.battlefield-prototype-c__formation-state {
+  color: rgba(236, 232, 209, 0.69);
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.battlefield-prototype-c__actor-rank {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1px;
+  min-height: 25px;
+  padding: 2px 8px 0;
+}
+
+.battlefield-prototype-c__actor {
+  position: relative;
+  width: 16px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #183e3a;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 1px rgba(19, 19, 13, 0.68));
+}
+
+.battlefield-prototype-c__formation[data-side="hostile"] .battlefield-prototype-c__actor {
+  color: #722d25;
+}
+
+.battlefield-prototype-c__actor-head,
+.battlefield-prototype-c__actor-body {
+  position: absolute;
+  left: 50%;
+  display: block;
+  transform: translateX(-50%);
+  background: currentColor;
+}
+
+.battlefield-prototype-c__actor-head {
+  top: 2px;
+  width: 7px;
+  height: 6px;
+  border-radius: 50% 50% 43% 43%;
+}
+
+.battlefield-prototype-c__actor-head::before {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 11px;
+  height: 4px;
+  border-radius: 50% 50% 30% 30%;
+  background: currentColor;
+  content: "";
+}
+
+.battlefield-prototype-c__actor-body {
+  bottom: 1px;
+  width: 11px;
+  height: 12px;
+  border-radius: 4px 4px 2px 2px;
+  clip-path: polygon(20% 0, 80% 0, 100% 100%, 62% 100%, 50% 67%, 38% 100%, 0 100%);
+}
+
+.battlefield-prototype-c__actor:hover,
+.battlefield-prototype-c__actor:focus-visible,
+.battlefield-prototype-c__actor[aria-pressed="true"] {
+  outline: 0;
+  color: #f2da83;
+  filter:
+    drop-shadow(0 0 2px #2e2516)
+    drop-shadow(0 0 5px rgba(244, 215, 121, 0.92));
+  transform: translateY(-3px) scale(1.16);
+}
+
+.battlefield-prototype-c__actor[data-condition="suppressed"] {
+  color: #d2a53f;
+  transform: rotate(-9deg);
+}
+
+.battlefield-prototype-c__actor[data-condition="withdrawn"],
+.battlefield-prototype-c__actor[data-condition="lost"] {
+  opacity: 0.38;
+  transform: rotate(68deg) translateY(4px);
+}
+
+.battlefield-prototype-c__actor:not([data-behavior="waiting"]) {
+  animation: battlefield-prototype-c-march 1.9s ease-in-out infinite alternate;
+}
+
+.battlefield-prototype-c__legend {
+  position: absolute;
+  z-index: 9;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 36px;
+  padding: 7px 18px;
+  border-top: 1px solid rgba(224, 208, 161, 0.28);
+  background: linear-gradient(0deg, rgba(25, 28, 22, 0.94), rgba(30, 33, 26, 0.72));
+  color: #d7cdaa;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.battlefield-prototype-c__legend-side::before {
+  display: inline-block;
+  width: 18px;
+  height: 3px;
+  margin-right: 7px;
+  border-radius: 2px;
+  vertical-align: middle;
+  content: "";
+}
+
+.battlefield-prototype-c__legend-side--friendly::before {
+  background: #4a9a8e;
+}
+
+.battlefield-prototype-c__legend-side--hostile::before {
+  background: #a94a3c;
+}
+
+.battlefield-prototype-c__legend-note {
+  margin-left: auto;
+  color: rgba(221, 213, 188, 0.7);
+}
+
+@keyframes battlefield-prototype-c-march {
+  from { translate: 0 0; }
+  to { translate: 0 -2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battlefield-prototype-c__actor {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .battlefield-prototype-c__hud {
+    gap: 10px;
+    padding-inline: 10px;
+  }
+
+  .battlefield-prototype-c__operation-title {
+    min-width: 140px;
+  }
+
+  .battlefield-prototype-c__title {
+    font-size: 15px;
+  }
+
+  .battlefield-prototype-c__progress {
+    display: none;
+  }
+
+  .battlefield-prototype-c__clock {
+    margin-left: auto;
+  }
+
+  .battlefield-prototype-c__formation {
+    transform: translate(calc(-50% + var(--formation-stagger-x)), calc(-42% + var(--formation-stagger-y))) scale(0.84);
+  }
+
+  .battlefield-prototype-c__legend-note {
+    display: none;
+  }
+}
