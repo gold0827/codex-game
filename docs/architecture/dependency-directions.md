@@ -39,6 +39,22 @@ UI 결과와 평가 결과의 의미가 갈라지지 않는다.
 
 ## 의존 방향
 
+dependency checker는 실제 `src` 경로를 아래 logical module로 분류한다.
+
+| `src` 경로 | logical module |
+| --- | --- |
+| `main.ts`, `app/**` | `app` |
+| `ui/**`, `styles/**`, `presentation/**` | `presentation` |
+| `application/**` | `application` |
+| `platform/**` | `platform` |
+| `authoring/**` | `authoring` |
+| `scenarios/**`, `content/**` | `content` |
+| `campaign/**`, `domain/campaign/**` | `domain/campaign` |
+| `simulation/**`, `domain/operation/**` | `domain/operation` |
+
+따라서 `domain/operation`이 `simulation/seededRandom.ts`를 사용하는 것은 같은 logical
+module 내부 의존이다. 아래 화살표는 이 분류 이후 허용되는 logical module 방향이다.
+
 ```text
 app ────────────────→ application, presentation, platform, authoring, content
 presentation ───────→ application

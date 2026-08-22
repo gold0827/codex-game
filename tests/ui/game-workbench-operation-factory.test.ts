@@ -43,6 +43,7 @@ describe("game workbench operation assembly", () => {
       frameScheduler: new InertScheduler(),
       operationFactory,
     });
+    expect(workbench).not.toHaveProperty("document");
 
     workbench.session().dispatch({ type: "start-attempt" });
     expect(operationFactory).toHaveBeenCalledTimes(1);

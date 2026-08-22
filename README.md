@@ -9,6 +9,8 @@
 
 [모듈 배선](docs/architecture/dependency-directions.md)
 
+[도메인 용어집](CONTEXT.md)
+
 ## 실행과 검증
 
 ```sh
@@ -51,5 +53,9 @@ npm run test:monte-carlo
 - `src/presentation`, `src/ui`: canonical snapshot projector와 브라우저 표현
 - `src/campaign`, `src/scenarios`: 캠페인 진행 모델과 춘천지구 콘텐츠
 - `src/app`, `src/platform`: production 조립과 브라우저 adapter
+
+`CONTEXT.md`는 코드나 제품 명세가 아니라 프로젝트에서 사용하는 도메인 용어만
+정의합니다. 현재 제품 설명은 이 README, 구현 책임과 의존 규칙은 모듈 배선 문서를
+기준으로 합니다.
 
 남은 작업과 개발 이력은 GitHub Issues·Pull Requests에서 관리합니다.

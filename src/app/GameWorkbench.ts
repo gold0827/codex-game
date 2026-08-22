@@ -47,7 +47,6 @@ export type GameWorkbenchOptions = Readonly<{
 }>;
 
 export type GameWorkbench = Readonly<{
-  document: ReturnType<typeof createCampaignDocument>;
   session: () => GameSession;
   openTool: (name: WorkbenchOverlayName) => void;
   closeTool: (name: WorkbenchOverlayName) => void;
@@ -222,7 +221,6 @@ export function mountGameWorkbench(
   document.addEventListener("keydown", handleKeyDown);
 
   return {
-    document: campaignDocument,
     session: () => gameApp.session,
     openTool,
     closeTool,
