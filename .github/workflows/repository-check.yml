@@ -26,3 +26,5 @@ jobs:
         run: npm ci
       - name: Run repository checks
         run: npm run check:ci
+      - name: Run browser acceptance
+        run: npm run test:browser
