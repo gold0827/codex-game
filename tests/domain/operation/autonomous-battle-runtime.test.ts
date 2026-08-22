@@ -75,6 +75,18 @@ const balancedHarness: AutonomousBattleHarnessPolicies = {
 runAutonomousBattleContract("headless runtime", createAutonomousBattleSimulation, {
   definition: definition(),
   harness: balancedHarness,
+  interventionBudget: 4,
+});
+
+const createRuntime = (
+  suppliedDefinition: AutonomousBattleDefinition,
+  seed: string | number,
+  harness: AutonomousBattleHarnessPolicies = balancedHarness,
+  interventionBudget = 4,
+) => createAutonomousBattleSimulation(suppliedDefinition, {
+  seed,
+  harness,
+  interventionBudget,
 });
 
 const actorTrace = (snapshot: AutonomousBattleSnapshot, actorId: string) => {
@@ -82,15 +94,17 @@ const actorTrace = (snapshot: AutonomousBattleSnapshot, actorId: string) => {
   if (!found) throw new Error(`Missing test actor ${actorId}.`);
   return {
     condition: found.condition,
-    selectedBehaviorId: found.selectedBehaviorId,
-    decisionConfidence: found.decisionConfidence,
+    selectedBehaviorId: found.latestDecision?.action.behaviorId ?? null,
+    decisionConfidence: found.latestDecision?.action.confidence ?? 0,
+    feedbackSource: found.latestDecision?.feedback.source ?? "none",
+    feedbackState: found.latestDecision?.feedback.state ?? "missing",
   };
 };
 
 describe("autonomous battle headless runtime", () => {
   it("is invariant to advance-call segmentation across accumulated fixed steps", () => {
-    const single = createAutonomousBattleSimulation(definition(), "segmentation", balancedHarness);
-    const segmented = createAutonomousBattleSimulation(definition(), "segmentation", balancedHarness);
+    const single = createRuntime(definition(), "segmentation");
+    const segmented = createRuntime(definition(), "segmentation");
 
     single.advance(2_000);
     [125, 250, 375, 500, 750].forEach((deltaMs) => segmented.advance(deltaMs));
@@ -99,15 +113,13 @@ describe("autonomous battle headless runtime", () => {
   });
 
   it("isolates each actor random stream from other authored actor collections", () => {
-    const alone = createAutonomousBattleSimulation(
+    const alone = createRuntime(
       definition([actor("stable-actor")]),
       "actor-stream",
-      balancedHarness,
     );
-    const withPeers = createAutonomousBattleSimulation(
+    const withPeers = createRuntime(
       definition([actor("stable-actor"), actor("new-peer-a"), actor("new-peer-b")]),
       "actor-stream",
-      balancedHarness,
     );
 
     [250, 500, 250].forEach((deltaMs) => {
@@ -122,7 +134,7 @@ describe("autonomous battle headless runtime", () => {
       value: number,
     ) => Array.from({ length: 24 }, (_, seed) => {
       const harness = { ...balancedHarness, [field]: value };
-      const simulation = createAutonomousBattleSimulation(definition(), seed, harness);
+      const simulation = createRuntime(definition(), seed, harness);
       simulation.intervene({
         kind: "issue-guidance",
         guidanceId: "test-guidance",
@@ -138,9 +150,34 @@ describe("autonomous battle headless runtime", () => {
       });
   });
 
+  it("keeps the five stage draw order stable across harness comparisons", () => {
+    const low = createRuntime(definition(), "stable-stage-draws", {
+      informationReach: 0,
+      authorityClarity: 0,
+      verificationDepth: 0,
+      feedbackCompression: 0,
+    });
+    const high = createRuntime(definition(), "stable-stage-draws", {
+      informationReach: 1,
+      authorityClarity: 1,
+      verificationDepth: 1,
+      feedbackCompression: 1,
+    });
+
+    [250, 250, 500, 250].forEach((deltaMs) => {
+      const lowConditions = low.advance(deltaMs).formations.flatMap(({ actors }) =>
+        actors.map(({ id, condition }) => ({ id, condition })),
+      );
+      const highConditions = high.advance(deltaMs).formations.flatMap(({ actors }) =>
+        actors.map(({ id, condition }) => ({ id, condition })),
+      );
+      expect(highConditions).toEqual(lowConditions);
+    });
+  });
+
   it("feeds an actor's prior autonomous action result into its next decision without intervention", () => {
     const traces = (feedbackCompression: number) => Array.from({ length: 32 }, (_, seed) => {
-      const simulation = createAutonomousBattleSimulation(definition(), seed, {
+      const simulation = createRuntime(definition(), seed, {
         informationReach: 1,
         authorityClarity: 1,
         verificationDepth: 1,
@@ -183,7 +220,7 @@ describe("autonomous battle headless runtime", () => {
       variability: { decisionNoise: 1, executionNoise: 1 },
     });
     const snapshots = Array.from({ length: 32 }, (_, seed) => {
-      const simulation = createAutonomousBattleSimulation(definition([steady, volatile]), seed, balancedHarness);
+      const simulation = createRuntime(definition([steady, volatile]), seed);
       return simulation.advance(250);
     });
 
@@ -197,7 +234,7 @@ describe("autonomous battle headless runtime", () => {
 
   it("rejects duplicate global actor identities before creating derived streams", () => {
     const invalid = definition([actor("hostile-1")]);
-    expect(() => createAutonomousBattleSimulation(invalid, "duplicate", balancedHarness))
+    expect(() => createRuntime(invalid, "duplicate"))
       .toThrow(/globally unique/);
   });
 
@@ -212,9 +249,9 @@ describe("autonomous battle headless runtime", () => {
       directOutcomeBonus: 1,
     } as unknown as AutonomousBattleHarnessPolicies;
 
-    expect(() => createAutonomousBattleSimulation(definition(), "missing-harness", missing))
+    expect(() => createRuntime(definition(), "missing-harness", missing))
       .toThrow(/must define exactly/);
-    expect(() => createAutonomousBattleSimulation(definition(), "additional-harness", additional))
+    expect(() => createRuntime(definition(), "additional-harness", additional))
       .toThrow(/must define exactly/);
   });
 });

@@ -229,7 +229,7 @@ export const createMockAutonomousBattle: AutonomousBattleSimulationFactory = (
   });
 
   const decide = (actor: RuntimeActor, intentId: string): void => {
-    const sourceActionTraceId = actor.latestDecision?.id ?? null;
+    const feedbackSource = actor.latestDecision === null ? "none" as const : "prior-action" as const;
     actor.decisionCount += 1;
     const traceId = `trace:${actor.id}:${actor.decisionCount}`;
     const informationConfidence = actor.random.next();
@@ -275,9 +275,9 @@ export const createMockAutonomousBattle: AutonomousBattleSimulationFactory = (
       },
       feedback: {
         atMs: elapsedMs,
-        sourceActionTraceId,
-        state: integrated ? "integrated" : received ? "ignored" : "missing",
-        outcomeId: executed ? "mock-action-effective" : null,
+        source: feedbackSource,
+        state: feedbackSource === "none" ? "missing" : integrated ? "integrated" : "ignored",
+        outcomeId: feedbackSource === "prior-action" && executed ? "mock-action-effective" : null,
         confidence: feedbackConfidence,
       },
     };

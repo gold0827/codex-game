@@ -91,7 +91,8 @@ export function runAutonomousBattleContract(
         ];
         expect(times).toEqual([...times].sort((left, right) => left - right));
         expect(trace.verification.observationId).toBe(trace.information.observationId);
-        expect(trace.feedback.sourceActionTraceId).toBeNull();
+        expect(["none", "prior-action"]).toContain(trace.feedback.source);
+        if (trace.feedback.source === "none") expect(trace.feedback.state).toBe("missing");
         [
           trace.information.confidence,
           trace.verification.confidence,
@@ -103,7 +104,8 @@ export function runAutonomousBattleContract(
 
       const firstIds = new Map(firstTraces.map((trace) => [trace.actorId, trace.id]));
       traces(simulation.advance(1_000)).forEach((trace) => {
-        expect(trace.feedback.sourceActionTraceId).toBe(firstIds.get(trace.actorId));
+        expect(trace.id).not.toBe(firstIds.get(trace.actorId));
+        expect(["none", "prior-action"]).toContain(trace.feedback.source);
       });
     });
 

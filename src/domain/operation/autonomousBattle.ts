@@ -76,7 +76,7 @@ export type AutonomousBattleDecisionTrace = Readonly<{
   }>;
   feedback: Readonly<{
     atMs: number;
-    sourceActionTraceId: string | null;
+    source: "none" | "prior-action";
     state: "integrated" | "missing" | "ignored";
     outcomeId: string | null;
     confidence: number;
